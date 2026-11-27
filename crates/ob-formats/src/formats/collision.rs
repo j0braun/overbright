@@ -80,6 +80,209 @@ pub fn parse_collision_pack(pack: Chunk) -> (Option<u16>, Vec<CollisionFace>) {
     (section, faces)
 }
 
+/// One whole collision pack as the file holds it, field for field, so that
+/// writing it back gives the bytes it was read from ([`CollisionPack::write`]).
+/// [`CollisionFace`] keeps a face's corners as the game uses them, which drops
+/// the base height, the raw heights, the cache slot and the heights of a tall
+/// wall; a pack that is rewritten keeps the 32-byte records instead.
+#[derive(Clone, Debug, PartialEq)]
+pub struct CollisionPack {
+    /// Header +0 (the stream section's number).
+    pub section: u16,
+    /// Header +2.
+    pub pad: u16,
+    /// The grid, in 32 m cells (+4, +6).
+    pub width: u16,
+    pub height: u16,
+    /// The grid's corner (+8, +12).
+    pub origin: [f32; 2],
+    /// Header +16 and +32: x, y, z and the pad word, as stored (bits).
+    pub bounds_min: [u32; 4],
+    pub bounds_max: [u32; 4],
+    /// `0x34134`: the 32-byte face records.
+    pub faces: Vec<[u8; 32]>,
+    /// `0x34136`: {face, sub-cell mask}.
+    pub refs: Vec<(u16, u16)>,
+    /// `0x34137`: {first reference, count}, row-major.
+    pub cells: Vec<(u16, u16)>,
+}
+
+const PACK_REFS: u32 = 0x0003_4136;
+const PACK_CELLS: u32 = 0x0003_4137;
+/// The header body's size.
+const HEADER_LEN: usize = 48;
+
+/// Why a pack is not one [`CollisionPack`] holds exactly.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum PackError {
+    /// The chunk is not made of the four known children, once each, in order.
+    Layout(String),
+    /// A child's size is not a whole number of records.
+    Size(u32),
+}
+
+impl std::fmt::Display for PackError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PackError::Layout(s) => write!(f, "collision pack layout: {s}"),
+            PackError::Size(id) => write!(f, "collision pack child {id:#x} is not a whole number of records"),
+        }
+    }
+}
+
+impl std::error::Error for PackError {}
+
+impl CollisionPack {
+    /// The pack chunk (`COLLISION_PACK`) whole. An error when it holds
+    /// anything but the header, faces, references and cells, in that order
+    /// (a pack that would not be written back the same).
+    pub fn parse(pack: Chunk) -> Result<CollisionPack, PackError> {
+        let kids: Vec<Chunk> = pack.children().collect();
+        let ids: Vec<u32> = kids.iter().map(|c| c.id).collect();
+        if ids != [HEADER, FACES, PACK_REFS, PACK_CELLS] {
+            return Err(PackError::Layout(format!("children {ids:x?}")));
+        }
+        if kids[0].body.len() != HEADER_LEN {
+            return Err(PackError::Layout(format!("header of {} bytes", kids[0].body.len())));
+        }
+        let h = Reader::new(kids[0].body);
+        let word = |at: usize| h.u32_at(at).map_err(|_| PackError::Size(HEADER));
+        let half = |at: usize| h.u16_at(at).map_err(|_| PackError::Size(HEADER));
+        let quad = |at: usize| -> Result<[u32; 4], PackError> {
+            Ok([word(at)?, word(at + 4)?, word(at + 8)?, word(at + 12)?])
+        };
+        let records = |c: &Chunk, n: usize, id: u32| -> Result<Vec<Vec<u8>>, PackError> {
+            if c.body.len() % n != 0 {
+                return Err(PackError::Size(id));
+            }
+            Ok(c.body.chunks_exact(n).map(<[u8]>::to_vec).collect())
+        };
+        let faces = records(&kids[1], 32, FACES)?.into_iter().map(|r| r.try_into().unwrap_or([0; 32])).collect();
+        let pairs = |c: &Chunk, id: u32| -> Result<Vec<(u16, u16)>, PackError> {
+            Ok(records(c, 4, id)?
+                .iter()
+                .map(|b| (u16::from_le_bytes([b[0], b[1]]), u16::from_le_bytes([b[2], b[3]])))
+                .collect())
+        };
+        Ok(CollisionPack {
+            section: half(0)?,
+            pad: half(2)?,
+            width: half(4)?,
+            height: half(6)?,
+            origin: [f32::from_bits(word(8)?), f32::from_bits(word(12)?)],
+            bounds_min: quad(16)?,
+            bounds_max: quad(32)?,
+            faces,
+            refs: pairs(&kids[2], PACK_REFS)?,
+            cells: pairs(&kids[3], PACK_CELLS)?,
+        })
+    }
+
+    /// The pack chunk whole: its 8-byte header and the four children, each
+    /// with its own, back to back. Written at a file offset that is a
+    /// multiple of 16 (every shipped pack is), the header's body and the
+    /// references land on 16-byte boundaries as the game expects.
+    pub fn write(&self) -> Vec<u8> {
+        let mut body = Vec::new();
+        let child = |out: &mut Vec<u8>, id: u32, data: &[u8]| {
+            out.extend_from_slice(&id.to_le_bytes());
+            out.extend_from_slice(&(data.len() as u32).to_le_bytes());
+            out.extend_from_slice(data);
+        };
+        let mut h = Vec::with_capacity(HEADER_LEN);
+        h.extend_from_slice(&self.section.to_le_bytes());
+        h.extend_from_slice(&self.pad.to_le_bytes());
+        h.extend_from_slice(&self.width.to_le_bytes());
+        h.extend_from_slice(&self.height.to_le_bytes());
+        h.extend_from_slice(&self.origin[0].to_bits().to_le_bytes());
+        h.extend_from_slice(&self.origin[1].to_bits().to_le_bytes());
+        for w in self.bounds_min.iter().chain(&self.bounds_max) {
+            h.extend_from_slice(&w.to_le_bytes());
+        }
+        child(&mut body, HEADER, &h);
+        child(&mut body, FACES, &self.faces.concat());
+        let pairs = |v: &[(u16, u16)]| -> Vec<u8> {
+            v.iter().flat_map(|&(a, b)| a.to_le_bytes().into_iter().chain(b.to_le_bytes())).collect()
+        };
+        child(&mut body, PACK_REFS, &pairs(&self.refs));
+        child(&mut body, PACK_CELLS, &pairs(&self.cells));
+        let mut out = Vec::with_capacity(body.len() + 8);
+        child(&mut out, COLLISION_PACK, &body);
+        out
+    }
+}
+
+/// A pack's references and cells after an edit (the one rule for the live
+/// world and for a written pack): the faces in `cut` leave every cell (they
+/// stay in the face list, so no other face's index moves), and each face of
+/// `add` (indices follow the `faces` already there) joins the end of the
+/// cells it names (cell index, sub-cell mask), after the cell's own
+/// references; a floor (no flag 0x02 or 0x08: drawn ground) goes before
+/// them, as the height query stops at a cell's first wall and the original
+/// lists floors first. None (nothing changed) when the pack's face or
+/// reference count would pass the format's u16 limit.
+pub fn edit_cells(
+    cells: &[(u16, u16)],
+    refs: &[(u16, u16)],
+    faces: usize,
+    cut: &std::collections::HashSet<u16>,
+    add: &[(CollisionFace, Vec<(usize, u16)>)],
+) -> Option<(Vec<(u16, u16)>, Vec<(u16, u16)>)> {
+    let added_refs: usize = add.iter().map(|(_, c)| c.len()).sum();
+    if faces + add.len() > u16::MAX as usize + 1 || refs.len() + added_refs > u16::MAX as usize {
+        return None;
+    }
+    let mut per_cell: Vec<Vec<(u16, u16)>> = vec![Vec::new(); cells.len()];
+    let mut floors_of: Vec<Vec<(u16, u16)>> = vec![Vec::new(); cells.len()];
+    for (k, (f, at)) in add.iter().enumerate() {
+        let face = (faces + k) as u16;
+        let to = if f.flags & 0x0A == 0 { &mut floors_of } else { &mut per_cell };
+        for &(c, mask) in at {
+            if let Some(l) = to.get_mut(c) {
+                l.push((face, mask));
+            }
+        }
+    }
+    let mut out_refs = Vec::with_capacity(refs.len() + added_refs);
+    let mut out_cells = Vec::with_capacity(cells.len());
+    for (c, &(first, count)) in cells.iter().enumerate() {
+        let start = out_refs.len();
+        out_refs.extend(floors_of[c].iter().copied());
+        let own = refs.get(first as usize..first as usize + count as usize).unwrap_or(&[]);
+        out_refs.extend(own.iter().filter(|(f, _)| !cut.contains(f)));
+        out_refs.extend(per_cell[c].iter().copied());
+        out_cells.push((start as u16, (out_refs.len() - start) as u16));
+    }
+    Some((out_refs, out_cells))
+}
+
+/// A face's 32-byte record, as the packs store it. The base height is the
+/// whole metre under the lowest corner (the middle one for a face taller
+/// than the i16 heights reach), the way an added face is based; a face
+/// that is read back from a record keeps the record's own (see
+/// [`CollisionPack::faces`]). The cache slot is 0xFFFF as on disk.
+pub fn face_record(f: &CollisionFace) -> [u8; 32] {
+    let n = f.corners.clamp(3, 4);
+    let (zlo, zhi) = f.vertices[..n].iter().fold((f32::MAX, f32::MIN), |(l, h), v| (l.min(v.z), h.max(v.z)));
+    let base = if (zhi - zlo.floor()) * 256.0 <= i16::MAX as f32 { zlo.floor() } else { ((zlo + zhi) * 0.5).floor() };
+    let base = base.clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+    let mut r = [0u8; 32];
+    r[0] = f.group;
+    r[1] = f.bounds;
+    r[2] = f.surface;
+    r[3] = f.flags;
+    r[4..6].copy_from_slice(&base.to_le_bytes());
+    r[6..8].copy_from_slice(&0xFFFFu16.to_le_bytes());
+    for i in 0..4 {
+        let v = f.vertices[if i < n { i } else { n - 1 }];
+        let z = ((v.z - base as f32) * 256.0).round().clamp(i16::MIN as f32, i16::MAX as f32) as i16;
+        r[8 + i * 2..10 + i * 2].copy_from_slice(&f.x[i].to_le_bytes());
+        r[16 + i * 2..18 + i * 2].copy_from_slice(&f.y[i].to_le_bytes());
+        r[24 + i * 2..26 + i * 2].copy_from_slice(&z.to_le_bytes());
+    }
+    r
+}
+
 /// The track's barrier groups (track bundle `0x3412F`, registered by
 /// 0x5E78B0 at 0x88F768 +0x828 count / +0x82C entries): 32-byte entries
 /// {u32 name hash, u32, u8 on, name[23]}, indexed by a face's group byte.

@@ -20,6 +20,7 @@ pub mod game_rng;
 pub mod input;
 pub mod log_file;
 pub mod platform;
+pub mod studio_run;
 pub mod race_mode;
 pub mod prof;
 pub mod region;

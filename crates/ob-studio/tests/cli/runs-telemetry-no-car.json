@@ -1,0 +1,11 @@
+{
+  "command": "runs.telemetry",
+  "error": {
+    "kind": "failed",
+    "message": "run seed1 has no car 9",
+    "reason": "no_car"
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false
+}

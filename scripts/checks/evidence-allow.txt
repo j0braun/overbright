@@ -1,0 +1,2 @@
+# Rows of the evidence-checked tables that carry no tag yet: file<TAB>first 40 characters of the first cell<TAB>reason.
+# The list only shrinks: a line whose row is now tagged (or gone) fails the check. New untagged rows are not allowed.

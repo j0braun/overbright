@@ -1,18 +1,21 @@
 # Overbright Studio
 
 > **Preview.** Studio's window, `overbright-studio`, is the shell the map editor and the later workspaces move
-> into. This version has the shell, Home, the map editor as the World and Races workspaces, the Changes page and the
-> Mod page.
+> into. This version has the shell, Home, the map editor as the World and Races workspaces, the Browser, Runs, the
+> Changes and Data pages and the Mod page.
 > `overbright-editor` ([Map editor](map-editor.md)) still opens the same editor in a window of its own. For starting
 > Studio and what this preview leaves out, see [Getting started with Studio](studio-start.md).
 
 ```
 overbright-studio [--mod <name|folder>] [--maps <dir>]
 overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
-                  [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
+                  [--workspace home|world|races|browser|runs|mod|settings|changes|data] [--input mouse|keyboard|xbox|playstation|deck]
                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning]
                   [--find] [--address] [--select N] [--row N] [--places] [--job WORDS]
                   [--right-tab inspector|history|help] [--new-mod NAME] [--tutorial N] [--race-tutorial N]
+                  [--collision off|invisible|all]
+                  [--search WORDS] [--kind models|textures|sounds|strings]
+                  [--run FILE] [--compare FILE] [--car N] [--at FRAME]
 overbright-studio --version
 ```
 
@@ -24,7 +27,10 @@ typed. `--files` folds the Mod page's Files open, `--warning` shows its "Made fr
 `--tutorial N` shows *Your first mod* at step N (1 to 5; 6 is the last card), `--race-tutorial N` *Make your first
 race* at step N (1 to 6; 7 is the last card). `--row N` focuses the focused
 area's N-th control, `--places` opens the places under ← (after World and Mod), `--job WORDS` shows a running
-job, `--right-tab` picks the right dock's tab. The game folder is
+job, `--right-tab` picks the right dock's tab. `--collision` sets World's collision layer. On Browser, `--search` types
+words into the field, `--kind` picks the chip and `--select N` focuses the N-th result. On Runs, `--run` opens a run
+file of the mod's runs folder, `--compare` compares it with another, `--car` picks the telemetry car and `--at` seeks
+to a frame. The game folder is
 `NFSU2_ROOT`, else the one the launcher kept.
 
 ## The window
@@ -35,7 +41,7 @@ job, `--right-tab` picks the right dock's tab. The game folder is
 | Rail | Home at the top, then the workspaces that make things (MAKE) in the order they shipped, then Mod (SHARE) and Settings at the bottom. With names and Ctrl+number at 850 or more points high, icons only below (the name shows on hover). A workspace never moves and its Ctrl+number is never given to another. |
 | Left panel | The workspace's own (World: the Mod tree). 270 points (230 under 1400 wide), dragged between 180 and 40 % of the width; folds to a 28-point strip under 1400 wide. |
 | Right dock | Inspector, History, Help. 320 points (300 under 1400 wide), 260 to 40 %; under 1180 wide a 28-point strip that opens a 340-point drawer over the view (Esc or B closes it). |
-| Bottom dock | Problems, Log, Jobs, then the workspace's tabs. 20 % of the height (120 to 240); folded to its tab strip under 700 points high. It spans the view's width only. |
+| Bottom dock | Problems, Log, Jobs, then the workspace's tabs. 20 % of the height (120 to 240); folded to its tab strip under 700 points high (Runs: open at any height, 36 % of it, for its graphs). It spans the view's width only. |
 | View | A tool workspace's 3D view, at least 480 × 270: when the docks would squeeze it, the right dock becomes a drawer first, then the left panel folds. On Home, Mod and Settings: the page, on a slab at most 1320 points wide. |
 | Legend row | The keys or buttons that matter in the focused area, right-aligned, as the launcher shows them. Hidden while the mouse is used; it comes back with the first key that moves focus or any pad button. |
 | Status bar | Left: whether the work is saved ("Saved automatically" once the files have every step, "Saving…" for the moment before, "Saving is behind", a disk problem in red) and the last step to undo. Right: what the checks found ("Problems 0 · 1 warning": the map editor's checks in World and Races, else the Mod page's ready list with the map checks; a click shows them), the busy line of a running job (a test in the game, a simulation with its run "2 of 5"; the Jobs tab and Home list them), and whether the mod is on in your game. The counts and the busy line drop first on narrow windows. |
@@ -55,16 +61,32 @@ pink diamond is another mod's that wins in your game.
 
 Both are the map editor ([Map editor](map-editor.md)) on the open mod, the same editor `overbright-editor` shows:
 its toolbar in the toolbar row, the Mod tree in the left panel, the selection's properties in the Inspector, its
-tabs (Prop browser, Validation, Simulate) after Problems, Log and Jobs, the hint line under the view, and the 3D
-view or the map drawn in the window by the game's own renderer. World brings the prop tools forward, Races the race
-tools; the editor's menu items join Studio's menus (Edit, View, Test: New race, Test race, Drive here). Problems
+tabs (Prop browser, Race, Validation, Simulate) after Problems, Log and Jobs, the hint line under the view, and the 3D
+view or the map drawn in the window by the game's own renderer. The two show different parts of it:
+
+- **World** is the props: the left panel lists the Props branch, the toolbar has Select, Move, Rotate, Snap and Drive
+  here (no race tools, Test race or Simulate), the Inspector is the selected prop's, the bottom tabs are Prop
+  browser and Validation, the collision layer can be switched on, and the race route is not drawn.
+- **Races** is the races: the left panel lists the mod's races (with New race), the toolbar adds the race tools
+  (Checkpoint, Start, Finish, Grid), Test race and Simulate, the Inspector is the selected race's or race point's,
+  the bottom tabs are Race (the race as a strip of its stops and legs), Validation and Simulate, the route is drawn over the props, which are dimmed, and the
+  collision layer is off.
+
+In the game a race's barriers (`BARRIERS_<track>`, `PLAYER_BARRIERS_<track>`) are on only during a race on that base
+track, so the collision layer follows the workspace: World draws the permanent walls and free roam's own barriers
+(`BARRIERS_4000`, the career stages'), the races' barriers only with View > Collision > Show race barriers; Races
+draws the selected race's barriers over the permanent walls, dimmed.
+
+Each keeps its own selection, camera, view and layers while the other shows. The editor's menu items join Studio's menus (Edit, View, Test: New race, Test race, Drive here). Problems
 lists the mod's warnings and errors; Log is the editor's log.
 
 The editor's keys work as in its own window (Q W E tools, Ctrl+Z / Ctrl+Y, F5 Test race, Shift+F5 Drive here,
 RMB + WASD to fly). While the view, the tree or the bottom dock has focus, Enter, Esc, Tab and the arrows are the
 editor's; F6 and the pad's triggers still move between areas. The pad's L4 / R4 (Deck) undo and redo, the Menu
 button tests the race. Studio keeps a few keys for itself: Ctrl+D opens Changes (the editor's Duplicate is in Edit
-and the prop menu) and Ctrl+N opens Studio's New mod dialog.
+and the prop menu), Ctrl+G opens Data and Ctrl+N opens Studio's New mod dialog.
+
+**How World's and Races' output is checked.** `studio::world_tests` draws both with the map editor at the six matrix sizes for the mouse, keys and pad (clip and overlap check, the editor's toolbar check, its view inside Studio's), and walks into and out of World by keyboard and pad; Test race runs the race in the game.
 
 ## Home
 
@@ -118,6 +140,8 @@ view and the map, so you can see where race points may go. The last card's **Ope
 race pack. Start it from Home's Start here or Help ▸ Make your first race. While either tutorial runs, F1 does
 its current step.
 
+**How Home's output is checked.** `studio::tests` draws it at the six matrix sizes for the mouse, keys and pad with the clip and overlap check, `studio::inside_tests` tabs round every control, and `studio::guide_tests` walks it by keyboard and pad from Start here to an exported pack.
+
 ## Changes
 
 Ctrl+D (or `ob://<mod id>/@changes`) opens the Changes page over World; Esc goes back to where it was opened. It
@@ -128,7 +152,12 @@ top). Beside each value is the original. A value another mod beats also shows yo
 **Show in Clashes** in place of Reset.
 
 - **This mod** (`@changes`): your game without the mod → with it. *Show* picks **Everything this mod changes**,
-  **Only what loses** or **All values** (every value of the items the mod changes).
+  **Only what loses**, **Only edited** (what differs from the original: an item the mod only restates is left out)
+  or **All values** (every value of the items the mod changes). The inspector's **Touches** line says what the
+  focused item touches: its region and stream section, the neighbouring sections that draw that section (from the
+  city's section lists, when World has them loaded) and whether it **affects play** (props and races do; textures
+  are looks only). **Return to original** gives the whole object back as one history step (a moved prop stands
+  where it did, a hidden one is shown, an added prop or a race is gone); Ctrl+Z takes it back.
 - **History step** (`@changes?step=<n>`): what one step of the mod's history changed, before → after.
 - **Compare versions** (`@changes?version=<name>`): a kept version → now.
 - **Clashes** (`@changes?mode=clashes`): the values another mod gives too, as the stack in your game's order with
@@ -150,6 +179,177 @@ paint with yours under it as not used; the texture is then on Clashes too. *Rese
 mod's texture list, so the game draws its own again (one step; Ctrl+Z brings the paint back, and the pack files
 follow). *Show in History* opens the step that last painted it. `ob://<mod id>/texture/world:0x1A2B3C4D` opens
 Changes on that texture's row. A history step or a version compare lists the textures it painted.
+
+## Browser
+
+Ctrl+4 (MAKE ▸ Browser, `ob://<mod id>/@browser`) searches the game's assets of the region the open mod is edited
+on: its models (the solids the region draws) and its textures, by name across both kinds. Type words of a name (all
+must be in it), a hash (`0x1A2B3C4D`) or `section:1407` (what is placed or seen in that streaming section). The chips
+under the field pick the kind (All, Models, Textures, Sounds, Strings, each with how many the words find) and that kind's filter:
+models by category (the prop browser's), textures by use (In use, Unused, Animated, Large).
+
+Every result says where it is used, worked out once from the loaded region and kept while it stays the same: a
+model, how many placements stand it, in which sections, how many are hidden by a mod, and which textures its
+materials draw; a texture, how many materials in how many models draw it, and in which sections they are seen. A
+name in those lists is a link: it shows that result. The viewer beside the list (under it on a narrow window) shows
+a model's picture, drawn by the prop browser's renderer and kept in the same cache, or the texture's pixels as
+Looks reads them.
+
+Browser only reads. Enter (A) or the button takes a result to where it is worked on: a model to World, selecting
+its first placement (and choosing it in the prop browser, so Ctrl+D places another; a model with no placement says
+so); a texture to its row in Looks on Changes when the mod paints it, else the `looks open` command that starts it.
+Export glTF (Ctrl+E, X on the pad) writes the model as a glTF 2.0 file for an outside 3D program (Blender, any glTF
+viewer): `<name>.gltf`, `<name>.bin` and its textures as PNG, in the mod's `.editor/reference/` folder, which the
+mod's shared copy leaves out. It is a read-only reference: the pictures and shapes are your own game files, so the
+file says `origin = "from-game-files"`, `share = "local-only"` (its `asset.extras` and a `LOCAL-ONLY.txt` beside it)
+and Studio never writes into the game's folder. The game's +Z up is turned to glTF's +Y up by a root node. Bring back
+(Ctrl+I) takes the exported file, edited in your 3D program, back as a mod model: its materials are mapped onto the
+model's parts by name (the names the export gave them), the model keeps the game's texture list, flags and
+markers, and anything that cannot be mapped is refused with the reason in the verdict line (a material that is
+not a part, a part with no triangles, no texture coordinates, over 65,535 vertices, a file for another model).
+The mod model is kept in `.editor/models/` with a record (`<name>.model.toml`): made from your game files, it is
+local-only and a shared copy leaves it out. The file is read by a worker process of its own with a time and
+memory limit, so a file that crashes the reader cannot take Studio down. `browser export` and `browser import`
+do the same from the command line (`--own` there says a model is entirely your own work).
+The model viewer also gives the mesh in numbers: vertices, triangles, whether it is lit, its size in metres (Z up)
+and its parts with their triangles (`browser mesh` prints the same lines). Export area (the button at the top right,
+Ctrl+Shift+E, X on the pad while a chip line has the focus) writes the area of 60 metres around the World camera as
+one glTF reference, `area-<region>.gltf`: each model once as a mesh, each placement a node with its place, shown
+placements only, at most 12,000 of them (a smaller radius is the way out, `browser area --radius`). It is marked and
+kept like a model's export: from the game files, local-only, in `.editor/reference/`, never into the game's folder.
+
+The Sounds chip lists the game's sound banks by event (`FX_TURBO_01`, with its bank, length and rate); Strings lists
+a language file's lines by their hash, with the language chips under the kind chips (English unless another is
+chosen), and finds a line by words, by `0x` hash or by its label. Both are read from the game folder the first time
+the chip is chosen and kept; they are searched by the same field. Enter (A) on a sound plays it on the audio output:
+the output is opened by that first click and never before, and nothing plays by itself. Export WAV (Ctrl+E, X)
+writes the sound as a 16-bit mono WAV into `.editor/reference/`, marked as from the game files like a glTF; only the
+banks' own codec is decoded, the others are listed and say so. `browser sounds`, `browser strings` and `browser wav`
+do the same from the command line, and `browser area` the area export.
+↑ ↓ and Tab move over the chips and results, ← → change a chip (in the results they move in the search field), Esc
+(B) goes back. Cars and regions the mod is not edited on are not indexed yet.
+
+**How the Browser's output is checked.** `studio::browser_tests` draws the models, sounds and strings kinds at the six matrix sizes for the mouse, keys and pad (every part inside its slab, none over the viewer), reads the index against the world, checks that the command line prints the viewer's numbers, and checks that a missing game folder is said instead of listing nothing.
+
+## Runs
+
+Ctrl+5 (MAKE ▸ Runs, `ob://<mod id>/@runs`) is where a mod's recorded runs are read. It is the map editor's own
+view, timeline and cameras (the same playback as the Simulate tab; there is no second player) with the list of the
+mod's run files in the left panel and a Telemetry tab in the bottom dock. Both are open at any window size the view
+leaves room for.
+
+- The list. Every run file in the mod's editor folder (`.editor/runs/*.obrun`, never exported) is a row: its name,
+  the race (or "free roam"), the seed, how it ended and how big it is. A simulation that ends (Simulate in the
+  toolbar) is kept there by itself as `sim-<race>-seed<n>`; a run file put in that folder shows up too. Enter (A)
+  opens the row in the view, paused at the start: scrub, play, step, change the speed and ride with a car as for any
+  run, at any display rate. Under the row the cursor is on: Compare, Rename and Delete (C, F2, Delete). Rename
+  never replaces another run; Delete asks first (Enter deletes, Esc keeps). The pad's D-pad moves over the rows, A
+  opens, X's menu has the rest.
+- Telemetry. For the car chosen (the one followed, else the first racer): its speed over the run's time, and how
+  far it is from the racing line, left of its way positive (the race's start, checkpoints and finish in the open
+  mod; a circuit closes the loop), with a tick for each event of the car and a line at the time shown. A click or a
+  drag on a graph moves the playback. The values are the run file's, frame by frame. A run recorded with the drive
+  channels (Drive to record, below, or `--run-channels drive`) also has the car's gear, throttle, brake and steering
+  input as graphs, and the gear in the readout; a channel the file does not carry is not drawn (an older run has
+  none of them), and the lateral graph says so when the run's race is not in the open mod.
+- Compare. Compare on a second run draws its racers as ghost outlines in the view (and arrows in the Map) on the
+  same race clock, a row of its events under the timeline's track, its graphs in the Telemetry tab, and where it
+  parts from the first: the first state hash that differs (the tick itself when both runs carry the hash of every
+  tick, as a recording does; within the 60 ticks before it otherwise), or its car a metre from the first's at the
+  same time. Compare again on the same row stops it.
+- Drive to record. The button above the list (also Test ▸ Drive to record) starts the game on the race chosen in
+  Races, or from the camera's spot when none is, in its window as Test race does, and the run you drive is kept
+  as a run (`drive-<race>`, `-2`, `-3` when taken). The game writes the run file as you drive (one frame per
+  update, whatever the display rate, with the drive channels and the state hash of every tick), so it can be
+  opened in the list while the game still runs; it ends when the race does, when the game window is closed, or
+  when Studio starts the run over (an edit that reaches the game does that: the recording stops where it was and
+  keeps what it has). Recording reads the game and never changes it: the run is the same with it on or off. A
+  test that is already open stays as it is; close its window first. A command line has no game window, so there
+  is no `runs` command for it (`game … --record <file>` is the game's own flag, docs/modding/asset-format/runs.md).
+
+Runs only reads the files (and keeps, renames or deletes them). Telemetry to a port and a race from a driven line
+are not in it yet.
+
+**How Runs' output is checked.** `studio::runs_tests` draws the page at the six matrix sizes for the mouse, keys and pad, opens and compares runs in the editor's playback, checks the telemetry against the run file and keeps the list honest after a rename or delete; a run recorded in the game is the same with recording on or off (the frame-rate and parity checks).
+
+## The game link
+
+Studio's test game (`game --studio-link <mod folder>/.editor/link`; the protocol and the status words are in the map
+editor's [test window section](map-editor.md#testing-a-race)) takes in everything a mod holds while it runs. The
+rule: an edit goes into the running world in place where the game can do that without changing play; where it cannot,
+the run starts over behind the loading screen and the status bar says why ("Game: reloaded: the race under test
+changed"). Nothing happens without the link: a game started without the flag never looks at the folder.
+
+| What the mod holds | When it changes in a linked run | Status bar |
+|---|---|---|
+| Props (moved, deleted, added) | Applied live: the world's placements are derived again from original and mod; the renderer, the knock-over props and the lamps' emitters follow. An added or removed prop makes the world renderer again (no load). | "Game: applied live" |
+| Collision (removed faces, drawn walls and ground) | Applied live, by the writer a load uses. | "Game: applied live" |
+| Races: a race that is not the run's own, or any race in a free-roam run | Applied live: the other races are not part of the world. | "Game: applied live" |
+| Races: the run's own race (start, route, grid) | Reload: the run starts over with the edited race. | "Game: reloaded: the race under test changed" |
+| Textures (`looks.toml`, `textures/world`, `textures/car`) | Applied live by the pack watcher a Studio test run always has (`--looks-live`): a new, changed or removed file shows within a second, no reload ([limits](pack-hot-reload.md#limits-open)). | none (the pictures change) |
+| The test car and clock (Race ▸ Test car and clock…) | Reload: the car and the world clock are made at the start. | "Game: reloaded: the car or clock changed" |
+| A new aim (Test race, Drive here, F5) | Reload with the new race or spot. | "Game: reloaded: a new start was asked" |
+| Mod name, author, description | Nothing to do: they are not part of play. | "Game: nothing changed in the world" |
+| Packs of the player (texture packs, the HUD mod) | Not part of the mod. With Reload Packs When Changed on they apply live ([Reload Packs When Changed](pack-hot-reload.md)); with it off they are read when the world or the car loads. | none |
+| Car and handling data, sounds, strings | A mod cannot hold them yet, so there is nothing to reload. They come with the engine tables and asset layers ([asset format](asset-format/README.md)); tables never change while a process runs, so they will need a reload. | none |
+
+A change the game cannot take (a file that does not read, a car it does not have) leaves the run as it was and the
+status bar says why.
+
+**Changes made outside Studio.** Studio looks at the mod's files about once a second while the mod is open (a poll, no
+extra process), so a program that writes them is noticed whether Studio has focus or not: another editor writing
+`map.obmap` or `looks.toml`, a paint program saving `textures/world/<HASH>.png`, `git checkout` or a sync. Each file
+that changed becomes one step of the mod's history, "Outside change: map.obmap", which the status bar shows and Undo
+takes back; a change to the same item that Studio has not saved yet keeps the file's version and Undo brings yours
+back. A texture file taken in this way is kept by its content and named in `looks.toml`; one that Studio did not know
+counts as made from the game's pixels (so Studio warns before you share it); a half-written or broken picture is left
+until it changes again, and a removed file removes its entry. The step reaches the running game like any other: the map
+goes over the link, the texture files are seen by the pack watcher. Undo writes the earlier texture back. A mod open in
+another program of Studio is read-only here and follows that program's steps.
+
+**How the link is checked.** `live_apply` (a linked headless run: an edit applied in place is the fresh load of the
+edited mod; the races apply in place or start the run over with the reason; after a start over the run is the fresh
+start's at 30, 60, 120 and 200 fps), `history::tests` and `looks::tests` (each outside file one step, undone alone) and
+the editor's `an_outside_write_is_an_undoable_step` and `an_outside_texture_file_is_an_undoable_step`.
+
+## Data
+
+Ctrl+G (or `ob://<mod id>/@data`) opens the Data page over World; Esc goes back. It shows one kind of record at a
+time as a table: **Props** (the props the mod moves, hides or adds) or **Races**. The columns are the kind's
+schema (`ob_studio::data`: the same fields the file check and the inspector use); the rows are the Changes rows, so
+each cell carries the same mark (ring: the original game's, lime dot: yours, pink diamond: another mod's) and a
+value of yours shows "was" and the original beside it. A mod's value is an overlay on the original's: the table
+holds only what the mod gives.
+
+- **Sort.** Click a header, or ↑ to the header, ← → to a column and Enter (A): up, then down, then off.
+- **Search** narrows the rows to those with the words in any cell.
+- **Edit.** ↑ ↓ ← → (the D-pad) move between cells. Enter (A) edits a cell, Enter keeps it, Esc (B) leaves it. A
+  yes / no cell flips at once. Each edit is one undo step of the mod's history, named as the editor names it
+  ("Laps 4"), and Ctrl+Z takes it back; the same op runs from the editor, the command line and agents. A value the
+  format refuses leaves the mod as it was and says why.
+- **Select.** Shift+↑ ↓ ← → (or Shift and a click) grows the selection from the focused cell, Ctrl+A selects every shown
+  cell, Esc ends it. On the pad, View starts and ends selecting: the D-pad then grows the selection.
+- **Fill.** With several cells selected, Enter (A) edits the focused one and Enter keeps the value in every selected
+  cell, as one undo step ("Fill 4 cells"). A cell that cannot be written (a read-only column, another mod's row)
+  or a value it refuses leaves the whole fill undone and says which cell and why.
+- **Copy and paste.** Ctrl+C puts the selection on the clipboard as tab-separated text. Ctrl+V pastes tab-separated
+  or comma-separated text: one value goes into every selected cell, a block starts at the focused cell and has to fit
+  the table. Every cell is checked by the same rules as a single edit, a block is all or none, and it is one undo
+  step ("Paste 6 cells").
+- **Table file.** Export table (Ctrl+E) writes the shown table as CSV to `.editor/reference/<kind>.csv` in the mod's
+  folder (never the game's folder): a `row` column with each row's key, then the columns by field name. Edit the file
+  in a spreadsheet and Import table (Ctrl+I) brings it back: only the cells that differ become edits, each checked as a
+  single edit is, all as one undo step ("Import table 3 cells"). A file that changes nothing changes nothing. The
+  command line takes any path: `data export --to`, `data import --from`.
+- **Long tables.** Only the rows in view are drawn, so tables of tens of thousands of rows scroll smoothly; the wheel,
+  the arrows and the scroll bar at the right move through them.
+- **In Changes** on the focused row opens that row's entry on the Changes page.
+
+Races can be edited at any time (Name, Race type, Base track, Laps, Backward); a race's checkpoints are shown by
+their count and a prop's Object is shown only: those columns cannot be written here yet. A prop's Position, Heading
+and Hidden are edited while World has the mod open (they need the city loaded); without it the page says so.
+
+**How Data's output is checked.** `studio::data_tests` draws the Props and Races tables at the six matrix sizes for the mouse, keys and pad, and each edit is checked in the mod's file and as one undo step.
 
 ## The Mod page
 
@@ -179,8 +379,15 @@ Ctrl+0 (SHARE ▸ Mod, `ob://<mod id>/@mod`) shows the open mod as you share it:
   yet: see the list" and writes nothing. You are responsible for what you share; Overbright never hosts or
   shares mods.
 
+**File ▸ Export as mod pack…** writes the mod as one `<id>-<version>.obpk` instead: the file the launcher's Mods page
+takes (it holds the placements, races and textures as their own files, with the same provenance). It asks for the
+same yes for textures from the original game's pixels. The command line has `modpack export` (and `modpack convert`
+for an older map mod or texture pack: [Studio command-line tool](studio-cli.md)).
+
 The command-line tool exports the same way: `overbright-studio-cli pack export --mod <dir> --to <file.zip>`
 (`--derived-ok` for textures from the original game's pixels; [Studio command-line tool](studio-cli.md)).
+
+**How the Mod page's output is checked.** `studio::mod_page_tests` draws it at the six matrix sizes for the mouse, keys and pad, keeps a detail as one step, and exports a pack and imports it again as the same mod.
 
 ## Keyboard and pad
 
@@ -207,12 +414,14 @@ letters are the tools' keys and typing here (the launcher keeps Q E, Space and R
 | Y · △ · Y | Ctrl+K | Find: names, commands, places, pasted addresses |
 | LB RB · L1 R1 · L1 R1 | Ctrl+PgUp, Ctrl+PgDn; Ctrl+1 … Ctrl+0; Ctrl+, (Settings) | Workspace |
 | LT RT · L2 R2 · L2 R2 | Shift+F6, F6 | Area |
-| D-pad | Tab, arrows | Move focus; ◀ ▶ change a value |
+| D-pad | Tab, arrows; ← → | Move focus; ◀ ▶ change a value |
 | Menu · Options · Menu | F5 | Test |
-| View · Create · View | Alt+← (Alt+→ forward) | Last place |
+| View · Create · View | Alt+←, Alt+→ | Last place, and forward again |
 | Sticks | Right mouse button + WASD | Move and look in the 3D view |
 | Deck L4 R4 | Ctrl+Z, Ctrl+Y | Undo, redo |
+| – | Ctrl+L, Ctrl+Shift+C | Show the address to edit or paste; copy it |
 | – | Ctrl+D | Changes |
+| – | Ctrl+G | Data |
 | – | Ctrl+N | New mod |
 | – (Home's card) | F1 | The tutorial's step; starts the tutorial |
 
@@ -235,7 +444,7 @@ Back and forward (Alt+← / Alt+→, the mouse's side buttons 4 and 5, the ← �
 last 50 places of the window; a right-click on ← lists them by name, newest first, and goes back to the one taken.
 
 Find (Ctrl+K, the pad's Y) lists Go to (the workspaces), your mods (taking one opens it; Home's Open a mod opens Find on them), Commands with their keys (Test while World or Races is
-open, Last place and Next place when there is one, Address, Copy address, Changes, New mod, Tutorial, Undo, Redo) and the places you were, narrowed by what is typed. ↑ ↓ (the D-pad)
+open, Last place and Next place when there is one, Address, Copy address, Changes, New mod, Tutorial, Undo, Redo), the places you were and, in World and Races, the game's neighbourhoods of the region (Places: Enter flies the view to one; the one under the camera is named in the address bar and the status bar), narrowed by what is typed. ↑ ↓ (the D-pad)
 move in the list; Enter (A) or a click runs the command or goes to the workspace or place; a pasted `ob://` address
 goes straight there. An address Studio cannot follow (a mod you do not have, a screen this version lacks) is
 not followed silently: the window says why.
@@ -249,8 +458,10 @@ keyboard and by pad, and reads addresses back. `studio::inside_tests` tabs round
 1920 × 1080, 1280 × 800 and 1024 × 768, reaches every row of each dock by the arrows and the D-pad, runs a command
 and a place from Find, goes back and forward by the mouse's buttons 4 and 5, drags the docks' edges (the sizes are
 kept with the mod) and reads the busy line and the counts in the status bar. `studio::world_tests` draws World and Races with the map editor at
-the four review sizes (1920 × 1080, 1280 × 800, 1024 × 768, 2560 × 1080) with the same check and the editor's
+the six matrix sizes with the same check and the editor's
 toolbar check, and walks into and out of World by keyboard and pad. `studio::guide_tests` runs both tutorials by
 keyboard and by pad on a stand-in city and makes the templates and the sample from Home; `studio::mod_page_tests`
 keeps a detail as one step, exports a mod with derived textures and imports it again; `studio::changes_tests`
 resets values and textures as single undoable steps and walks the rows by keyboard and pad.
+`studio::docs_tests` reads this page against the code: the Keyboard and pad table is the key table both ways, and
+every key the page names is in Studio's or the map editor's key table. A key added to the code needs a row here.

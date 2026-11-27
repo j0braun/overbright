@@ -21,6 +21,7 @@ use crate::tools::map::session::MapSession;
 use crate::tools::map::{MapMod, store};
 
 use super::draw::{self, Source};
+use super::words;
 
 /// What the page compares.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -38,10 +39,10 @@ pub enum Mode {
 impl Mode {
     pub fn name(&self) -> &'static str {
         match self {
-            Mode::ThisMod => "This mod",
-            Mode::Step(_) => "History step",
-            Mode::Version(_) => "Compare versions",
-            Mode::Clashes => "Clashes",
+            Mode::ThisMod => words::THIS_MOD,
+            Mode::Step(_) => words::HISTORY_STEP,
+            Mode::Version(_) => words::COMPARE_VERSIONS,
+            Mode::Clashes => words::CLASHES,
         }
     }
 
@@ -378,19 +379,19 @@ pub fn field_rank(field: &str) -> usize {
 /// A field's name on a row.
 pub fn field_name(field: &str) -> String {
     match field {
-        "position" => "Position".into(),
-        "heading" => "Heading".into(),
-        "disabled" => "Hidden".into(),
-        "solid" => "Prop".into(),
-        "name" => "Name".into(),
-        "type" => "Race type".into(),
-        "laps" => "Laps".into(),
-        "track" => "Base track".into(),
-        "backward" => "Backward".into(),
-        "checkpoints" => "Checkpoints".into(),
-        "grid" => "Start grid".into(),
-        "race" => "Race".into(),
-        "image" => "Image".into(),
+        "position" => words::POSITION.into(),
+        "heading" => words::HEADING.into(),
+        "disabled" => words::HIDDEN.into(),
+        "solid" => words::PROP.into(),
+        "name" => words::NAME.into(),
+        "type" => words::RACE_TYPE.into(),
+        "laps" => words::LAPS.into(),
+        "track" => words::BASE_TRACK.into(),
+        "backward" => words::BACKWARD.into(),
+        "checkpoints" => words::CHECKPOINTS.into(),
+        "grid" => words::START_GRID.into(),
+        "race" => words::RACE.into(),
+        "image" => words::IMAGE.into(),
         other => {
             let mut c = other.chars();
             c.next().map_or(String::new(), |f| f.to_uppercase().chain(c).collect())
@@ -449,7 +450,7 @@ pub fn item_words(d: &Data, r: &Row) -> (String, String) {
             .and_then(|v| v.game.clone().or(v.yours.clone()))
             .and_then(|v| v.as_str().map(str::to_string))
             .unwrap_or_else(|| r.key.clone());
-        return (name, "Race · added by you".into());
+        return (name, words::RACE_ADDED_BY_YOU.into());
     }
     let parts: Vec<&str> = r.key.split('/').collect();
     let region = parts.first().copied().unwrap_or_default();
@@ -522,6 +523,8 @@ pub struct Page {
     pub last: Drawn,
     /// The textures' thumbnails, loaded once.
     thumbs: Thumbs,
+    /// The city's section lists, for what an item touches (from the region World has loaded).
+    vis: Option<std::sync::Arc<ob_formats::formats::visibility::Visibility>>,
 }
 
 /// Thumbnails by name (`<image hash>` for a painted image, `game:<texture id>` for the game's own): None when
@@ -540,10 +543,16 @@ const THUMB_PX: u32 = 96;
 
 /// `rgba` (w × h) scaled down to at most [`THUMB_PX`] a side (nearest pixel).
 fn thumb_image(w: u32, h: u32, rgba: &[u8]) -> Option<egui::ColorImage> {
+    thumb_image_at(w, h, rgba, THUMB_PX)
+}
+
+/// `rgba` (w × h) scaled down to at most `max` pixels a side (nearest pixel): Looks' thumbnails, and the
+/// Browser's texture pictures.
+pub(super) fn thumb_image_at(w: u32, h: u32, rgba: &[u8], max: u32) -> Option<egui::ColorImage> {
     if w == 0 || h == 0 || rgba.len() < (w * h * 4) as usize {
         return None;
     }
-    let k = (w.max(h) as f32 / THUMB_PX as f32).max(1.0);
+    let k = (w.max(h) as f32 / max as f32).max(1.0);
     let (tw, th) = (((w as f32 / k) as u32).max(1), ((h as f32 / k) as u32).max(1));
     let mut px = Vec::with_capacity((tw * th * 4) as usize);
     for y in 0..th {
@@ -589,6 +598,7 @@ impl Page {
             inspector_open: false,
             last: Drawn::default(),
             thumbs: Thumbs::default(),
+            vis: None,
         }
     }
 
@@ -623,6 +633,23 @@ impl Page {
         self.thumbs.0.values().filter(|t| t.is_some()).count()
     }
 
+    /// How many guides (the outline of a blank-painted texture's original) the page holds (the tests).
+    pub fn guides_loaded(&self) -> usize {
+        self.thumbs.0.iter().filter(|(k, t)| k.starts_with("guide:") && t.is_some()).count()
+    }
+
+    /// The city's section lists (kept once): the neighbours that draw an item's sections.
+    pub fn feed_visibility(&mut self, v: &ob_formats::formats::visibility::Visibility) {
+        if self.vis.is_none() && !v.lists.is_empty() {
+            self.vis = Some(std::sync::Arc::new(v.clone()));
+        }
+    }
+
+    /// What the item `r` touches (its regions and sections, the neighbours that draw them, "affects play").
+    pub fn touches(&self, r: &Row) -> ob_studio::changes::touches::Touches {
+        ob_studio::changes::touches::touches(r, self.vis.as_deref())
+    }
+
     /// The game's own textures the rows name, as thumbnails, from the region World has loaded (each read once).
     pub fn feed_originals(&mut self, ctx: &egui::Context, game: &dyn ob_studio::looks::Textures) {
         let Some(d) = self.data() else { return };
@@ -632,9 +659,17 @@ impl Page {
             let Ok(id) = k.parse::<ob_studio::looks::TextureId>() else { continue };
             // Not in this region: asked again when another region is loaded.
             let Some(o) = game.original(id) else { continue };
-            let t = thumb_image(o.width, o.height, &o.rgba)
-                .map(|i| ctx.load_texture(format!("chg-thumb-game-{k}"), i, egui::TextureOptions::LINEAR));
+            let img = thumb_image(o.width, o.height, &o.rgba);
+            // The guide for a texture painted from blank: the outline of this thumbnail's layout, only ever drawn.
+            let guide = img.as_ref().and_then(|i| {
+                let px: Vec<u8> = i.pixels.iter().flat_map(|c| c.to_srgba_unmultiplied()).collect();
+                let g = ob_studio::looks::guide::outline(i.size[0] as u32, i.size[1] as u32, &px)?;
+                Some(egui::ColorImage::from_rgba_unmultiplied(i.size, &g))
+            });
+            let t = img.map(|i| ctx.load_texture(format!("chg-thumb-game-{k}"), i, egui::TextureOptions::LINEAR));
             self.thumbs.0.insert(format!("game:{k}"), t);
+            let g = guide.map(|i| ctx.load_texture(format!("chg-guide-{k}"), i, egui::TextureOptions::LINEAR));
+            self.thumbs.0.insert(format!("guide:{k}"), g);
         }
     }
 
@@ -769,14 +804,44 @@ impl Page {
     /// this window).
     pub fn reset_with(&mut self, session: Option<&mut MapSession>) {
         let picks = self.reset_picks();
+        self.reset_picks_with(session, picks, None);
+    }
+
+    /// "Return to original" for one object (group `g`): every value of it that is yours goes back in one step,
+    /// so a moved prop is where it was and an added one is gone.
+    pub fn reset_object(&mut self, g: usize, session: Option<&mut MapSession>) {
+        let rows = self.rows();
+        let Some(r) = rows.get(g) else { return };
+        let picks: Vec<(String, String, String)> = r
+            .values
+            .iter()
+            .filter(|v| {
+                let a = self.actions(r, v);
+                a.contains(&Action::Reset) || a.contains(&Action::Remove)
+            })
+            .map(|v| (r.kind.to_string(), r.key.clone(), v.field.clone()))
+            .collect();
+        let label = self.data().map(|d| format!("Returned {} to the original", item_words(d, full(d, r)).0));
+        self.reset_picks_with(session, picks, label);
+    }
+
+    /// The Reset of `picks` as one step named `label` (else named from the picks).
+    fn reset_picks_with(
+        &mut self,
+        session: Option<&mut MapSession>,
+        picks: Vec<(String, String, String)>,
+        label: Option<String>,
+    ) {
         let Some(d) = self.data() else { return };
         let folder = d.folder.clone();
         if picks.is_empty() {
-            self.note = Some("Nothing to reset here: pick a value of yours".into());
+            self.note = Some(words::NOTHING_TO_RESET_HERE_PICK_A.into());
             return;
         }
         let rows = self.rows();
-        let label = if picks.len() == 1 {
+        let label = if let Some(l) = label {
+            l
+        } else if picks.len() == 1 {
             let r = rows.iter().find(|r| r.key == picks[0].1).cloned();
             let item =
                 r.map_or(picks[0].1.clone(), |r| self.data().map_or(r.key.clone(), |d| item_words(d, full(d, &r)).0));
@@ -794,6 +859,57 @@ impl Page {
         });
         self.picked.clear();
         self.load(&folder);
+    }
+
+    /// A cell of the Data page written as one undo step: in `session` when it is the one that writes the mod, else
+    /// (a race; a prop needs World's loaded city) in the mod's own history. The step's name.
+    pub fn edit_cell(
+        &mut self,
+        session: Option<&mut MapSession>,
+        folder: &str,
+        kind: &str,
+        key: &str,
+        field: &str,
+        text: &str,
+    ) -> std::result::Result<String, String> {
+        self.write_cells(session, folder, kind, |s| ob_studio::data::edit(s, folder, kind, key, field, text))
+    }
+
+    /// Several cells written as one undo step named `label`, all or none (the Data grid's fill, paste and import).
+    pub fn edit_cells(
+        &mut self,
+        session: Option<&mut MapSession>,
+        folder: &str,
+        kind: &str,
+        edits: &[ob_studio::data::CellEdit],
+        label: &str,
+    ) -> std::result::Result<String, String> {
+        self.write_cells(session, folder, kind, |s| ob_studio::data::edit_cells(s, folder, kind, edits, label))
+    }
+
+    /// `f` run in the session that writes the mod, or (races only) in the mod's history.
+    fn write_cells(
+        &mut self,
+        session: Option<&mut MapSession>,
+        folder: &str,
+        kind: &str,
+        f: impl FnOnce(&mut MapSession) -> std::result::Result<ob_map::tools::map::ops::Change, String>,
+    ) -> std::result::Result<String, String> {
+        if let Some(s) = writer(session, folder) {
+            return f(s).map(|c| c.label);
+        }
+        if kind != map::RACE {
+            return Err("props are edited with World open: open World first".into());
+        }
+        let h = open_write(&self.maps, folder).map_err(|e| format!("{e:#}"))?;
+        let m = MapMod::parse(h.doc(store::FILE).unwrap_or_default()).map_err(|e| e.to_string())?;
+        let mut s = MapSession::new("L4RA", folder, m, crate::world::World::default());
+        s.keep_in(h);
+        let done = f(&mut s).map(|c| c.label);
+        if let Some(h) = s.history.as_mut() {
+            h.save().map_err(|e| e.to_string())?;
+        }
+        done
     }
 
     /// Ctrl+Z / Ctrl+Y on the page.
@@ -824,8 +940,8 @@ impl Page {
             None => undo(&self.maps, &folder, redo),
         };
         self.note = Some(match done {
-            Ok(Some(l)) => format!("{}: {l}", if redo { "Redone" } else { "Undone" }),
-            Ok(None) => "Nothing to take back".into(),
+            Ok(Some(l)) => format!("{}: {l}", if redo { words::REDONE } else { words::UNDONE }),
+            Ok(None) => words::NOTHING_TO_TAKE_BACK.into(),
             Err(e) => format!("{e:#}"),
         });
         self.load(&folder);
@@ -918,8 +1034,8 @@ pub fn jump(d: &Data, r: &Row, field: Option<&str>) -> Option<String> {
 /// The Show button's word for a row.
 pub fn jump_word(r: &Row) -> &'static str {
     match r.kind {
-        map::RACE => "Show in Races",
-        tex::TEXTURE => "Show in History",
+        map::RACE => words::SHOW_IN_RACES,
+        tex::TEXTURE => words::SHOW_IN_HISTORY,
         _ => super::words::SHOW_IN_WORLD,
     }
 }
@@ -943,7 +1059,7 @@ const NOTE_H: f32 = 22.0;
 const INSPECTOR_FROM_W: f32 = 1100.0;
 const INSPECTOR_W: f32 = 300.0;
 
-fn small_button(text: &str, on: bool) -> egui::Button<'static> {
+pub(super) fn small_button(text: &str, on: bool) -> egui::Button<'static> {
     let t = tokens();
     let b = egui::Button::new(RichText::new(text.to_string()).font(font(LABEL, 14.0)).color(if on {
         rgb(t.lime)
@@ -1020,11 +1136,11 @@ impl Page {
 
         // The title line: back crumb, title, the modes with content.
         let y0 = list.top();
-        p.text(pos2(list.left(), y0 + 14.0), Align2::LEFT_CENTER, "← World", draw::label_font(16.0), rgb(t.dim));
+        p.text(pos2(list.left(), y0 + 14.0), Align2::LEFT_CENTER, words::WORLD, draw::label_font(16.0), rgb(t.dim));
         let after_back = list.left() + 84.0;
-        let kx = draw::glyph(&p, ob_look::legends::Glyph::Key("Esc"), after_back, y0 + 14.0);
+        let kx = draw::glyph(&p, ob_look::legends::Glyph::Key(words::ESC), after_back, y0 + 14.0);
         let title_x = after_back + kx + 16.0;
-        let tg = p.layout_no_wrap("Changes".into(), font(TITLE, 24.0), rgb(t.lime));
+        let tg = p.layout_no_wrap(words::CHANGES.into(), font(TITLE, 24.0), rgb(t.lime));
         let tw = tg.size().x;
         p.galley(pos2(title_x, y0 + 14.0 - tg.size().y / 2.0), tg, rgb(t.lime));
         if ui
@@ -1068,7 +1184,7 @@ impl Page {
         let Some(d) = self.data().cloned() else {
             let line = match &self.data {
                 Some(Err(e)) => e.clone(),
-                _ => "No mod open: open one on Home to see what it changes".into(),
+                _ => words::NO_MOD_OPEN_OPEN_ONE_ON_2.into(),
             };
             p.text(pos2(list.left(), y0 + 60.0), Align2::LEFT_TOP, line, font("body", 15.0), rgb(t.dim));
             return (ask, drawn);
@@ -1108,11 +1224,14 @@ impl Page {
         let rows = self.rows();
         if self.mode == Mode::ThisMod {
             let fl = Rect::from_min_size(pos2(list.left(), top), vec2(list.width(), 26.0));
-            p.text(pos2(fl.left(), fl.center().y), Align2::LEFT_CENTER, "Show", font("body", 14.0), rgb(t.dim));
+            p.text(pos2(fl.left(), fl.center().y), Align2::LEFT_CENTER, words::SHOW, font("body", 14.0), rgb(t.dim));
             let mut bx = fl.left() + 44.0;
-            for (s, word) in
-                [(Show::Mine, "Everything this mod changes"), (Show::Losing, "Only what loses"), (Show::All, "All values")]
-            {
+            for (s, word) in [
+                (Show::Mine, words::EVERYTHING_THIS_MOD_CHANGES),
+                (Show::Losing, words::ONLY_WHAT_LOSES),
+                (Show::Edited, words::ONLY_EDITED),
+                (Show::All, words::ALL_VALUES),
+            ] {
                 let g = p.layout_no_wrap(word.into(), font(LABEL, 14.0), rgb(t.ink));
                 let r = Rect::from_min_size(pos2(bx, fl.top() + 1.0), vec2(g.size().x + 28.0, 24.0));
                 if ui.put(r, small_button(word, self.show == s)).clicked() {
@@ -1314,9 +1433,9 @@ impl Page {
                         let mut bx = line.right() - 4.0;
                         for a in acts.iter().rev() {
                             let word = match a {
-                                Action::Reset => "Reset",
-                                Action::Remove => "Remove",
-                                Action::ShowInClashes => "Show in Clashes",
+                                Action::Reset => words::RESET,
+                                Action::Remove => words::REMOVE,
+                                Action::ShowInClashes => words::SHOW_IN_CLASHES,
                             };
                             let g = p.layout_no_wrap(word.into(), font(LABEL, 14.0), rgb(t.ink));
                             let br = Rect::from_min_size(
@@ -1386,10 +1505,10 @@ impl Page {
         if rows.is_empty() {
             let line = match &self.mode {
                 Mode::ThisMod if self.show == Show::Losing => {
-                    "Nothing of yours loses: every value you give is used in your game"
+                    words::NOTHING_OF_YOURS_LOSES_EVERY_VALUE
                 }
-                Mode::ThisMod => "Nothing changed yet: the original everywhere",
-                _ => "No values differ",
+                Mode::ThisMod => words::NOTHING_CHANGED_YET_THE_ORIGINAL_EVERYWHERE,
+                _ => words::NO_VALUES_DIFFER,
             };
             clip.text(pos2(list.left(), y + 10.0), Align2::LEFT_TOP, line, font("body", 15.0), rgb(t.dim));
         }
@@ -1406,13 +1525,13 @@ impl Page {
                 v
             };
             let ty = y + 6.0;
-            let g = clip.layout_no_wrap("Clashes".into(), font(TITLE, 19.0), rgb(t.lime));
+            let g = clip.layout_no_wrap(words::CLASHES.into(), font(TITLE, 19.0), rgb(t.lime));
             let w = g.size().x;
             clip.galley(pos2(list.left(), ty), g, rgb(t.lime));
             clip.text(
                 pos2(list.left() + w + 6.0, ty + 12.0),
                 Align2::LEFT_CENTER,
-                "· the stack as columns, in your game's order",
+                words::THE_STACK_AS_COLUMNS_IN_YOUR,
                 font("body", 13.0),
                 rgb(t.dim),
             );
@@ -1422,7 +1541,7 @@ impl Page {
             let col_x = |i: usize| if i == 0 { list.left() + 8.0 } else { list.left() + first_w + cw * (i - 1) as f32 };
             let mut ry = ty + 30.0;
             let head_y = ry + 14.0;
-            clip.text(pos2(col_x(0), head_y), Align2::LEFT_CENTER, "Value", font("body", 12.0), rgb(t.dim));
+            clip.text(pos2(col_x(0), head_y), Align2::LEFT_CENTER, words::VALUE, font("body", 12.0), rgb(t.dim));
             draw::source_mark(&clip, pos2(col_x(1) + 4.0, head_y), 8.0, Source::Original);
             clip.text(pos2(col_x(1) + 12.0, head_y), Align2::LEFT_CENTER, "original", font("body", 12.0), rgb(t.dim));
             for (i, id) in packs.iter().enumerate() {
@@ -1439,7 +1558,7 @@ impl Page {
             clip.text(
                 pos2(col_x(cols - 1), head_y),
                 Align2::LEFT_CENTER,
-                "In your game",
+                words::IN_YOUR_GAME,
                 font("body", 12.0),
                 rgb(t.dim),
             );
@@ -1500,7 +1619,7 @@ impl Page {
             None => {
                 let strip = Rect::from_min_max(pos2(inner.right() - 26.0, inner.top()), inner.max);
                 p.rect_filled(strip, 4.0, theme::over(t.panel, t.slab.over(t.page)));
-                let g = p.layout_no_wrap("Inspector".into(), draw::label_font(14.0), rgb(t.ink));
+                let g = p.layout_no_wrap(words::INSPECTOR.into(), draw::label_font(14.0), rgb(t.ink));
                 let pos = Pos2::new(strip.center().x - g.size().y / 2.0, strip.top() + 16.0 + g.size().x);
                 p.add(egui::epaint::TextShape::new(pos, g, rgb(t.ink)).with_angle(-std::f32::consts::FRAC_PI_2));
                 if ui.interact(strip, egui::Id::unique("chg-insp-strip"), egui::Sense::click()).clicked() {
@@ -1533,12 +1652,12 @@ impl Page {
         let body = r.shrink2(vec2(14.0, 6.0));
         let mut clip = p.clone();
         clip.set_clip_rect(r);
-        clip.text(body.left_top(), Align2::LEFT_TOP, "Inspector", draw::label_font(16.0), rgb(t.lime));
+        clip.text(body.left_top(), Align2::LEFT_TOP, words::INSPECTOR, draw::label_font(16.0), rgb(t.lime));
         let Some(&(g, vi)) = self.lines().get(self.focus) else {
             clip.text(
                 body.left_top() + vec2(0.0, 34.0),
                 Align2::LEFT_TOP,
-                "Nothing selected",
+                words::NOTHING_SELECTED,
                 font(TITLE, 19.0),
                 rgb(t.ink),
             );
@@ -1607,6 +1726,18 @@ impl Page {
                 let tr = Rect::from_min_size(pos2(x, y), vec2(side, side));
                 let th = self.thumb(ui.ctx(), d, &row.key, val.as_ref());
                 draw_thumb(&clip, tr, th, src);
+                // A texture painted from blank: the original's layout as a faint guide over the canvas (drawn
+                // here only; the texture file never holds it).
+                if src == Source::Yours && d.textures.get(&row.key).and_then(|t| t.origin) == Some(Origin::Blank) {
+                    if let Some(g) = self.thumbs.get(&format!("guide:{}", row.key)) {
+                        clip.image(
+                            g,
+                            tr.shrink(1.0),
+                            Rect::from_min_max(pos2(0.0, 0.0), pos2(1.0, 1.0)),
+                            Color32::WHITE,
+                        );
+                    }
+                }
                 clip.text(pos2(x, tr.bottom() + 9.0), Align2::LEFT_CENTER, word, font("body", 12.0), rgb(t.dim));
             }
             y += side + 24.0;
@@ -1616,13 +1747,12 @@ impl Page {
                 draw::source_mark(clip, pos2(body.left() + 6.0, *y + 10.0), 9.0, s);
             }
             clip.text(pos2(body.left() + 20.0, *y + 10.0), Align2::LEFT_CENTER, k, font("body", 14.0), rgb(t.dim));
-            let mut vc = clip.clone();
-            vc.set_clip_rect(
-                clip.clip_rect()
-                    .intersect(Rect::from_min_max(pos2(body.left() + 112.0, *y), pos2(body.right(), *y + 22.0))),
-            );
-            vc.text(pos2(body.left() + 112.0, *y + 10.0), Align2::LEFT_CENTER, val, font(SEMI, 14.0), rgb(t.ink));
-            *y += 24.0;
+            // A long value wraps under its label's column instead of running past the dock's edge.
+            let wrap = (body.right() - (body.left() + 112.0)).max(40.0);
+            let g = clip.layout(val, font(SEMI, 14.0), rgb(t.ink), wrap);
+            let h = g.size().y;
+            clip.galley(pos2(body.left() + 112.0, *y + 10.0 - 8.5), g, rgb(t.ink));
+            *y += h.max(17.0).max(14.0) + 7.0;
         };
         let txt = |x: Option<&toml::Value>| x.map_or("-".to_string(), |x| value_text(&v.field, x));
         let orig = if v.original.is_none() && !row.added && !map::original_known(row.kind, &v.field) {
@@ -1634,22 +1764,25 @@ impl Page {
             &clip,
             &mut y,
             Some(Source::Original),
-            "Original",
+            words::ORIGINAL,
             if row.added { "none: you added it".into() } else { orig },
         );
-        line(&clip, &mut y, Some(Source::Yours), "Yours", txt(v.yours.as_ref()));
+        line(&clip, &mut y, Some(Source::Yours), words::YOURS, txt(v.yours.as_ref()));
         if let From::Other(_) = &v.from {
             line(
                 &clip,
                 &mut y,
                 Some(Source::AnotherMod),
-                "In your game",
+                words::IN_YOUR_GAME,
                 format!("{} · {}", txt(v.game.as_ref()), who_text(&v.from, &d.stack)),
             );
         }
+        if row.kind != tex::TEXTURE {
+            line(&clip, &mut y, None, words::TOUCHES, self.touches(row).line());
+        }
         let step = last_step(d, row);
         if let Some(s) = step {
-            line(&clip, &mut y, None, "Changed in", format!("step {} · {}", s.seq, s.label));
+            line(&clip, &mut y, None, words::CHANGED_IN, format!("step {} · {}", s.seq, s.label));
         }
         y += 6.0;
         let acts = self.actions(row, v);
@@ -1662,13 +1795,21 @@ impl Page {
             r.right() <= body.right() && ui.put(r, small_button(word, false)).clicked()
         };
         if (acts.contains(&Action::Reset) || acts.contains(&Action::Remove))
-            && button(if acts.contains(&Action::Remove) { "Remove" } else { "Reset" }, &mut bx)
+            && button(if acts.contains(&Action::Remove) { words::REMOVE } else { words::RESET }, &mut bx)
         {
             self.reset();
             ask = Some(Ask::Moved);
         }
+        if row.edited()
+            && !row.loses()
+            && self.mode == Mode::ThisMod
+            && button(words::RETURN_TO_ORIGINAL, &mut bx)
+        {
+            self.reset_object(g, None);
+            ask = Some(Ask::Moved);
+        }
         if let Some(s) = step
-            && button("Show in History", &mut bx)
+            && button(words::SHOW_IN_HISTORY, &mut bx)
         {
             self.set_mode(Mode::Step(s.seq));
             ask = Some(Ask::Moved);
@@ -1677,7 +1818,7 @@ impl Page {
             ask = Some(Ask::Go(item_address(&d.folder, row, Some(&v.field))));
         }
         y += 36.0;
-        let hint = "Pick several rows (Shift+↓, or A on each with the pad) to reset them in one step.";
+        let hint = words::PICK_SEVERAL_ROWS_SHIFT_OR_A;
         let g = clip.layout(hint.into(), font("body", 13.0), rgb(t.dim), body.width());
         clip.galley(pos2(body.left(), y), g, rgb(t.dim));
         let _ = SEMI;

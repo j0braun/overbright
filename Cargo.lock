@@ -1761,7 +1761,7 @@ dependencies = [
 
 [[package]]
 name = "nfsu2"
-version = "0.6.3"
+version = "0.7.0"
 dependencies = [
  "ab_glyph",
  "anyhow",
@@ -1779,16 +1779,23 @@ dependencies = [
  "mimalloc",
  "miniz_oxide 0.8.9",
  "ob-asset-format",
+ "ob-assets",
+ "ob-audio",
  "ob-core",
  "ob-formats",
  "ob-look",
  "ob-map",
+ "ob-menus",
+ "ob-render",
+ "ob-settings",
+ "ob-sim",
  "ob-testkit",
  "pollster 0.4.0",
  "profiling",
  "proptest",
  "rayon",
  "rfd",
+ "semver",
  "serde",
  "serde_json",
  "sha2",
@@ -1874,7 +1881,7 @@ dependencies = [
 
 [[package]]
 name = "ob-asset-format"
-version = "0.6.3"
+version = "0.7.0"
 dependencies = [
  "memmap2",
  "miniz_oxide 0.8.9",
@@ -1888,8 +1895,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "ob-assets"
+version = "0.7.0"
+dependencies = [
+ "anyhow",
+ "block_compression",
+ "bytemuck",
+ "env_logger",
+ "glam",
+ "image",
+ "libc",
+ "log",
+ "lzma-rs",
+ "memmap2",
+ "miniz_oxide 0.8.9",
+ "ob-asset-format",
+ "ob-core",
+ "ob-formats",
+ "ob-map",
+ "ob-settings",
+ "ob-testkit",
+ "profiling",
+ "rayon",
+ "semver",
+ "serde",
+ "serde_json",
+ "sha2",
+ "toml",
+ "wgpu",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "ob-audio"
+version = "0.7.0"
+dependencies = [
+ "cpal",
+ "glam",
+ "log",
+ "ob-assets",
+ "ob-core",
+ "ob-formats",
+ "ob-sim",
+ "ob-testkit",
+]
+
+[[package]]
 name = "ob-core"
-version = "0.6.3"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "bytemuck",
@@ -1905,7 +1958,7 @@ dependencies = [
 
 [[package]]
 name = "ob-formats"
-version = "0.6.3"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "block_compression",
@@ -1922,11 +1975,11 @@ dependencies = [
 
 [[package]]
 name = "ob-look"
-version = "0.6.3"
+version = "0.7.0"
 
 [[package]]
 name = "ob-map"
-version = "0.6.3"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "glam",
@@ -1941,8 +1994,90 @@ dependencies = [
 ]
 
 [[package]]
+name = "ob-menus"
+version = "0.7.0"
+dependencies = [
+ "anyhow",
+ "glam",
+ "libc",
+ "log",
+ "ob-assets",
+ "ob-audio",
+ "ob-core",
+ "ob-formats",
+ "ob-map",
+ "ob-render",
+ "ob-settings",
+ "ob-sim",
+ "ob-testkit",
+ "wgpu",
+]
+
+[[package]]
+name = "ob-render"
+version = "0.7.0"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "glam",
+ "image",
+ "log",
+ "ob-assets",
+ "ob-core",
+ "ob-formats",
+ "ob-settings",
+ "ob-sim",
+ "ob-testkit",
+ "pollster 0.4.0",
+ "profiling",
+ "rayon",
+ "wgpu",
+ "winit",
+ "xxhash-rust",
+]
+
+[[package]]
+name = "ob-settings"
+version = "0.7.0"
+dependencies = [
+ "env_logger",
+ "glam",
+ "log",
+ "ob-core",
+ "ob-formats",
+ "ob-testkit",
+ "wgpu",
+]
+
+[[package]]
+name = "ob-sim"
+version = "0.7.0"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "env_logger",
+ "gilrs",
+ "glam",
+ "libc",
+ "log",
+ "ob-assets",
+ "ob-core",
+ "ob-formats",
+ "ob-map",
+ "ob-settings",
+ "ob-testkit",
+ "profiling",
+ "rayon",
+ "serde",
+ "serde_json",
+ "wgpu",
+ "windows",
+ "xxhash-rust",
+]
+
+[[package]]
 name = "ob-studio"
-version = "0.6.3"
+version = "0.7.0"
 dependencies = [
  "glam",
  "image",
@@ -1953,6 +2088,7 @@ dependencies = [
  "ob-formats",
  "ob-map",
  "ob-testkit",
+ "semver",
  "serde",
  "serde_json",
  "toml",
@@ -1961,7 +2097,7 @@ dependencies = [
 
 [[package]]
 name = "ob-studio-gui"
-version = "0.6.3"
+version = "0.7.0"
 dependencies = [
  "ab_glyph",
  "anyhow",
@@ -1990,7 +2126,7 @@ dependencies = [
 
 [[package]]
 name = "ob-testkit"
-version = "0.6.3"
+version = "0.7.0"
 
 [[package]]
 name = "objc-sys"

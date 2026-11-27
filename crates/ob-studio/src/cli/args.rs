@@ -57,6 +57,7 @@ pub fn parse(argv: &[String]) -> Result<Line, String> {
     let mut line = Line::default();
     let mut words: Vec<String> = Vec::new();
     let mut flags: Vec<(String, Option<String>)> = Vec::new();
+    let mut positional: Option<String> = None;
     let mut i = 0;
     while i < argv.len() {
         let a = &argv[i];
@@ -88,7 +89,24 @@ pub fn parse(argv: &[String]) -> Result<Line, String> {
         return Ok(line);
     }
     if !words.is_empty() {
-        line.command = Some(command_of_words(&words).ok_or_else(|| format!("unknown command `{}`", words.join(" ")))?);
+        match command_of_words(&words) {
+            Some(c) => line.command = Some(c),
+            None => {
+                // `looks find road`: the words after a command that takes `text` are the text.
+                let taker = (1..words.len()).rev().find_map(|n| {
+                    command_of_words(&words[..n])
+                        .filter(|c| c.args.iter().any(|f| f.key == "text"))
+                        .map(|c| (c, n))
+                });
+                match taker {
+                    Some((c, n)) => {
+                        line.command = Some(c);
+                        positional = Some(words[n..].join(" "));
+                    }
+                    None => return Err(unknown_command(&words)),
+                }
+            }
+        }
     }
     for (name, value) in flags {
         if COMMON.iter().any(|c| c.0 == name) {
@@ -105,6 +123,11 @@ pub fn parse(argv: &[String]) -> Result<Line, String> {
         if line.args.insert(name.clone(), v).is_some() {
             return Err(format!("--{name} given twice"));
         }
+    }
+    if let Some(text) = positional
+        && line.args.insert("text".into(), Value::String(text)).is_some()
+    {
+        return Err("the text is given twice (after the command and as --text)".into());
     }
     if let Some(cmd) = line.command
         && !line.switch("help")
@@ -189,4 +212,15 @@ fn value_of(field: &Field, text: Option<&str>) -> Result<Value, String> {
 
 fn enum_words(field: &Field) -> &'static [&'static str] {
     registry::enum_words(&field.ty).unwrap_or(&[])
+}
+
+/// "unknown command `x y`", with the nearest command when it is a near miss.
+pub(super) fn unknown_command(words: &[String]) -> String {
+    let given = words.join(" ");
+    let all: Vec<String> = registry::COMMANDS.iter().map(|c| c.name.replace('.', " ")).collect();
+    let mut m = format!("unknown command `{given}`");
+    if let Some(near) = crate::browse::did_you_mean(&given, all.iter().map(String::as_str)) {
+        m.push_str(&format!(". Did you mean `{near}`?"));
+    }
+    m
 }

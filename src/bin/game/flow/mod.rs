@@ -2,6 +2,7 @@ pub(crate) mod endings_ahead;
 pub(crate) mod movies;
 pub(crate) mod race_end;
 pub(crate) mod explore;
+pub(crate) mod live_apply;
 pub(crate) mod race_end_impl;
 pub(crate) mod race_setup;
 pub(crate) mod replay;

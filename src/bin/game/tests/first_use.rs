@@ -964,6 +964,17 @@ fn a_lost_race_ending_takes_the_companion_built_ahead() {
         let (mut states, mut offered) = (Vec::new(), None);
         for _ in 0..60 * 10 {
             game.step_for(1.0 / 60.0).unwrap();
+            // The build runs on a thread in real time while the steps run
+            // faster than that: wait for its readiness (as the 3 s of the
+            // hold give it in play) so the ending finds it done, however
+            // loaded the machine is.
+            if let Some(a) = &game.loads.companion_ahead {
+                let start = std::time::Instant::now();
+                while !a.job.is_finished() {
+                    assert!(start.elapsed().as_secs() < 300, "the companion's build finished");
+                    std::thread::sleep(std::time::Duration::from_millis(2));
+                }
+            }
             let companion = game.scenes.shop.as_ref().and_then(|s| s.companion.as_ref()).map(|c| c.id.key());
             if let Some(id) = companion {
                 offered.get_or_insert(game.render.cars_ahead.has_ready(id));

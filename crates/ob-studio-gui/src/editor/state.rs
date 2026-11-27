@@ -25,12 +25,54 @@ pub enum Mode {
     Races,
 }
 
-/// What the centre shows (M switches).
+/// Which part of the mod the editor is brought forward for. `Both` is the editor's own window; Studio's World
+/// workspace is `World` (the props: their tree, tools and layer; race layers hidden) and Races is `Races` (the
+/// race list, race tools and route layer; the props layer dimmed).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
-pub enum View {
+pub enum Focus {
     #[default]
-    ThreeD,
-    Map,
+    Both,
+    World,
+    Races,
+}
+
+/// How every tool that places or moves snaps (one mode for all of them, cycled with `K`): **To surface**
+/// (steps, and a prop lands on the ground there; race and collision points snap), **Keep height** (steps, the
+/// height stays; the default and what Snap always did), **Free** (nothing snaps).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum SnapMode {
+    Surface,
+    #[default]
+    KeepHeight,
+    Free,
+}
+
+impl SnapMode {
+    pub const ALL: [SnapMode; 3] = [SnapMode::Surface, SnapMode::KeepHeight, SnapMode::Free];
+
+    /// The next mode in the cycle.
+    pub fn next(self) -> SnapMode {
+        match self {
+            SnapMode::Surface => SnapMode::KeepHeight,
+            SnapMode::KeepHeight => SnapMode::Free,
+            SnapMode::Free => SnapMode::Surface,
+        }
+    }
+
+    /// The mode's name (the menu, the toolbar and the hint line).
+    pub fn label(self) -> &'static str {
+        use crate::studio::words;
+        match self {
+            SnapMode::Surface => words::SNAP_TO_SURFACE,
+            SnapMode::KeepHeight => words::SNAP_KEEP_HEIGHT,
+            SnapMode::Free => words::SNAP_FREE,
+        }
+    }
+
+    /// Whether points snap at all.
+    pub fn snaps(self) -> bool {
+        self != SnapMode::Free
+    }
 }
 
 pub use crate::tools::map::ops::RacePoint;
@@ -51,12 +93,36 @@ pub struct EditorState {
     pub selection: Vec<usize>,
     /// The race being edited (index into `session.map.races`).
     pub race: Option<usize>,
+    /// What a test run starts with besides the place: the car and the
+    /// world clock (time of day and weather); empty: the game's own.
+    pub run_focus: crate::tools::map::link::Focus,
+    /// Props left out of the test layer for the one run that is open or starting (Race ▸ Test without selected
+    /// props): nothing is saved, and the list is cleared when the run ends.
+    pub left_out: Vec<crate::tools::map::ops::PropKey>,
     pub point: Option<RacePoint>,
     pub camera: Camera,
     pub mode: Mode,
-    pub view: View,
+    /// Which workspace the editor is shown for (Studio sets it; the editor's own window shows both).
+    pub focus: Focus,
+    /// The road network over the top view (View ▸ Roads).
+    pub roads: bool,
+    /// The road View ▸ Show nearest road found (drawn with the roads).
+    pub nearest_road: Option<super::roads::NearestRoad>,
     /// The collision layer over the view (View ▸ Collision).
     pub collision: super::collision::Show,
+    /// What colours the collision layer (View ▸ Collision ▸ By kind / By surface).
+    pub collision_colour: super::collision::Colour,
+    /// What the layer shows and how it is drawn besides that (kinds switched off, opacity, wireframe, full-height
+    /// walls): view state, never in the mod.
+    pub collision_look: super::collision::Look,
+    /// World: the collision layer also draws the races' barriers (off: permanent walls and free roam's own).
+    pub race_barriers: bool,
+    /// What the view leaves out (H, Shift+H, this mod's changes only): view state, never in the mod.
+    pub filter: super::views::ViewFilter,
+    /// Where the camera goes next (a preset, Go to, a saved view); the viewport takes it.
+    pub goal: Option<super::views::Goal>,
+    /// The mod's saved views (`.editor/editor.toml`).
+    pub views: Vec<super::views::SavedView>,
     /// The wall or drawn ground selected in the collision layer.
     pub wall: Option<super::collision::Picked>,
     /// The drawing tool armed (Edit ▸ Draw wall / Draw ground), and what it
@@ -68,6 +134,8 @@ pub struct EditorState {
     pub replay: super::sim::cars::Replay,
     /// The status bar's last message.
     pub status: String,
+    /// The snap mode every placing and moving tool follows.
+    pub snap_mode: SnapMode,
     /// Road networks by base track, read on first use through `assets`
     /// (None: unreadable).
     pub nets: HashMap<u16, Option<RoadNet>>,
@@ -82,6 +150,17 @@ pub trait Panel {
 }
 
 impl EditorState {
+    /// The region's named neighbourhoods (the game's world map; empty where it names none).
+    pub fn places(&self) -> Vec<crate::tools::map::assets::Place> {
+        self.assets.places(&self.session.region)
+    }
+
+    /// The neighbourhood under the camera.
+    pub fn place_name(&self) -> Option<String> {
+        let at = self.camera.position.truncate();
+        crate::tools::map::assets::place_at(&self.places(), at).map(|p| p.name.clone())
+    }
+
     /// A state for `map` on `world`, a region as loaded without map mods
     /// (`World::load`); `map` is applied to it here. The undo history
     /// starts at `map`.
@@ -102,11 +181,22 @@ impl EditorState {
             session: MapSession::new(region, folder, map, world),
             selection: Vec::new(),
             race,
+            run_focus: Default::default(),
+            left_out: Vec::new(),
             point: None,
             camera,
             mode: Mode::Props,
-            view: View::ThreeD,
+            snap_mode: SnapMode::default(),
+            focus: Focus::Both,
+            roads: true,
+            nearest_road: None,
             collision: super::collision::Show::Off,
+            collision_colour: super::collision::Colour::Kind,
+            collision_look: super::collision::Look::default(),
+            race_barriers: false,
+            filter: Default::default(),
+            goal: None,
+            views: Vec::new(),
             wall: None,
             draw: None,
             draw_settings: Default::default(),

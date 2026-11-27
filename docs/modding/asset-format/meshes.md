@@ -53,7 +53,7 @@ animation ([animation.md](animation.md)); the in-engine scenes that place skinne
 ([animation.md](animation.md) §3.6). Solids do not link their levels of detail: the LODs are separate solids that
 scenery infos (three hashes) and car parts (`_A`…`_D` name suffixes) name.
 
-The opt-in **model fixes** (`src/render/enh/assets/car_model/fixes.rs`) are not part of the base set; §4.4 says how
+The opt-in **model fixes** (`crates/ob-render/src/render/enh/assets/car_model/fixes.rs`) are not part of the base set; §4.4 says how
 they become an opt-in pack.
 
 ## 2. Files and keys
@@ -113,7 +113,7 @@ compression. Authoring tools may hand `.glb` to `overbright-studio-cli mesh impo
   more than one list, 713 of them with different bytes; measured), so the item key includes the list. A hash never
   repeats inside one list (measured: 0 of 2,937 lists).
 - **Scoped references** are what other kinds store (scenery infos, car parts, scene characters, world-animation
-  entities): `bin_hash(NAME)` or the hash, resolved like the original, by the referencing kind's scope and order:
+  entities): `bin_hash(NAME)` or the hash, resolved like the original (choice: format rule; the original's layout is in docs/formats/), by the referencing kind's scope and order:
   the world keeps the first solid of a hash in stream-section load order (`src/world/parse.rs:483-489`); a car takes its
   own geometry, then shared part solids it does not have (`src/car/assets.rs:216-229`); a scene its own lists. The
   referencing kind's page states its scope; this page states only that the order of lists and of solids in a
@@ -564,7 +564,7 @@ original ([parity.md](parity.md) §1).
 
 ### 4.4 The model fixes as an opt-in pack
 
-The fixes (`src/render/enh/assets/car_model/fixes.rs`) are corrections of the shipped car models, applied today in
+The fixes (`crates/ob-render/src/render/enh/assets/car_model/fixes.rs`) are corrections of the shipped car models, applied today in
 code when the Enhancements row is on (off = untouched files). In the format they become a pack Overbright ships
 and the launcher offers as an opt-in (`origin = "own-work"`: the pack holds only patch data, no original bytes;
 [manifest.md](manifest.md)):
@@ -585,7 +585,7 @@ Packs never hold raw tool output: `overbright-studio-cli mesh import <file.gltf|
 normalises a glTF 2.0 file from any tool into the profile of §3.1:
 
 - input: triangle primitives (`mode` 4) with `POSITION`, `TEXCOORD_0`; optional `NORMAL`, `COLOR_0`
-  (converted to `_COLOR_BGRA` by quantising the stored 0–1 values to bytes, no transfer function, as the original's
+  (converted to `_COLOR_BGRA` by quantising the stored 0–1 values to bytes, no transfer function, as the original (choice: format rule; the original's layout is in docs/formats/)'s
   colour is used as stored); node transforms are applied to the vertices; +Y up is turned back to +Z up;
 - output layout: `world24` for world and global units, `lit36` for car units (`NORMAL` required), never
   `skinned60` until characters can be added;

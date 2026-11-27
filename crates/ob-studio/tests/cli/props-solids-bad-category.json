@@ -1,0 +1,11 @@
+{
+  "command": "props.solids",
+  "error": {
+    "kind": "usage",
+    "message": "--category: no category `barier`: use knock-over, barriers, signs, street, trees, all. Did you mean `barriers`?",
+    "reason": "bad_category"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

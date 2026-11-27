@@ -2,7 +2,7 @@
 
 Not native: clone tooling (first-run QoL family). Code: `crates/ob-core/src/fingerprint.rs`,
 hooks in `src/bin/game.rs` (`--check-game`, the window start) and
-`src/qol/` (`crash::report`).
+`crates/ob-settings/src/qol/` (`crash::report`).
 
 The clone reads GLOBAL/GlobalB.lzc's car, upgrade and career rows and the
 other data files; a modded GlobalB.lzc can look and play differently, so
@@ -49,7 +49,7 @@ says exactly which file plays.
   edition has no suffix at all, plus a `movies.tag`), the text language's
   `<name>_<xx>.vp6`, `<name>_en.vp6`, then any one `<name>_<xx>.vp6`
   (docs/playing/native-deviations.md, "Movie files"). A movie with none of these
-  is skipped as in the original; the game logs `movie <name>: no file
+  is skipped, as in the original (traced: docs/formats/movies-replays.md, IG_PlayMovie and the movie lookup); the game logs `movie <name>: no file
   (tried …)`.
 * Edition from the files: the MOVIES layout (US: no suffix; European
   multi-language: several suffixes; single-language: one; mixed; no

@@ -5,7 +5,7 @@ The settings rework, second half: one streamlined page for every clone setting, 
 Enhancements entry of the Display options (agreed deviation "Enhancements page"; the settings rework plan). The original's own screens (Audio / Display / Gameplay / Player, Customize Display, the pause's) are
 unchanged: same rows, values, look and flow. Defaults stay native; options.txt keeps every key.
 
-* Code: `src/frontend/settings_page.rs` (rows, presets, 60 fps pick, detail lines, reset, strings),
+* Code: `crates/ob-menus/src/frontend/settings_page.rs` (rows, presets, 60 fps pick, detail lines, reset, strings),
   `options.rs` (`Category::Settings`, the `Ux*` row ids and labels, `OptionsScreen::key` / `quads`, 7 rows + a
   4-line detail on the page), `qol.rs` (`Preset::Extreme`, the page's preset names, `COMPARE`), `game.rs`
   (navigation, shots `settings_<group>`).
@@ -68,7 +68,7 @@ HDR Output and Motion Blur stay (an output choice and the original's own setting
 Original; Enhanced lists 9 graphics rows and scrolls (the UI_Options package has room for 7 rows plus the 4-line
 detail).
 
-**The levels** are data (`src/qol/levels.rs`), the same on every GPU class. A level sets every value the presets
+**The levels** are data (`crates/ob-settings/src/qol/levels.rs`), the same on every GPU class. A level sets every value the presets
 reset except the main page's choices (Upscaling and Render Scale; Anti-Aliasing with MSAA / filter / sharpening;
 Motion Blur; Rain on the Lens; the two ray-traced tiers), which stay and are not compared:
 

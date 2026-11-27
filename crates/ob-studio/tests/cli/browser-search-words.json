@@ -1,0 +1,28 @@
+{
+  "command": "browser.search",
+  "count": 1,
+  "exit": 0,
+  "format": 1,
+  "found": {
+    "models": 1,
+    "textures": 0
+  },
+  "hits": [
+    {
+      "hash": "0x00000000",
+      "knock_over": false,
+      "name": "XC_CONE_01",
+      "placed": 2,
+      "sections": 1,
+      "shown": 2,
+      "textures": 1,
+      "triangles": 2,
+      "type": "model",
+      "used": "2 placed in 1 section"
+    }
+  ],
+  "language": null,
+  "ok": true,
+  "region": "L4RA",
+  "text": "cone"
+}

@@ -1,0 +1,22 @@
+{
+  "command": "browser.strings",
+  "count": 1,
+  "exit": 0,
+  "format": 1,
+  "found": {
+    "models": 0,
+    "textures": 0
+  },
+  "hits": [
+    {
+      "hash": "0x00000020",
+      "language": "English",
+      "text": "Race Again",
+      "type": "string"
+    }
+  ],
+  "language": "English",
+  "ok": true,
+  "region": "L4RA",
+  "text": "race"
+}

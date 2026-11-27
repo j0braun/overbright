@@ -50,7 +50,7 @@ here beside the movies they belong to.
   resolves it to a file exactly as `movie::path` does (`src/movie.rs:277-312`): first the name the executable
   builds (`<name>.vp6` for the eight plain names, else `<name>_fr.vp6`), then the installed language's file
   (`<name>_en.vp6`; `THX_logo.vp6` for `THX_logo_fr`), compared without case; with neither, the screen ends at
-  once, as the original's does for a missing file. Readers apply the same rule to the `movie` keys of the merged
+  once, as the original (choice: format rule; the original's layout is in docs/formats/)'s does for a missing file. Readers apply the same rule to the `movie` keys of the merged
   stack. The second step is a documented deviation of the clone (docs/playing/native-deviations.md "Movie files"); the
   format does not change it.
 - **Language and region variants** are separate items with their original stems: the reference install has

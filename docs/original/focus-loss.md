@@ -47,7 +47,7 @@ The row **In the background** (`enh.background`):
 
 | Value | What it does |
 |---|---|
-| **Native** (Pause), the default | As the original. While the window is not the focused one or is hidden (minimised or covered: winit's `Focused` / `Occluded`), no frame is drawn and no tick runs: the event loop sleeps until the next window event (`ControlFlow::Wait`). Going in, every sound is held (`Mixer::hold_all`: silence out, nothing moves on) and the held keys are let go at once. Coming back, the time away is dropped (the frame clock starts from that moment) and the sound goes on from where it stood. An uncovered paused window is drawn again as it stood when asked (no time passes). |
+| **Native** (Pause), the default | As the original (observed: docs/evidence/focus-loss/, the Observed table above). While the window is not the focused one or is hidden (minimised or covered: winit's `Focused` / `Occluded`), no frame is drawn and no tick runs: the event loop sleeps until the next window event (`ControlFlow::Wait`). Going in, every sound is held (`Mixer::hold_all`: silence out, nothing moves on) and the held keys are let go at once. Coming back, the time away is dropped (the frame clock starts from that moment) and the sound goes on from where it stood. An uncovered paused window is drawn again as it stood when asked (no time passes). |
 | **Keep running** | The sim, the sound and the drawing go on. |
 | **Draw less** | As Keep running, the drawing held to 30 fps (`extras::BACKGROUND_FPS`). It never goes lower: a drawn frame steps at most 3 race / 2 scene ticks, so under 20 / 30 fps time would be dropped. |
 

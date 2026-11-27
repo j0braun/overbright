@@ -1,0 +1,15 @@
+{
+  "command": "browser.search",
+  "count": 0,
+  "exit": 0,
+  "format": 1,
+  "found": {
+    "models": 3,
+    "textures": 1
+  },
+  "hits": [],
+  "language": null,
+  "ok": true,
+  "region": "L4RA",
+  "text": ""
+}

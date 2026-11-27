@@ -203,6 +203,35 @@ fn dir(d: Dir) -> (f32, f32) {
     }
 }
 
+/// `text` shortened with "…" so it is at most `width` points wide in `font`: the end is cut, or with `middle` the
+/// middle (a path keeps its start and its file name). The text itself when it fits.
+pub fn elide(p: &Painter, text: &str, font: FontId, width: f32, middle: bool) -> String {
+    let wide = |s: &str| p.layout_no_wrap(s.to_string(), font.clone(), Color32::WHITE).size().x;
+    if wide(text) <= width {
+        return text.to_string();
+    }
+    let ch: Vec<char> = text.chars().collect();
+    let make = |keep: usize| -> String {
+        if middle {
+            let tail = keep / 2;
+            let head = keep - tail;
+            format!("{}…{}", ch[..head].iter().collect::<String>(), ch[ch.len() - tail..].iter().collect::<String>())
+        } else {
+            format!("{}…", ch[..keep].iter().collect::<String>())
+        }
+    };
+    let (mut lo, mut hi) = (0usize, ch.len());
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        if wide(&make(mid)) <= width {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    make(lo)
+}
+
 /// A key cap with its text (the address bar's "Ctrl+L", the Find field's "Ctrl+K"), right edge at `right`.
 pub fn key_cap_right(p: &Painter, text: &'static str, right: f32, cy: f32) -> f32 {
     let w = glyph_width(p, Glyph::Key(text));
@@ -229,7 +258,7 @@ pub fn rail_icon(p: &Painter, w: Workspace, c: Pos2, col: Color32) {
                 s,
             ));
         }
-        Workspace::World | Workspace::Changes => {
+        Workspace::World => {
             p.circle_stroke(c, 9.0, s);
             p.line_segment([c + vec2(-9.0, 0.0), c + vec2(9.0, 0.0)], s);
             let pts = |k: f32| -> Vec<Pos2> {
@@ -240,6 +269,30 @@ pub fn rail_icon(p: &Painter, w: Workspace, c: Pos2, col: Color32) {
             };
             p.add(Shape::line(pts(1.0), s));
             p.add(Shape::line(pts(-1.0), s));
+        }
+        Workspace::Changes => {
+            // A page with a plus over a minus: what you added and what you took out.
+            p.add(Shape::closed_line(
+                vec![c + vec2(-7.0, -9.0), c + vec2(7.0, -9.0), c + vec2(7.0, 9.0), c + vec2(-7.0, 9.0)],
+                s,
+            ));
+            p.line_segment([c + vec2(-3.5, -4.0), c + vec2(3.5, -4.0)], s);
+            p.line_segment([c + vec2(0.0, -7.5), c + vec2(0.0, -0.5)], s);
+            p.line_segment([c + vec2(-3.5, 5.0), c + vec2(3.5, 5.0)], s);
+        }
+        Workspace::Data => {
+            // A stack of values: the database drum.
+            let arc = |y: f32, from: f32, to: f32| -> Vec<Pos2> {
+                (0..=12)
+                    .map(|i| from + i as f32 / 12.0 * (to - from))
+                    .map(|a| c + vec2(a.cos() * 8.0, y + a.sin() * 3.0))
+                    .collect()
+            };
+            p.add(Shape::closed_line(arc(-6.0, 0.0, TAU)[..12].to_vec(), s));
+            p.add(Shape::line(arc(0.0, 0.0, PI), s));
+            p.add(Shape::line(arc(6.0, 0.0, PI), s));
+            p.line_segment([c + vec2(-8.0, -6.0), c + vec2(-8.0, 6.0)], s);
+            p.line_segment([c + vec2(8.0, -6.0), c + vec2(8.0, 6.0)], s);
         }
         Workspace::Races => {
             p.line_segment([c + vec2(-6.0, -9.0), c + vec2(-6.0, 9.0)], s);
@@ -253,6 +306,16 @@ pub fn rail_icon(p: &Painter, w: Workspace, c: Pos2, col: Color32) {
                 ],
                 s,
             ));
+        }
+        Workspace::Browser => {
+            // A magnifier.
+            p.circle_stroke(c + vec2(-2.0, -2.0), 6.0, s);
+            p.line_segment([c + vec2(2.5, 2.5), c + vec2(8.0, 8.0)], s);
+        }
+        Workspace::Runs => {
+            // A play triangle over a track line.
+            p.add(Shape::closed_line(vec![c + vec2(-5.0, -8.0), c + vec2(6.0, -2.5), c + vec2(-5.0, 3.0)], s));
+            p.line_segment([c + vec2(-8.0, 8.0), c + vec2(8.0, 8.0)], s);
         }
         Workspace::Mod => {
             let top = [c + vec2(0.0, -9.0), c + vec2(8.0, -4.5), c + vec2(0.0, 0.0), c + vec2(-8.0, -4.5)];
@@ -298,6 +361,57 @@ pub fn pill(text: &str) -> egui::Button<'static> {
         .stroke(Stroke::new(1.5, rgb(t.outline)))
         .corner_radius(CornerRadius::same(18))
         .min_size(vec2(0.0, 36.0))
+}
+
+/// A summary row's height (Home's rows under the verdict card).
+pub const SUMMARY_ROW_H: f32 = 38.0;
+
+/// The head every row of a list of facts starts with: a lamp, then the name in the dim body face, the row's
+/// vertical centre `r.center().y`. The one place the launcher's Game-check rows are built (Home, the Mod page).
+pub fn row_head(p: &Painter, r: Rect, mark: Mark, name: &str, name_size: f32, time: f32) {
+    let t = tokens();
+    lamp(p, pos2(r.left() + 14.0, r.center().y), 11.0, mark, time);
+    p.text(pos2(r.left() + 32.0, r.center().y), Align2::LEFT_CENTER, name, font("body", name_size), rgb(t.dim));
+}
+
+/// One summary row: lamp, name and value.
+pub struct SummaryRow<'a> {
+    pub mark: Mark,
+    pub name: &'a str,
+    pub value: String,
+}
+
+impl<'a> SummaryRow<'a> {
+    pub fn new(mark: Mark, name: &'a str, value: impl Into<String>) -> Self {
+        SummaryRow { mark, name, value: value.into() }
+    }
+
+    /// The busy line (the launcher's Game check): the turning lamp and what runs now.
+    pub fn busy(name: &'a str, what: impl Into<String>) -> Self {
+        SummaryRow::new(Mark::Busy, name, what)
+    }
+}
+
+/// The summary rows from `y` down in `area`'s width, the values at `label_w`, each with a rule under it; the `y`
+/// below the last.
+pub fn summary_rows(p: &Painter, area: Rect, mut y: f32, rows: &[SummaryRow], label_w: f32, time: f32) -> f32 {
+    let t = tokens();
+    for r in rows {
+        let row = Rect::from_min_size(pos2(area.left(), y), vec2(area.width(), SUMMARY_ROW_H));
+        row_head(p, row, r.mark, r.name, 16.0, time);
+        let mut clip = p.clone();
+        clip.set_clip_rect(Rect::from_min_max(pos2(row.left() + label_w, row.top()), row.max));
+        clip.text(
+            pos2(row.left() + label_w, row.center().y),
+            Align2::LEFT_CENTER,
+            &r.value,
+            font("body", 16.0),
+            rgb(t.ink),
+        );
+        p.line_segment([row.left_bottom(), row.right_bottom()], Stroke::new(1.0, rule()));
+        y += SUMMARY_ROW_H;
+    }
+    y
 }
 
 /// What a verdict card shows (Home's card, the tutorial's card): its lamp, a small line over the title, the title,
@@ -368,4 +482,69 @@ pub fn card(
         })
         .inner;
     (card, a, b)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A long text is cut with "…" to fit its column (the end, or the middle for a path), a short one is left alone.
+    #[test]
+    fn elide_fits_the_width() {
+        let ctx = egui::Context::default();
+        crate::editor::theme::apply(&ctx);
+        ctx.run_ui(egui::RawInput::default(), |_| {}).textures_delta.clear();
+        let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let p = ui.painter();
+            let f = font("body", 15.0);
+            let w = |s: &str| p.layout_no_wrap(s.to_string(), f.clone(), Color32::WHITE).size().x;
+            assert_eq!(elide(p, "short", f.clone(), 300.0, false), "short");
+            let path = "/home/someone/.local/share/overbright/exports/review-circuit.zip";
+            for width in [60.0, 120.0, 250.0] {
+                for middle in [false, true] {
+                    let e = elide(p, path, f.clone(), width, middle);
+                    assert!(w(&e) <= width, "{e} is {} wide, not {width}", w(&e));
+                    assert!(e.contains('…'));
+                }
+            }
+            let e = elide(p, path, f.clone(), 250.0, true);
+            assert!(e.ends_with("circuit.zip") || e.ends_with("uit.zip"), "{e}");
+        });
+        out.textures_delta.clear();
+    }
+
+    /// The summary rows and the busy line are built here once: the rows stack at their height, the value clips at
+    /// its column, the busy lamp turns with the clock, and the Home page and the Mod page share the row head.
+    #[test]
+    fn summary_rows_stack_and_the_busy_lamp_turns() {
+        let ctx = egui::Context::default();
+        crate::editor::theme::apply(&ctx);
+        ctx.run_ui(egui::RawInput::default(), |_| {}).textures_delta.clear();
+        let area = Rect::from_min_size(pos2(10.0, 0.0), vec2(400.0, 300.0));
+        let rows = [
+            SummaryRow::new(Mark::Ok, "Changes", "3 changes"),
+            SummaryRow::new(Mark::Warn, "Saved", "x".repeat(200)),
+            SummaryRow::busy("Jobs", "Simulating…"),
+        ];
+        let mut ends = vec![];
+        let mut busy = vec![];
+        for time in [0.0, 0.25] {
+            let mut end = 0.0;
+            let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
+                end = summary_rows(ui.painter(), area, 20.0, &rows, 120.0, time);
+            });
+            out.textures_delta.clear();
+            ends.push(end);
+            // The rows' own shapes: three rules, lamps and texts (the busy lamp is an arc).
+            let lines = out
+                .shapes
+                .iter()
+                .filter(|c| matches!(&c.shape, Shape::LineSegment { .. }))
+                .count();
+            assert_eq!(lines, 3, "a rule under each row");
+            busy.push(format!("{:?}", out.shapes.iter().filter(|c| matches!(&c.shape, Shape::Path(_))).map(|c| &c.shape).collect::<Vec<_>>()));
+        }
+        assert_eq!(ends, [20.0 + 3.0 * SUMMARY_ROW_H; 2]);
+        assert_ne!(busy[0], busy[1], "the busy lamp turns with the clock");
+    }
 }

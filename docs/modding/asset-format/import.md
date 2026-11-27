@@ -49,7 +49,7 @@ The importer knows **editions**: for each, a key, a name, the region, and the co
   its identity>`.
 - A **custom** import runs the same decoders. Files a decoder refuses are kept whole in the residual. The launcher
   says plainly: "Your game files differ from the versions Overbright was checked against; it will run, but may not
-  match the original exactly." It lists the differing files (`MODIFIED or unknown`, as `--check-game` does today).
+  match the original (choice: format rule; the original's layout is in docs/formats/) exactly." It lists the differing files (`MODIFIED or unknown`, as `--check-game` does today).
 - New editions are added to the table from a manifest of hashes (made by `overbright-studio-cli base fingerprint
   --manifest`; it holds names, sizes and hashes only, no game data) and a full import and parity run on that
   edition.
@@ -371,9 +371,19 @@ It prints the progress lines of §9 and ends with `ok=1`, or `error=<one line>` 
   unreadable sparse files (names, sizes and times kept), without capabilities: both runs pass, their state hashes
   are identical and the sealed run reads 0 game files from the folder. On the reference install: 22,639 reads
   from the set, 151 names not in the install, 0 from the folder, 308,107 steps identical.
-- **Not yet**: the game folder is still the namespace: directory listings, existence checks and the cache's
-  source keys look at it, so it must still be there; a lint on stray opens; read-ahead of bundles; the
-  background re-digest; the launcher's switch.
+- **Cache keys by digest**: an asset cache file over a game file the set holds is keyed by the file's size and the
+  SHA-256 the import recorded (verified with the bundles at mount), not by the folder's size, time and inode: a hit
+  opens and hashes nothing of the folder, so it also holds with the folder gone or a file touched. A cache made
+  from the folder and opened through the set is checked once by content and rewritten under the set's key; a
+  set-keyed cache read from the folder (`NFSU2_BASE=off`) is a miss (no digest to compare), never a stale hit.
+- **Read-ahead of bundles**: a queued game file the set holds is brought into memory from its bundle (pieces
+  already resident skipped), not from the folder ([read-ahead](../../developing/read-ahead.md)).
+- **Stray opens**: `scripts/checks/stray_opens.sh` fails when production code gains a direct `std::fs` open of a
+  path beyond the counts of `scripts/checks/stray-opens.txt` (each file's count with its reason; the list only goes
+  down). A game file goes through `game_fs`.
+- **Not yet**: the game folder is still the namespace: directory listings (the lint's list names them) and existence
+  checks look at it, so it must still be there, and `SPEED2.EXE` is read from it; the background re-digest; the
+  launcher's switch.
 - **The gate**: `ASSET_LAYER=1 scripts/checks/gate.sh …` imports `NFSU2_ROOT` into the gate's folder and runs the
   parity with the new binary on that set (the base binary reads the folder): every hash must match, and every new
   run must report reads from the set and none may read a game file from the folder (the names are listed). Without it the parity's runs have no base set (their data folders are

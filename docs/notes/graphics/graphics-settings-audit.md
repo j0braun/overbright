@@ -221,7 +221,7 @@ Restore Native stay native.
 
 ## What changed
 * Every Graphics row is one entry of a table,
-  `src/frontend/graphics_table.rs` (`ROWS`): label, group, a one-line help,
+  `crates/ob-menus/src/frontend/graphics_table.rs` (`ROWS`): label, group, a one-line help,
   named tiers (each with its own help and measured cost), `get` / `set`
   onto the stored values. Values read as tier names (Off / Low / Medium /
   High / Very High / Ultra, or the original's own values); numbers stay

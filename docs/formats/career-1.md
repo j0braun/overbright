@@ -289,7 +289,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   item's byte +0x1F × 1.1 + 127.5, 255) and, when the item's +0x21 is
   set, its size = (f × 0.000117647054 + 0.97) × its base size +0x24 /
   +0x28 (0x50CB00), so 0.985–1.0 of it).
-* **Graphics shop** (all in the clone; `src/frontend/graphics/`):
+* **Graphics shop** (all in the clone; `crates/ob-menus/src/frontend/graphics/`):
   UI_ChoosePaintCategory (0x55A410 → 0x5571C0, options 0x548210): Paint
   (0x6A4C46A6, icon 0x550681A4; option +0x48/+0x4C = 2/0), Vinyls
   (0x78DEEA1C, 0x55778E5A; 0/1), Decals (0x4E933E83, 0xDA1DAE54; 1/2;
@@ -850,9 +850,33 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   The first pair's direction is 1 when the pair runs against the
   segment's node order (dot ≤ 0), later pairs carry on in the last
   segment's. Segments repeat only as the last one taken or, on a loop,
-  the first; any other repeat fails the build. The list's +4 byte asks
-  for alternate branches as well and +5 goes to route +0x20 as a float
-  (default 128); neither is a checkpoint radius. Checked by
+  the first; any other repeat fails the build. The search takes a segment
+  only when its track list lets the race's track (the checkpoint
+  record's u16 +0, search state +0x14) use it (0x5D4F70, **verified**:
+  segment +0xAC a count of the only tracks, else +0xAD a count of tracks
+  it is not for, the u16 numbers from +0xAE; neither: every track). The
+  list's +4 byte asks for branches as well (**verified**, 0x5E5BC0's
+  second loop; ported 2026-11-25, `RoadNet::race_road_with`): with the
+  route built and +0x18 / +0x1C set to its length and half, for each
+  stretch so far (the route first, then each branch as it is added, at
+  most 16 stretches and 128 segments in all), each segment's up to four
+  connections out of its driving end onto a segment not yet built (its
+  +0xA8 null) start a search 0x5D53E0 with no target and depth limit 15:
+  it ends on a built segment entered its own way (+0x68), at that
+  segment's driving-start place (+0x74 for direction 0, +0x78 for 1; a
+  0 is the road length on a loop, else a failure), which must be at or
+  past the branch's start (a fresh locator's place for the connection's
+  first point, +0x88 / +0x90) and at least half the branch's length on.
+  The branch's segments are built by 0x5E48C0 (no phantoms past its
+  ends; neighbours by index modulo the route's count) with scale 1,
+  then again with scale (rejoin − start) / (that build's end − start),
+  so the branch's places run from its start to the rejoin. On 4001 the
+  route follows the checkpoints through the diagonal (segments 4, 5) and
+  the racers drive the branch 16 → 36 (scale 0.79): without the branches
+  the clone's racers and player kept the diagonal's place there and
+  jumped about 280 m when the locator let go (the original's
+  progress runs on smoothly, 0.8 of a metre a metre there). +5 goes to
+  route +0x20 as a float (default 128); neither is a checkpoint radius. Checked by
   `race_roads_match_the_track_lengths`: all 102 tracks build; a circuit's
   road is the record's +0x98 length, a sprint's or drag's start-line to
   finish-line run along it is too (4101: 4413 m against 4419; 4213: 1610

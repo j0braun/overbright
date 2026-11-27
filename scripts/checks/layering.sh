@@ -1,6 +1,6 @@
 #!/bin/bash
 # layering.sh [repo]: the render layering lint (refactor plan render §0 (a) 8,
-# step S3). Files under src/render/core/ and src/render/native/ (the layers
+# step S3). Files under crates/ob-render/src/render/core/ and crates/ob-render/src/render/native/ (the layers
 # the enhancements build on) must not
 #   1. reach the enhancement or QoL layers: `crate::enh`, `render::enh`,
 #      `crate::qol` / `qol::` (settings come in as values, not global reads);
@@ -16,7 +16,7 @@
 #      binary leaves the harness out; the game's paths call it through `dev_hooks`).
 # The simulation's session (src/bin/game/sim/session/**: `Session::step`, docs/developing/sim-session.md) must not
 #   4. reach the game, the renderer, the audio, the window, the HUD or the front end (rule 4 below).
-# Render code (src/render/**, docs/developing/frame-settings.md) must not
+# Render code (crates/ob-render/src/render/** and crates/ob-assets/src/render/** and crates/ob-sim/src/render/**, docs/developing/frame-settings.md) must not
 #   5. add a global settings read: a `qol::` path or `RenderOptions::in_force(` (the frame's settings come in
 #      as `FrameSettings` / `RenderOptions` values) on a line not in scripts/checks/layering-settings-allow.txt
 #      (the reads left, matched by file and trimmed text, no line numbers; a converted read is taken off it).
@@ -25,7 +25,7 @@
 REPO=${1:-$(cd "$(dirname "$0")/../.." && pwd)}
 cd "$REPO" || exit 2
 files=()
-for d in src/render/core src/render/native; do
+for d in crates/ob-render/src/render/core crates/ob-render/src/render/native crates/ob-assets/src/render/native crates/ob-sim/src/render/native; do
   [ -d "$d" ] && while IFS= read -r f; do files+=("$f"); done < <(find "$d" -name '*.rs' | sort)
 done
 fail=0
@@ -77,8 +77,8 @@ if [ ${#session[@]} -gt 0 ]; then
 fi
 # Rule 5: no new global settings read in render code.
 allow=scripts/checks/layering-settings-allow.txt
-if [ -d src/render ]; then
-  hits=$(grep -rnE '\bqol::|RenderOptions::in_force\(' src/render --include='*.rs' /dev/null | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//' \
+if [ -d crates/ob-render/src/render ]; then
+  hits=$(grep -rnE '\bqol::|RenderOptions::in_force\(' crates/ob-render/src/render crates/ob-assets/src/render crates/ob-sim/src/render --include='*.rs' /dev/null | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//' \
     | awk -v allow="$allow" -F: '
         BEGIN { while ((getline l < allow) > 0) if (l !~ /^#/ && l != "") ok[l] = 1 }
         { f = $1; t = $0; sub(/^[^:]+:[0-9]+:/, "", t); gsub(/^[[:space:]]+|[[:space:]]+$/, "", t); if (!((f "\t" t) in ok)) print $0 }')

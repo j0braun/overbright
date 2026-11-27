@@ -75,7 +75,7 @@ name itself when the importer knows it (`"EV_01"`, `"BARRIERS_4001"`, `"ForwardS
 `hash32` (`"0x8E55C895"`); a string starting with `0x` is a hash, any other string a name to hash (conventions §6.4).
 The importer's dictionary of names is fixed per importer version: the barrier group names (`BARRIERS_<trk>`,
 `PLAYER_BARRIERS_<trk>`, `BARRIERS_CAREER<n>`) for every track number, the marker names of
-`crates/ob-map/src/frontend/career/routes.rs`, `PCDEMO`, the neighbourhood names (`src/frontend/career/triggers.rs:75`), `EV_nn`,
+`crates/ob-map/src/frontend/career/routes.rs`, `PCDEMO`, the neighbourhood names (`crates/ob-menus/src/frontend/career/triggers.rs:75`), `EV_nn`,
 and the career's own names ([career.md](career.md)).
 
 ### 3.2 `ob.route-paths` (`world/<REGION>/routes/paths.toml`)
@@ -89,7 +89,7 @@ and the career's own names ([career.md](career.md)).
 | `checkpoints` | array<table> | – | no | `[]` | Checkpoint lists (`0x3414C`) in original order. |
 | `extras` | table | – | no | – | conventions §9. |
 
-**`trigger`** — one record of `0x3414A` (verified layout, `src/frontend/career/triggers.rs:44`; record size
+**`trigger`** — one record of `0x3414A` (verified layout, `crates/ob-menus/src/frontend/career/triggers.rs:44`; record size
 `0x44 + 8·points`):
 
 | Field | Type | Unit | Req. | Default | Meaning |
@@ -102,7 +102,7 @@ and the career's own names ([career.md](career.md)).
 | `u_0x1c` | u32 | – | no | `0` | **open** (0 in every shipped record). |
 | `box_min`, `box_max` | vec2 | m | yes | – | `+0x20`, `+0x28`: the ground box (edges inside). |
 | `name` | nameref | – | no | `"0x00000000"` | `+0x30`: the name the kind is looked up by (all kinds except 16). |
-| `gps` | array<i32>[3] | m | no | `[0, 0, 0]` | `+0x34`: the road point the GPS routes to (read with `fild`, `src/frontend/career/triggers.rs:11`). All kinds except 16. |
+| `gps` | array<i32>[3] | m | no | `[0, 0, 0]` | `+0x34`: the road point the GPS routes to (read with `fild`, `crates/ob-menus/src/frontend/career/triggers.rs:11`). All kinds except 16. |
 | `traffic` | table | – | kind 16 | – | `+0x30`: `rows` (array<u32>[3], the AI tuning's spacing row per traffic level 1–3) and `caps_zone` (u32, `+0x3C`, the car types' traffic-cap column), `src/ai/traffic/place.rs:415`. |
 | `polygon` | array<vec2> | m | no | `[]` | `+0x44`: the ground polygon (even-odd); at most 255 points. Empty: the box alone. |
 
@@ -608,9 +608,9 @@ racing speeds; the point grid) are computed from the model and are not stored.
 
 **Readers that open route files themselves today** and must take the model instead (parity.md §2): the AI
 routes' load (`src/ai/route/mod.rs:202`, a `std::fs::read` after `game_fs::path`); the route triggers' load, which
-takes the first `Paths*` file of `ROUTESL4RA` in directory order (`src/frontend/career/triggers.rs:102`, harmless only
+takes the first `Paths*` file of `ROUTESL4RA` in directory order (`crates/ob-menus/src/frontend/career/triggers.rs:102`, harmless only
 because every Paths file of a region carries the same triggers); the light-probe field, which lists the route folder
-(`src/render/enh/lighting/probes/field.rs:255`); the free-roam reset zones, which join the root without `game_fs`
+(`crates/ob-render/src/render/enh/lighting/probes/field.rs:255`); the free-roam reset zones, which join the root without `game_fs`
 (`src/bin/game/input/dispatch.rs:403`); `load_route` and `load_markers` (`crates/ob-map/src/frontend/career/routes.rs:23`, `:85`);
 the traffic load (`src/bin/game/sim/traffic/mod.rs:144`, `:147`); the free-roam route memo
 (`src/bin/game/loads/cache.rs:64`, `:68`); the custom races' network (`crates/ob-map/src/tools/map/race.rs:16`); the read-ahead

@@ -18,13 +18,13 @@
 //! test runs every command for both kinds of selection and in both views
 //! to keep that list empty.
 
-use ob_look::words;
 use egui::{Key, KeyboardShortcut, Modifiers};
+use ob_look::words;
 
 use super::app::App;
 use super::props::{self, Props};
 use super::races::{self, Races};
-use super::state::{EditorState, Level, Mode, View};
+use super::state::{EditorState, Focus, Level, Mode};
 use super::theme;
 
 /// What the shell does itself.
@@ -37,12 +37,17 @@ pub enum Action {
     Details,
     Import,
     Export,
+    /// File ▸ Export as mod pack… (a `.obpk`, docs/modding/asset-format/layout.md §4).
+    ExportPack,
     Quit,
     Undo,
     Redo,
     /// Pick a toolbar tool (its key or its button).
     Tool(Tool),
-    View(View),
+    /// View ▸ Roads: the road network over the top view.
+    Roads,
+    /// View ▸ Show nearest road: mark the road nearest the selection (else the camera) and go to it.
+    ShowNearestRoad,
     Tab(&'static str),
     Controls,
     /// Help ▸ How to test your race.
@@ -51,8 +56,38 @@ pub enum Action {
     Hint(bool),
     /// The collision layer (View ▸ Collision).
     Collision(super::collision::Show),
+    /// Edit ▸ Snap, or K: how every placing and moving tool snaps.
+    Snap(super::state::SnapMode),
+    /// What colours the collision layer (View ▸ Collision ▸ By kind / By surface).
+    CollisionColour(super::collision::Colour),
+    /// Show or hide one kind of the layer (View ▸ Collision ▸ Kinds).
+    CollisionKind(super::collision::Class),
+    /// Every kind shown again.
+    CollisionEveryKind,
+    /// The layer's opacity in percent.
+    CollisionOpacity(u8),
+    CollisionWireframe,
+    CollisionFullHeight,
+    RaceBarriers,
     /// Arm a drawing tool (Edit ▸ Draw wall / Draw ground).
     Draw(super::collision::Draw),
+    /// A camera preset (View ▸ Top view / Isometric view).
+    Goal(super::views::Goal),
+    /// View ▸ Go to…
+    GoTo,
+    /// Race ▸ Test car and clock…: what a test run starts with besides the place.
+    TestFocus,
+    /// H, Shift+H, Alt+H: the view's own hiding (never the mod's).
+    HideSelected,
+    IsolateSelected,
+    ShowAll,
+    /// View ▸ This mod's changes only.
+    ModOnly,
+    /// View ▸ Views ▸ Save view…
+    SaveView,
+    /// A saved view by position, to bring back or to delete.
+    RecallView(usize),
+    DeleteView(usize),
 }
 
 /// A request for one of the editor's parts.
@@ -60,31 +95,49 @@ pub enum Action {
 pub enum Command {
     Duplicate,
     Delete,
+    /// Edit ▸ Collision ▸ Remove wall (Del on the selected wall or drawn ground).
+    RemoveWall,
     SelectAllOfSolid,
     DropToGround,
     Rotate90,
     FaceCamera,
+    /// Edit ▸ Select street: the selected props' street, up to the junctions at both ends.
+    SelectStreet,
     ResetCamera,
     FrameSelection,
     NewRace,
     TestRace,
     DriveHere,
+    /// Start the open test game's run over.
+    RestartTest,
+    /// Drive to record: a test run whose drive is kept as a run (Runs).
+    RecordDrive,
+    /// Test race with the selected props' edits left out of the test layer, for this one run.
+    TestWithout,
+    /// Ask the open test game what it loaded (the opt-in probe).
+    WhatLoaded,
 }
 
 impl Command {
     /// Every command, for the test that each one has a taker.
-    pub const ALL: [Command; 11] = [
+    pub const ALL: [Command; 17] = [
         Command::Duplicate,
         Command::Delete,
+        Command::RemoveWall,
         Command::SelectAllOfSolid,
         Command::DropToGround,
         Command::Rotate90,
         Command::FaceCamera,
+        Command::SelectStreet,
         Command::ResetCamera,
         Command::FrameSelection,
         Command::NewRace,
         Command::TestRace,
         Command::DriveHere,
+        Command::RestartTest,
+        Command::RecordDrive,
+        Command::TestWithout,
+        Command::WhatLoaded,
     ];
 
     /// What the menu item says when hovered (the test modes say who
@@ -102,7 +155,12 @@ impl Command {
     pub fn unavailable(self, s: &EditorState) -> Option<&'static str> {
         let props_only = matches!(
             self,
-            Command::Duplicate | Command::SelectAllOfSolid | Command::DropToGround | Command::Rotate90 | Command::FaceCamera
+            Command::Duplicate
+                | Command::SelectAllOfSolid
+                | Command::DropToGround
+                | Command::Rotate90
+                | Command::FaceCamera
+                | Command::SelectStreet
         );
         match self {
             _ if props_only && (s.mode != Mode::Props || s.selection.is_empty()) => Some("Select a prop first"),
@@ -110,7 +168,14 @@ impl Command {
                 Some("Select a prop first")
             }
             Command::Delete if s.mode == Mode::Races && s.point.is_none() => Some("Select a race point first"),
-            Command::ResetCamera | Command::FrameSelection if s.view == View::Map => Some("In the 3D view only (M)"),
+            Command::TestWithout if s.selection.is_empty() => Some("Select the props to leave out first"),
+            Command::RemoveWall => match &s.wall {
+                None => Some("Select a wall first (View ▸ Collision shows them)"),
+                Some(p) if super::collision::is_barrier(p) => {
+                    Some("A race's barriers are switched per race; they cannot be removed")
+                }
+                Some(_) => None,
+            },
             _ => None,
         }
     }
@@ -230,7 +295,7 @@ impl Tool {
         match self {
             Tool::Select => "Select tool: a click selects a prop or a race point, never adds",
             Tool::Move => "Move tool: drag an arrow to move the selected props",
-            Tool::Rotate => "Rotate tool: drag the ring to turn the selected props (Alt: turn freely)",
+            Tool::Rotate => "Rotate tool: drag the ring to turn the selected props (the snap mode Free: turn freely)",
             Tool::Checkpoint => "Checkpoint tool: a click on the road adds a checkpoint",
             Tool::Start => "Start tool: a click on the road puts the start line",
             Tool::Finish => "Finish tool: a click on the road puts the finish line",
@@ -327,19 +392,24 @@ pub const KEYS: &[Binding] = &[
     b("View", "RMB + Q / E  (F / R)", "Fly down / up", &[Key::Q, Key::E, Key::F, Key::R]),
     b("View", "RMB + wheel", "Fly speed", &[]),
     b("View", "Shift / Ctrl while flying", "Fast / slow", &[]),
-    b("View", "Wheel", "Dolly; in the overview and the map: zoom", &[]),
+    b("View", "Wheel", "Dolly; in the overview: zoom", &[]),
     b("View", "F", "Frame the selection", &[Key::F]),
     b("View", "T", "Top-down overview on / off", &[Key::T]),
-    b("View", "Home", "Fit the overview or the map to the region", &[Key::Home]),
-    b("View", "M", "3D view / Map", &[Key::M]),
+    b("View", "Home", "Fit the overview to the region", &[Key::Home]),
+    b("View", "H", "Hide the selected props (this view only)", &[Key::H]),
+    b("View", "Shift+H", "Show only the selected props", &[Key::H]),
+    b("View", "Alt+H", "Show every prop again", &[Key::H]),
+    b("View", "L", "Collision layer: off / invisible barriers / all collision", &[Key::L]),
     b("Tools", "Esc", "Back to Select (a race tool armed); else clear the selection", &[Key::Escape]),
     b("Edit", "LMB / Ctrl+LMB", "Select / add to the selection", &[]),
-    b("Edit", "Shift + drag an arrow", "Copy the selection and move the copy", &[]),
-    b("Edit", "Alt while dragging or placing", "No snapping", &[]),
+    b("Edit", "Shift or Alt + drag an arrow", "Copy the selection and move the copy (Esc cancels it)", &[]),
+    b("Edit", "K", "Snap mode: To surface / Keep height / Free (every placing and moving tool follows it)", &[Key::K]),
     b("Edit", "Shift + click on the route", "Insert a checkpoint there", &[]),
     b("Edit", "[ / ]", "Previous / next checkpoint", &[Key::OpenBracket, Key::CloseBracket]),
     b("Edit", "Ctrl+D", words::DUPLICATE, &[Key::D]),
     b("Edit", "Del", words::DELETE, &[Key::Delete]),
+    b("Edit", "B / Shift+B", "Draw wall / Draw ground (Enter or the first corner finishes the outline)", &[Key::B]),
+    b("Edit", "Esc, Backspace", "In a drawing tool: Esc drops the shape, again puts the tool down; Backspace the last corner", &[Key::Backspace]),
     b("Edit", "End", "Drop to the ground", &[Key::End]),
     b("Edit", "RMB on a prop / Shift+F10", "The prop menu: Rotate 90°, Rotate…, Face camera", &[Key::F10]),
     b("Edit", "Ctrl+Z, Ctrl+Y (Ctrl+Shift+Z)", "Undo, redo", &[Key::Z, Key::Y]),
@@ -348,9 +418,20 @@ pub const KEYS: &[Binding] = &[
     b("File", "Ctrl+Q", words::QUIT, &[Key::Q]),
     b("File", "Enter", "Confirm a dialog", &[Key::Enter]),
     b("Run", "F5 / Shift+F5", "Test race / Drive here", &[Key::F5]),
+    b("Run", "Ctrl+F5", "Restart race (the open test game)", &[Key::F5]),
     b("Run", "Space", "Play / pause the simulation (its timeline under the view)", &[Key::Space]),
-    b("Run", "Left / Right, Shift+Left / Right", "The simulation a recorded frame back / on, a second with Shift", &[Key::ArrowLeft, Key::ArrowRight]),
-    b("Run", "Up / Down", "Show the line above / below in What went wrong (Simulate tab)", &[Key::ArrowUp, Key::ArrowDown]),
+    b(
+        "Run",
+        "Left / Right, Shift+Left / Right",
+        "The simulation a recorded frame back / on, a second with Shift",
+        &[Key::ArrowLeft, Key::ArrowRight],
+    ),
+    b(
+        "Run",
+        "Up / Down",
+        "Show the line above / below in What went wrong (Simulate tab)",
+        &[Key::ArrowUp, Key::ArrowDown],
+    ),
 ];
 
 /// The Controls dialog's rows, grouped: the tools first (from
@@ -378,9 +459,12 @@ pub fn shortcuts(app: &App, ctx: &egui::Context, out: &mut Vec<Action>) {
     let open = app.state.is_some();
     let typing = ctx.egui_wants_keyboard_input();
     let flying = super::app::flying(ctx);
-    let armed = app.state.as_ref().is_some_and(|s| {
-        current_tool(s, &app.panels.props.borrow(), &app.panels.races.borrow()).armed()
-    });
+    let armed = app
+        .state
+        .as_ref()
+        .is_some_and(|s| current_tool(s, &app.panels.props.borrow(), &app.panels.races.borrow()).armed())
+        // Esc during a drag only puts the drag back; the tool stays.
+        && !app.panels.races.borrow().is_dragging();
     ctx.input_mut(|i| {
         if i.consume_shortcut(&NEW) {
             out.push(Action::NewMod);
@@ -406,12 +490,31 @@ pub fn shortcuts(app: &App, ctx: &egui::Context, out: &mut Vec<Action>) {
         if typing {
             return;
         }
-        if i.consume_key(Modifiers::NONE, Key::M) {
-            let v = app.state.as_ref().map_or(View::ThreeD, |s| s.view);
-            out.push(Action::View(if v == View::ThreeD { View::Map } else { View::ThreeD }));
+        if i.consume_key(Modifiers::SHIFT, Key::H) {
+            out.push(Action::IsolateSelected);
+        }
+        if i.consume_key(Modifiers::ALT, Key::H) {
+            out.push(Action::ShowAll);
+        }
+        if i.consume_key(Modifiers::SHIFT, Key::B) {
+            out.push(Action::Draw(super::collision::Draw::Ground { points: Vec::new() }));
         }
         if flying || i.modifiers.any() {
             return;
+        }
+        if i.consume_key(Modifiers::NONE, Key::B) {
+            out.push(Action::Draw(super::collision::Draw::Wall { first: None }));
+        }
+        if i.consume_key(Modifiers::NONE, Key::H) {
+            out.push(Action::HideSelected);
+        }
+        if i.consume_key(Modifiers::NONE, Key::L) {
+            let now = app.state.as_ref().map_or(super::collision::Show::Off, |s| s.collision);
+            out.push(Action::Collision(now.next()));
+        }
+        if i.consume_key(Modifiers::NONE, Key::K) {
+            let now = app.state.as_ref().map_or(super::state::SnapMode::default(), |s| s.snap_mode);
+            out.push(Action::Snap(now.next()));
         }
         for t in Tool::ALL {
             if i.consume_key(Modifiers::NONE, t.key()) {
@@ -426,6 +529,9 @@ pub fn shortcuts(app: &App, ctx: &egui::Context, out: &mut Vec<Action>) {
         if ctx.input_mut(|i| i.consume_key(Modifiers::SHIFT, Key::F5)) {
             post(ctx, Command::DriveHere);
         }
+        if ctx.input_mut(|i| i.consume_key(Modifiers::COMMAND, Key::F5)) {
+            post(ctx, Command::RestartTest);
+        }
         if ctx.input_mut(|i| i.consume_key(Modifiers::NONE, Key::F5)) {
             post(ctx, Command::TestRace);
         }
@@ -438,6 +544,15 @@ fn item(ui: &mut egui::Ui, text: &str, key: Option<&KeyboardShortcut>, enabled: 
         b = b.shortcut_text(ui.ctx().format_shortcut(k));
     }
     ui.add_enabled(enabled, b).clicked()
+}
+
+/// A menu item that says why it cannot act while `why` is set.
+fn item_why(ui: &mut egui::Ui, text: &str, key: &str, why: Option<&str>) -> bool {
+    let r = ui.add_enabled(why.is_none(), egui::Button::new(text).shortcut_text(key));
+    match why {
+        Some(w) => r.on_disabled_hover_text(w).clicked(),
+        None => r.clicked(),
+    }
 }
 
 /// A menu item that posts `c`: disabled with the reason while it cannot
@@ -499,8 +614,10 @@ pub fn bar(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                     let (r, _) = ui.allocate_exact_size(egui::vec2(8.0, 8.0), egui::Sense::hover());
                     ui.painter().circle_filled(r.center(), 3.5, theme::warn());
                 }
-                let name = if s.session.map.name.is_empty() { s.session.folder.as_str() } else { s.session.map.name.as_str() };
-                let text = egui::RichText::new(format!("{name} · {}", s.session.region)).font(theme::font(theme::SEMI, 14.0));
+                let name =
+                    if s.session.map.name.is_empty() { s.session.folder.as_str() } else { s.session.map.name.as_str() };
+                let text =
+                    egui::RichText::new(format!("{name} · {}", s.session.region)).font(theme::font(theme::SEMI, 14.0));
                 ui.add(egui::Label::new(text).truncate());
             });
         }
@@ -523,6 +640,9 @@ pub fn mod_file_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     }
     if item(ui, "Export…", None, open) {
         out.push(Action::Export);
+    }
+    if item(ui, "Export as mod pack…", None, open) {
+        out.push(Action::ExportPack);
     }
 }
 
@@ -548,30 +668,90 @@ pub fn edit_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     command(ui, s, "Drop to ground", "End", Command::DropToGround);
     command(ui, s, "Rotate 90°", "", Command::Rotate90);
     command(ui, s, "Face camera", "", Command::FaceCamera);
+    command(ui, s, "Select street", "", Command::SelectStreet);
     ui.separator();
+    ui.add_enabled_ui(s.is_some(), |ui| {
+        ui.menu_button("Snap", |ui| {
+            let now = s.map(|s| s.snap_mode);
+            for m in super::state::SnapMode::ALL {
+                let key = if m == super::state::SnapMode::default() { "K cycles" } else { "" };
+                if ui.add(egui::Button::selectable(now == Some(m), m.label())).on_hover_text(key).clicked() {
+                    out.push(Action::Snap(m));
+                    ui.close();
+                }
+            }
+        });
+    });
+    ui.separator();
+    // One group for the collision tools: the same selection (a click on a wall), the same Del, Esc and Alt.
     let open = s.is_some();
-    if item(ui, "Draw wall", None, open) {
-        out.push(Action::Draw(super::collision::Draw::Wall { first: None }));
-    }
-    if item(ui, "Draw ground", None, open) {
-        out.push(Action::Draw(super::collision::Draw::Ground { points: Vec::new() }));
-    }
+    ui.menu_button("Collision", |ui| {
+        if item_why(ui, "Draw wall", "B", (!open).then_some("Open a map mod first")) {
+            out.push(Action::Draw(super::collision::Draw::Wall { first: None }));
+            ui.close();
+        }
+        if item_why(ui, "Draw ground", "Shift+B", (!open).then_some("Open a map mod first")) {
+            out.push(Action::Draw(super::collision::Draw::Ground { points: Vec::new() }));
+            ui.close();
+        }
+        command(ui, s, "Remove wall", "Del", Command::RemoveWall);
+    });
 }
 
 /// The View menu's items.
 pub fn view_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     let open = app.state.is_some();
-    let v = app.state.as_ref().map(|s| s.view);
-    if ui.add_enabled(open, egui::Button::selectable(v == Some(View::ThreeD), "3D view").shortcut_text("M")).clicked() {
-        out.push(Action::View(View::ThreeD));
+    let roads = app.state.as_ref().is_some_and(|s| s.roads);
+    if ui
+        .add_enabled(open, egui::Button::selectable(roads, "Roads"))
+        .on_hover_text("The road network over the top view (T)")
+        .clicked()
+    {
+        out.push(Action::Roads);
     }
-    if ui.add_enabled(open, egui::Button::selectable(v == Some(View::Map), "Map").shortcut_text("M")).clicked() {
-        out.push(Action::View(View::Map));
+    let none = if open { None } else { Some("Open a map mod first") };
+    if item_why(ui, "Show nearest road", "", none) {
+        out.push(Action::ShowNearestRoad);
     }
     ui.separator();
     let s = app.state.as_ref();
     command(ui, s, "Frame selection", "F", Command::FrameSelection);
     command(ui, s, "Reset camera", "", Command::ResetCamera);
+    if item_why(ui, "Top view", "T", none) {
+        out.push(Action::Goal(super::views::Goal::Top));
+    }
+    if item_why(ui, "Isometric view", "", none) {
+        out.push(Action::Goal(super::views::Goal::Isometric));
+    }
+    if item_why(ui, "Go to…", "", none) {
+        out.push(Action::GoTo);
+    }
+    ui.add_enabled_ui(open, |ui| {
+        ui.menu_button("Views", |ui| {
+            if item_why(ui, "Save view…", "", none) {
+                out.push(Action::SaveView);
+            }
+            let saved = s.map_or(&[][..], |s| &s.views[..]);
+            if saved.is_empty() {
+                ui.weak("No saved views");
+            }
+            for (i, v) in saved.iter().enumerate() {
+                if ui.button(&v.name).on_hover_text("Bring back this camera and its layers").clicked() {
+                    out.push(Action::RecallView(i));
+                }
+            }
+            if !saved.is_empty() {
+                ui.separator();
+                ui.menu_button("Delete view", |ui| {
+                    for (i, v) in saved.iter().enumerate() {
+                        if ui.button(&v.name).clicked() {
+                            out.push(Action::DeleteView(i));
+                        }
+                    }
+                });
+            }
+        });
+    });
     ui.separator();
     let shown = s.map(|s| s.collision);
     ui.add_enabled_ui(open, |ui| {
@@ -581,8 +761,71 @@ pub fn view_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                     out.push(Action::Collision(c));
                 }
             }
+            ui.separator();
+            let colour = s.map(|s| s.collision_colour);
+            for c in super::collision::Colour::ALL {
+                if ui.add(egui::Button::selectable(colour == Some(c), c.label())).clicked() {
+                    out.push(Action::CollisionColour(c));
+                }
+            }
+            let look = s.map(|s| s.collision_look).unwrap_or_default();
+            ui.menu_button("Kinds", |ui| {
+                for c in super::collision::Class::ALL {
+                    if ui.add(egui::Button::selectable(look.shows(c), c.label())).clicked() {
+                        out.push(Action::CollisionKind(c));
+                    }
+                }
+                ui.separator();
+                if ui.button("Show every kind").clicked() {
+                    out.push(Action::CollisionEveryKind);
+                }
+            });
+            ui.menu_button("Opacity", |ui| {
+                for c in super::collision::OPACITIES {
+                    if ui.add(egui::Button::selectable(look.opacity == c, super::collision::opacity_label(c))).clicked() {
+                        out.push(Action::CollisionOpacity(c));
+                    }
+                }
+            });
+            if ui.add(egui::Button::selectable(look.wireframe, "Wireframe")).clicked() {
+                out.push(Action::CollisionWireframe);
+            }
+            if ui.add(egui::Button::selectable(look.full_height, "Full-height walls")).on_hover_text("Walls the game lets reach from -2048 m to 2048 m drawn that tall, not only beside the floors").clicked() {
+                out.push(Action::CollisionFullHeight);
+            }
+            if s.is_some_and(|s| s.focus == Focus::World) {
+                ui.separator();
+                let on = s.is_some_and(|s| s.race_barriers);
+                if ui.add(egui::Button::selectable(on, "Show race barriers")).on_hover_text("The barriers a race switches on: in the game they are on only during that race. Races shows the selected race's.").clicked() {
+                    out.push(Action::RaceBarriers);
+                }
+            }
         });
     });
+    ui.separator();
+    let sel = match s {
+        None => Some("Open a map mod first"),
+        Some(s) if s.selection.is_empty() => Some("Select a prop first"),
+        Some(_) => None,
+    };
+    if item_why(ui, "Hide selected", "H", sel) {
+        out.push(Action::HideSelected);
+    }
+    if item_why(ui, "Isolate selected", "Shift+H", sel) {
+        out.push(Action::IsolateSelected);
+    }
+    let any = s.is_some_and(|s| s.filter.hidden.len() + s.filter.isolated.as_ref().map_or(0, |i| i.len().max(1)) > 0);
+    if item_why(ui, "Show all", "Alt+H", if open { (!any).then_some("Nothing is hidden") } else { none }) {
+        out.push(Action::ShowAll);
+    }
+    let only = s.is_some_and(|s| s.filter.mod_only);
+    if ui
+        .add_enabled(open, egui::Button::selectable(only, "This mod's changes only"))
+        .on_hover_text("Draw only the props this mod moved, deleted or added (this view only)")
+        .clicked()
+    {
+        out.push(Action::ModOnly);
+    }
     ui.separator();
     if ui.add_enabled(open, egui::Button::selectable(app.layout.hint, "Hint line")).clicked() {
         out.push(Action::Hint(!app.layout.hint));
@@ -590,11 +833,20 @@ pub fn view_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
 }
 
 /// The Race menu's items (Studio's Test menu).
-pub fn race_items(app: &App, ui: &mut egui::Ui, _out: &mut Vec<Action>) {
+pub fn race_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     let s = app.state.as_ref();
     command(ui, s, "New race", "", Command::NewRace);
     command(ui, s, "Test race", "F5", Command::TestRace);
     command(ui, s, "Drive here", "Shift+F5", Command::DriveHere);
+    command(ui, s, "Restart race", "Ctrl+F5", Command::RestartTest);
+    command(ui, s, "Drive to record", "", Command::RecordDrive);
+    command(ui, s, "Test without selected props", "", Command::TestWithout);
+    command(ui, s, "What the game loaded", "", Command::WhatLoaded);
+    ui.separator();
+    let why = s.is_none().then_some("Open a map mod first");
+    if item_why(ui, "Test car and clock…", "", why) {
+        out.push(Action::TestFocus);
+    }
 }
 
 /// The Help menu's items.
@@ -731,14 +983,15 @@ const LEFT: [Part; 15] = [
     Part::Save,
 ];
 
-/// The snap button's words.
-fn snap_job(p: &Props, r: &Races, tool: Tool, tier: usize) -> egui::text::LayoutJob {
-    let (on, steps) = if tool.armed() {
-        (r.snap, "to road".to_string())
+/// The snap button's words: the mode in force, and the steps (props) or the road (race tools) it snaps to.
+fn snap_job(p: &Props, mode: super::state::SnapMode, tool: Tool, tier: usize) -> egui::text::LayoutJob {
+    let steps = if tool.armed() {
+        crate::studio::words::SNAP_HINT_ROAD.to_string()
     } else {
-        (p.snap, format!("{} m · {}°", trim_num(p.snap_metres), trim_num(p.snap_degrees)))
+        format!("{} m · {}°", trim_num(p.snap_metres), trim_num(p.snap_degrees))
     };
-    label_job("Snap", (tier == 0).then_some(steps.as_str()), on, true)
+    let text = format!("{}: {}", crate::studio::words::SNAP, mode.label());
+    label_job(&text, (tier == 0 && mode.snaps()).then_some(steps.as_str()), mode.snaps(), true)
 }
 
 fn trim_num(v: f32) -> String {
@@ -746,11 +999,27 @@ fn trim_num(v: f32) -> String {
     s.trim_end_matches('0').trim_end_matches('.').to_string()
 }
 
-fn part_job(part: Part, tier: usize, s: &EditorState, p: &Props, r: &Races, tool: Tool) -> Option<egui::text::LayoutJob> {
+fn part_job(
+    part: Part,
+    tier: usize,
+    s: &EditorState,
+    p: &Props,
+    _r: &Races,
+    tool: Tool,
+) -> Option<egui::text::LayoutJob> {
     let key = |t: Tool| (tier == 0).then(|| t.key().name());
+    // World: no race tools (the race tools' slot is not drawn).
+    if s.focus == Focus::World
+        && matches!(
+            part,
+            Part::SlotStart | Part::SlotEnd | Part::Tool(Tool::Checkpoint | Tool::Start | Tool::Finish | Tool::Grid)
+        )
+    {
+        return None;
+    }
     Some(match part {
         Part::Tool(t) => label_job(t.name(), key(t), tool == t, t.unavailable(s).is_none()),
-        Part::Snap => snap_job(p, r, tool, tier),
+        Part::Snap => snap_job(p, s.snap_mode, tool, tier),
         Part::Undo => label_job(words::UNDO, None, false, true),
         Part::Redo => label_job(words::REDO, None, false, true),
         Part::Save => label_job(words::SAVE, None, false, true),
@@ -798,6 +1067,9 @@ fn needed(ui: &egui::Ui, tier: usize, s: &EditorState, p: &Props, r: &Races, too
         .data(|d| d.get_temp::<f32>(sim_width_id()))
         .unwrap_or_else(|| text_width(ui, label_job("Simulate", None, false, true)) + 2.0 * pad);
     let (drive, test) = right_words(tier);
+    if s.focus == Focus::World {
+        return w + gap * (n - 1) as f32 + GAP + text_width(ui, label_job(drive, None, false, true)) + 4.0 * pad + 8.0;
+    }
     let right = sim
         + text_width(ui, label_job(drive, None, false, true))
         + 2.0 * pad
@@ -865,29 +1137,29 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                 }
                 Part::Snap => {
                     let Some(j) = r else { continue };
-                    let (mut p, mut rc) = (panels.props.borrow_mut(), panels.races.borrow_mut());
-                    let on = if tool.armed() { rc.snap } else { p.snap };
-                    let tip = if tool.armed() {
-                        "Snap race points to the road (hold Alt to place freely). Right-click: the steps"
-                    } else {
-                        "Snap moves and turns to steps (hold Alt to bypass). Right-click: the steps"
-                    };
-                    let resp = ui.add(egui::Button::selectable(on, j)).on_hover_text(tip);
+                    let mut p = panels.props.borrow_mut();
+                    let mode = s.snap_mode;
+                    let tip = "Snap mode for every placing and moving tool: To surface, Keep height, Free. Click or K: the next \
+                               mode. Right-click: the mode and the steps";
+                    let resp = ui.add(egui::Button::selectable(mode.snaps(), j)).on_hover_text(tip);
                     if resp.clicked() {
-                        if tool.armed() {
-                            rc.snap = !rc.snap;
-                        } else {
-                            p.snap = !p.snap;
-                        }
+                        out.push(Action::Snap(mode.next()));
                     }
                     resp.context_menu(|ui| {
-                        ui.checkbox(&mut p.snap, "Snap props");
+                        for m in super::state::SnapMode::ALL {
+                            if ui.add(egui::Button::selectable(mode == m, m.label())).clicked() {
+                                out.push(Action::Snap(m));
+                                ui.close();
+                            }
+                        }
+                        ui.separator();
                         ui.horizontal(|ui| {
                             ui.label("Step");
-                            ui.add(egui::DragValue::new(&mut p.snap_metres).range(0.01..=10.0).speed(0.01).suffix(" m"));
+                            ui.add(
+                                egui::DragValue::new(&mut p.snap_metres).range(0.01..=10.0).speed(0.01).suffix(" m"),
+                            );
                             ui.add(egui::DragValue::new(&mut p.snap_degrees).range(1.0..=90.0).speed(0.5).suffix("°"));
                         });
-                        ui.checkbox(&mut rc.snap, "Snap race points to the road");
                     });
                     fit.items.push(("Snap".into(), resp.rect));
                 }
@@ -899,7 +1171,11 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                     };
                     let Some(j) = r else { continue };
                     let resp = ui.add_enabled(on, egui::Button::new(j)).on_hover_text(tip);
-                    let resp = if on { resp } else { resp.on_disabled_hover_text(format!("Nothing to {}", name.to_lowercase())) };
+                    let resp = if on {
+                        resp
+                    } else {
+                        resp.on_disabled_hover_text(format!("Nothing to {}", name.to_lowercase()))
+                    };
                     if resp.clicked() {
                         out.push(a);
                     }
@@ -908,7 +1184,7 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
             }
         }
         // The race tools' slot: a frame around them.
-        if slot.width() > 0.0 {
+        if slot.width() > 0.0 && s.focus != Focus::World {
             let r = egui::Rect::from_x_y_ranges(slot.x_range(), ui.max_rect().y_range()).shrink2(egui::vec2(0.0, 3.0));
             ui.painter().rect_stroke(
                 r,
@@ -919,7 +1195,20 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
         }
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             let (drive, test) = right_words(tier);
+            let world = s.focus == Focus::World;
             let errors = s.session.issues.iter().any(|i| i.level == Level::Error);
+            if world {
+                let r =
+                    ui.button(label_job(drive, None, false, true)).on_hover_text(super::modes::DRIVE_HERE.tooltip());
+                if r.hovered() || r.has_focus() {
+                    super::testplay::mark_drive_hover(ui.ctx());
+                }
+                if r.clicked() {
+                    post(ui.ctx(), Command::DriveHere);
+                }
+                fit.items.push(("Drive here".into(), r.rect));
+                return;
+            }
             let r = ui.add_enabled(!errors, theme::main_action(test));
             let r = if errors {
                 r.on_disabled_hover_text("Fix the errors in Validation first")
@@ -931,6 +1220,9 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
             }
             let test_rect = r.rect;
             let r = ui.button(label_job(drive, None, false, true)).on_hover_text(super::modes::DRIVE_HERE.tooltip());
+            if r.hovered() || r.has_focus() {
+                super::testplay::mark_drive_hover(ui.ctx());
+            }
             if r.clicked() {
                 post(ui.ctx(), Command::DriveHere);
             }
@@ -957,8 +1249,10 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
 pub fn tool_hint(tool: Tool, r: &Races) -> &'static str {
     match tool {
         Tool::Select => "Click a prop or a race point to select it · Ctrl+click: add to the selection",
-        Tool::Move => "Drag an arrow to move the selection · Shift+drag: copy · Alt: no snapping",
-        Tool::Rotate => "Drag the ring to turn the selection · Alt: turn freely · right-click a prop: Rotate 90°, Face camera",
+        Tool::Move => "Drag an arrow to move the selection · Shift or Alt+drag: copy",
+        Tool::Rotate => {
+            "Drag the ring to turn the selection · right-click a prop: Rotate 90°, Face camera"
+        }
         _ => r.hint(),
     }
 }
@@ -967,25 +1261,67 @@ pub fn tool_hint(tool: Tool, r: &Races) -> &'static str {
 /// get back to Select (a race tool armed) or clear the selection, how to
 /// fly.
 pub fn hint_job(s: &EditorState, p: &Props, r: &Races) -> egui::text::LayoutJob {
+    hint_job_in(s, p, r, false)
+}
+
+/// [`hint_job`] for the view shown: over the top view (`plan`) the end names the overview's own mouse controls
+/// instead of how to fly.
+pub fn hint_job_in(s: &EditorState, p: &Props, r: &Races, plan: bool) -> egui::text::LayoutJob {
     let tool = current_tool(s, p, r);
     let small = egui::FontId::proportional(13.0);
     let mut job = egui::text::LayoutJob::default();
-    job.append(&format!("{} tool", tool.name()), 0.0, egui::TextFormat::simple(theme::font(theme::LABEL, 14.0), theme::lime()));
+    // A collision drawing tool names itself and what its clicks do; Esc steps back one level at a time.
+    let drawing = s.draw.as_ref();
+    let name = match drawing {
+        Some(super::collision::Draw::Wall { .. }) => "Draw wall".to_string(),
+        Some(super::collision::Draw::Ground { .. }) => "Draw ground".to_string(),
+        None => format!("{} tool", tool.name()),
+    };
+    job.append(&name, 0.0, egui::TextFormat::simple(theme::font(theme::LABEL, 14.0), theme::lime()));
     let chip = hint_chip;
     // The way back first: it must show on the narrowest window.
-    if tool.armed() {
+    if let Some(d) = drawing {
+        chip(&mut job, "Esc", 14.0);
+        job.append(&format!(" {}", super::collision::esc_words(d)), 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
+    } else if tool.armed() {
         chip(&mut job, "Esc", 14.0);
         job.append(" back to Select", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
     }
-    job.append(tool_hint(tool, r), 18.0, egui::TextFormat::simple(small.clone(), theme::ink()));
+    let words = match (drawing, tool, s.focus) {
+        (Some(d), _, _) => super::collision::draw_words(d),
+        (None, Tool::Select, _) if s.wall.is_some() => "A wall is selected · Del removes it · click another wall to pick it",
+        (None, Tool::Select, Focus::World) => "Click a prop to select it · Ctrl+click: add to the selection",
+        (None, Tool::Select, Focus::Races) => "Click a race point to select it",
+        _ => tool_hint(tool, r),
+    };
+    job.append(words, 18.0, egui::TextFormat::simple(small.clone(), theme::ink()));
     // Turning a prop: the key and the menu, where the tool is not Rotate.
     if matches!(tool, Tool::Select | Tool::Move) && s.mode == Mode::Props && !s.selection.is_empty() {
         chip(&mut job, "E", 18.0);
-        job.append(" rotate · right-click: Rotate 90°, Face camera", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
+        job.append(
+            " rotate · right-click: Rotate 90°, Face camera",
+            0.0,
+            egui::TextFormat::simple(small.clone(), theme::ink()),
+        );
     }
-    if !tool.armed() && (!s.selection.is_empty() || s.point.is_some()) {
+    if drawing.is_none() && !tool.armed() && (!s.selection.is_empty() || s.point.is_some() || s.wall.is_some()) {
         chip(&mut job, "Esc", 18.0);
         job.append(" clear the selection", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
+    }
+    // The snap mode in force, in the same place for every tool that places or moves.
+    if matches!(tool, Tool::Move | Tool::Rotate) || tool.armed() || drawing.is_some() {
+        job.append(
+            &crate::studio::words::snap_hint(s.snap_mode.label()),
+            18.0,
+            egui::TextFormat::simple(small.clone(), theme::dim()),
+        );
+    }
+    if plan {
+        chip(&mut job, "RMB", 18.0);
+        job.append(" drag pan · wheel zoom · ", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
+        chip(&mut job, "Home", 0.0);
+        job.append(" fit · double-click: fly there", 0.0, egui::TextFormat::simple(small, theme::ink()));
+        return job;
     }
     chip(&mut job, "RMB", 18.0);
     job.append(" + ", 0.0, egui::TextFormat::simple(small.clone(), theme::dim()));
@@ -1017,7 +1353,7 @@ pub fn game_job(what: &str) -> egui::text::LayoutJob {
 /// The hint line under the view ([`hint_job`]), with "hide" at its
 /// right (View > Hint line brings it back).
 pub fn hint_line(s: &EditorState, p: &Props, r: &Races, ui: &mut egui::Ui, out: &mut Vec<Action>) {
-    let job = hint_job(s, p, r);
+    let job = hint_job_in(s, p, r, super::viewport::top_view(ui.ctx()).is_some());
     ui.horizontal_centered(|ui| {
         ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
             if ui.small_button("hide").on_hover_text("Hide the hint line (View > Hint line)").clicked() {
@@ -1053,9 +1389,10 @@ pub fn status(app: &App, ui: &mut egui::Ui) {
             let wide = ui.available_width() > 700.0;
             if wide {
                 let c = s.camera;
+                let place = s.place_name().map(|n| format!("{n}  ")).unwrap_or_default();
                 ui.weak(
                     egui::RichText::new(format!(
-                        "{:.0}, {:.0}, {:.0}  heading {:.0}°  FOV {:.0}°",
+                        "{place}{:.0}, {:.0}, {:.0}  heading {:.0}°  FOV {:.0}°",
                         c.position.x,
                         c.position.y,
                         c.position.z,
@@ -1077,6 +1414,11 @@ pub fn status(app: &App, ui: &mut egui::Ui) {
                 egui::RichText::new(format!("{e} {}", if e == 1 { "error" } else { "errors" })).size(12.0),
             );
             ui.separator();
+            if let Some(g) = super::testplay::link_words(ui.ctx()) {
+                let on = g == super::testplay::GAME_CONNECTED;
+                ui.colored_label(if on { theme::lime() } else { theme::warn() }, egui::RichText::new(g).size(12.0));
+                ui.separator();
+            }
             ui.with_layout(egui::Layout::left_to_right(egui::Align::Center), |ui| {
                 ui.add(egui::Label::new(egui::RichText::new(&s.status).size(13.0)).truncate());
             });
@@ -1087,6 +1429,16 @@ pub fn status(app: &App, ui: &mut egui::Ui) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_hint_names_the_overview_controls_over_the_top_view() {
+        let s = crate::editor::props::tests::state();
+        let (p, r) = (Props::default(), Races::default());
+        let fly = hint_job_in(&s, &p, &r, false).text;
+        let plan = hint_job_in(&s, &p, &r, true).text;
+        assert!(fly.contains("fly") && !fly.contains("pan"), "{fly}");
+        assert!(plan.contains("pan") && plan.contains("zoom") && plan.contains("double-click"), "{plan}");
+    }
 
     #[test]
     fn commands_are_taken_once_and_cleared() {
@@ -1136,8 +1488,8 @@ mod tests {
     #[test]
     fn every_command_offered_is_taken() {
         use crate::editor::state::RacePoint;
-        use crate::tools::map::edit::RacePart;
         use crate::tools::map::Spot;
+        use crate::tools::map::edit::RacePart;
 
         let dir = crate::testkit::Scratch::new("editor-commands");
         // Test race and Drive here save the mod first: a maps "folder" that
@@ -1159,15 +1511,25 @@ mod tests {
         let _ = app.frame(raw());
         let mut offered = std::collections::HashSet::new();
         for mode in [Mode::Props, Mode::Races] {
-            for view in [View::ThreeD, View::Map] {
+            for view in ["3D", "top"] {
                 for c in Command::ALL {
                     let s = app.state.as_mut().unwrap();
                     s.session.map.races = vec![race.clone()];
-                    (s.mode, s.view, s.race) = (mode, view, Some(0));
+                    (s.mode, s.race) = (mode, Some(0));
+                    let _ = view;
                     s.selection = vec![0];
+                    use crate::tools::map::ops::CollisionKey as Target;
+                    s.wall = (c == Command::RemoveWall).then(|| crate::editor::collision::Picked {
+                        key: Target::Drawn("wall-1".into()),
+                        what: "Drawn wall wall-1".into(),
+                        outline: vec![glam::Vec3::ZERO, glam::Vec3::X],
+                        z: (0.0, 2.0),
+                        surface: None,
+                        owner: String::new(),
+                    });
                     s.point = Some(RacePoint { part: RacePart::Checkpoint, index: 0 });
                     s.maps = match c {
-                        Command::TestRace | Command::DriveHere => not_a_folder.clone(),
+                        Command::TestRace | Command::DriveHere | Command::RecordDrive | Command::TestWithout => not_a_folder.clone(),
                         _ => dir.path().join("maps"),
                     };
                     if c.unavailable(s).is_some() {
@@ -1178,9 +1540,11 @@ mod tests {
                     let _ = app.frame(raw());
                     assert!(app.untaken.is_empty(), "{c:?} not taken in {mode:?} / {view:?}");
                     let s = app.state.as_ref().unwrap();
-                    if matches!(c, Command::TestRace | Command::DriveHere) {
+                    if matches!(c, Command::TestRace | Command::DriveHere | Command::RecordDrive | Command::TestWithout) {
                         assert!(
-                            s.status.starts_with("The run copy was not written") || s.status.starts_with("Cannot test"),
+                            s.status.starts_with("The run copy was not written")
+                                || s.status.starts_with("Cannot test")
+                                || s.status.starts_with("Nothing to leave out"),
                             "{c:?}: {}",
                             s.status
                         );
@@ -1192,10 +1556,9 @@ mod tests {
         assert!(never.is_empty(), "never offered: {never:?}");
         // Disabled ones say why.
         let s = app.state.as_mut().unwrap();
-        (s.mode, s.view) = (Mode::Props, View::Map);
+        s.mode = Mode::Props;
         s.selection.clear();
         assert_eq!(Command::Duplicate.unavailable(s), Some("Select a prop first"));
-        assert_eq!(Command::ResetCamera.unavailable(s), Some("In the 3D view only (M)"));
         s.mode = Mode::Races;
         assert_eq!(Command::DropToGround.unavailable(s), Some("Select a prop first"));
     }
@@ -1217,31 +1580,60 @@ mod tests {
         current_tool(app.state.as_ref().unwrap(), &app.panels.props.borrow(), &app.panels.races.borrow())
     }
 
+    /// L steps the collision layer Off, Invisible barriers, All collision, Off (hidden by default).
+    #[test]
+    fn l_steps_the_collision_layer() {
+        use super::super::collision::Show;
+        let dir = crate::testkit::Scratch::new("editor-collision-key");
+        let mut app = App::new(
+            dir.path().join("game"),
+            dir.path().join("maps"),
+            Box::new(|_: &std::path::Path, _: &str| Ok(world())),
+        );
+        app.new_mod("coll", "Coll", "L4RA").unwrap();
+        frame_with(&mut app, Vec::new());
+        assert_eq!(app.state.as_ref().unwrap().collision, Show::Off);
+        for want in [Show::Invisible, Show::All, Show::Off] {
+            frame_with(&mut app, vec![key(Key::L)]);
+            assert_eq!(app.state.as_ref().unwrap().collision, want);
+        }
+    }
+
     /// The tools' keys pick tools; a race tool needs a race and stays armed
     /// until Esc; Tab is not the editor's (keyboard focus); a prop picked
     /// disarms the race tool.
     #[test]
     fn tool_keys_esc_and_no_tab() {
         let dir = crate::testkit::Scratch::new("editor-tools");
-        let mut app =
-            App::new(dir.path().join("game"), dir.path().join("maps"), Box::new(|_: &std::path::Path, _: &str| Ok(world())));
+        let mut app = App::new(
+            dir.path().join("game"),
+            dir.path().join("maps"),
+            Box::new(|_: &std::path::Path, _: &str| Ok(world())),
+        );
         app.new_mod("tools", "Tools", "L4RA").unwrap();
         frame_with(&mut app, Vec::new());
         assert_eq!(tool(&app), Tool::Select, "nothing armed at the start");
         frame_with(&mut app, vec![key(Key::C)]);
         assert_eq!(tool(&app), Tool::Select, "no race: the race tools stay off");
-        assert_eq!(Tool::Checkpoint.unavailable(app.state.as_ref().unwrap()), Some("Make a race first: Race > New race"));
+        assert_eq!(
+            Tool::Checkpoint.unavailable(app.state.as_ref().unwrap()),
+            Some("Make a race first: Race > New race")
+        );
         let s = app.state.as_mut().unwrap();
         s.session.map.races = vec![crate::editor::validate::tests::sprint(&[(20.0, 0.0), (200.0, 0.0)])];
         s.race = Some(0);
-        for (k, t) in [(Key::W, Tool::Move), (Key::E, Tool::Rotate), (Key::Q, Tool::Select), (Key::C, Tool::Checkpoint)] {
+        for (k, t) in [(Key::W, Tool::Move), (Key::E, Tool::Rotate), (Key::Q, Tool::Select), (Key::C, Tool::Checkpoint)]
+        {
             frame_with(&mut app, vec![key(k)]);
             assert_eq!(tool(&app), t, "{k:?}");
         }
         assert_eq!(app.state.as_ref().unwrap().mode, Mode::Races);
         let s = app.state.as_ref().unwrap();
         let hint = hint_job(s, &app.panels.props.borrow(), &app.panels.races.borrow()).text;
-        assert!(hint.starts_with("Checkpoint tool") && hint.contains("Esc") && hint.contains("back to Select"), "{hint}");
+        assert!(
+            hint.starts_with("Checkpoint tool") && hint.contains("Esc") && hint.contains("back to Select"),
+            "{hint}"
+        );
         for (k, t) in [(Key::S, Tool::Start), (Key::X, Tool::Finish), (Key::G, Tool::Grid)] {
             frame_with(&mut app, vec![key(k)]);
             assert_eq!(tool(&app), t, "{k:?}");

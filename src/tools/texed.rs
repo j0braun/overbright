@@ -22,13 +22,11 @@ use glam::Vec2;
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
 // ------------------------------------------------------------- the switch
 
 static ENABLED: AtomicBool = AtomicBool::new(false);
-static RECORDING: AtomicBool = AtomicBool::new(false);
 
 /// `--editor`: the tool can be opened (its hotkey works).
 pub fn enable() {
@@ -40,47 +38,13 @@ pub fn enabled() -> bool {
 }
 
 /// The renderers note what they draw (only while the panel is open).
-pub fn recording() -> bool {
-    RECORDING.load(Ordering::Relaxed)
-}
-
-// ------------------------------------------------------------- what was drawn
-
-#[derive(Default)]
-struct Noted {
-    world_slots: Vec<usize>,
-    textures: Vec<(Domain, Texture)>,
-}
-
-fn noted() -> &'static Mutex<Noted> {
-    static N: OnceLock<Mutex<Noted>> = OnceLock::new();
-    N.get_or_init(Default::default)
-}
-
-/// The world renderer's main view drew these texture slots.
-pub fn note_world_slots(slots: impl Iterator<Item = usize>) {
-    let mut n = noted().lock().unwrap_or_else(|e| e.into_inner());
-    n.world_slots.extend(slots);
-    n.world_slots.sort_unstable();
-    n.world_slots.dedup();
-}
-
-/// A renderer drew these textures (`car`: the cars').
-pub fn note_textures<'a>(car: bool, textures: impl Iterator<Item = &'a Texture>) {
-    let d = if car { Domain::Car } else { Domain::World };
-    let mut n = noted().lock().unwrap_or_else(|e| e.into_inner());
-    for t in textures {
-        if !n.textures.iter().any(|(dd, x)| *dd == d && x.hash == t.hash) {
-            n.textures.push((d, t.clone()));
-        }
-    }
-}
+pub use crate::render::draw_notes::recording;
 
 /// What was noted since the last call: the world's slots and the other
 /// textures.
 pub fn take_noted() -> (Vec<usize>, Vec<(Domain, Texture)>) {
-    let mut n = noted().lock().unwrap_or_else(|e| e.into_inner());
-    (std::mem::take(&mut n.world_slots), std::mem::take(&mut n.textures))
+    let (slots, textures) = crate::render::draw_notes::take_noted();
+    (slots, textures.into_iter().map(|(car, t)| (if car { Domain::Car } else { Domain::World }, t)).collect())
 }
 
 // ------------------------------------------------------------- the panel
@@ -275,7 +239,7 @@ impl Editor {
     /// stops the renderers' notes.
     pub fn toggle(&mut self) {
         self.open = !self.open;
-        RECORDING.store(self.open, Ordering::Relaxed);
+        crate::render::draw_notes::set_recording(self.open);
         if !self.open {
             self.set_highlight(None);
         } else {

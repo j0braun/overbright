@@ -72,7 +72,7 @@ downloaded. The method is pure Rust.
 Also left out: under 16 texels a side (`Small`), flat colour (luma σ < 0.006, `Flat`: 108), 2× over
 the cap (`Large`: 6), and four textures rejected by eye (`REJECTED`).
 
-## Load path (`src/render/texture_pack.rs`, `render::texture_layer_with_pack`)
+## Load path (`crates/ob-render/src/render/texture_pack.rs`, `render::texture_layer_with_pack`)
 Lookup per world texture: `<HASH>.png` (a hand-made replacement wins), then `<HASH>.dds`, then
 `<NAME>.png`. A DDS goes up as-is (BC1/BC3 with its mips) when the GPU has BC; otherwise it is
 decoded and given an alpha-weighted RGBA8 mip chain. Oversized (> GPU limit or 4096), truncated or

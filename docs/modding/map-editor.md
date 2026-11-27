@@ -21,6 +21,24 @@ game's files and your career save are never written.
 
 If no map mod is on, none of this runs: worlds and races are the original's.
 
+## Snap modes
+
+One mode for every tool that places or moves (**K** cycles it; the Snap submenu of the Edit menu or the toolbar's **Snap** button sets it; the hint line under the view names the mode in force):
+
+- **To surface**: props move in steps (0.25 m and 15° unless changed with a right-click on **Snap**) and land on the ground where they are put down; race points snap to the road; collision corners snap to existing corners.
+- **Keep height** (the start): the same steps with the prop's height kept, as the editor always snapped.
+- **Free**: nothing snaps: moves and turns are exact and a point lands where the mouse is.
+
+Alt no longer changes snapping: **Alt + drag** an arrow copies the selection, as Shift + drag does. Esc during either puts everything back.
+
+## Select street
+
+**Edit ▸ Select street** selects the props along the street the first selected prop stands on, up to the junction at each end (a junction is where the road branches into more than one way on), within 14 m of the road's centre line. Duplicate, Move and Delete then work on the whole street. Where the game's road records give no connections (the free roam overview) the street is the single road piece the prop stands on.
+
+## Typed values
+
+In the Properties panel, numbers you type (position, heading) wait: **Enter** or the **Apply** button uses them as one undo step; leaving the field or **Esc** puts them back. Dragging a number moves the prop as you drag and is one undo step when released; Esc during that drag puts it back.
+
 ## Opening it
 
 - From the launcher: **Mods** page, **Map mods**: choose a mod and press **Open in map editor**; or on the
@@ -56,7 +74,10 @@ There are no modes: one tree, one toolbar, and the tools follow what is selected
   race…**), then **Props** (the moved, deleted and added props; each with **Reset to original** and **Delete**).
   A click on a row selects it. Below 1400 points of window width the tree starts folded to a narrow rail that
   names its three parts; a click on the rail opens it, the button at the tree's top folds it again.
-- **Centre: the view.** The 3D view, drawn by the game's own renderer, or the 2D road-network **Map** (M). The
+- **Centre: the view.** The 3D view, drawn by the game's own renderer, or the top-down overview (T) with the road
+  network (**View ▸ Roads**, on by default: the drivable sections' outlines, the roads a race's base track allows (bright, the
+  rest dim, and the base track's own route faint under them),
+  the closed race barriers in red, the camera as an arrow, the pointer's x, y; a double-click flies to the place). The
   selection and its handles are drawn on top, and in both views the races: the selected race bright with its
   start and finish lines, grid and checkpoints, the others' routes dim. The buttons at the view's top right pick
   the look: **Auto** (street near the ground, whole map from above), **Street** (what the game draws on the
@@ -67,9 +88,9 @@ There are no modes: one tree, one toolbar, and the tools follow what is selected
   measures the picture's average brightness, raises the darks by up to 32 times along a curve that keeps white
   white and each colour's hue, and lifts black slightly. The game, its renderer and its options are not changed.
 - **Hint line** (under the view): the tool in force, what a click does with it, **Esc** back to Select while a
-  race tool is armed, and how to fly. **hide** at its right; **View ▸ Hint line** shows it again.
+  race tool is armed, and how to fly (over the top view: right-drag pans, the wheel zooms, Home fits, a double-click flies there). **hide** at its right; **View ▸ Hint line** shows it again.
 - **Right: Properties** of the selection (below). Its button folds it to a rail.
-- **Bottom tabs**: **Prop browser**, **Validation**, **Simulate** and **Log**. The button at the right of the
+- **Bottom tabs**: **Prop browser**, **Race**, **Validation**, **Simulate** and **Log**. The button at the right of the
   tabs folds them to the tab strip. The side and bottom panels are resized by dragging their edge; their sizes
   are kept with the mod.
 - **Menu bar**: the menus below, and the mod's name and region at the right with a dot while there are
@@ -79,15 +100,14 @@ There are no modes: one tree, one toolbar, and the tools follow what is selected
 
 ## Menus
 
-A menu item that cannot act now is greyed out and says why when hovered (Duplicate with no prop selected,
-Reset camera in the map view). Every item does something; a test checks that each one has a taker.
+A menu item that cannot act now is greyed out and says why when hovered (Duplicate with no prop selected). Every item does something; a test checks that each one has a taker.
 
 | Menu | Items |
 |---|---|
-| File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
-| Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Draw wall**, **Edit ▸ Draw ground** (see Removed and drawn collision) |
-| View | **View ▸ 3D view**, **View ▸ Map** (M switches), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision** (see Collision), **View ▸ Hint line** |
-| Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5) |
+| File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Export as mod pack…** (a `.obpk` file for the launcher's Mods page: the placements, races and textures as the asset format's own files; it proposes `<folder>-1.0.0.obpk` in the `exports` folder), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
+| Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Select street** (see Select street), **Edit ▸ Snap ▸ To surface**, **Edit ▸ Snap ▸ Keep height**, **Edit ▸ Snap ▸ Free** (see Snap modes), **Edit ▸ Collision ▸ Draw wall**, **Edit ▸ Collision ▸ Draw ground** and **Edit ▸ Collision ▸ Remove wall** (see Removed and drawn collision) |
+| View | **View ▸ Roads** (the road network over the top view), **View ▸ Show nearest road**, **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision**, **View ▸ Collision ▸ By kind** and **View ▸ Collision ▸ By surface** (see Collision), the Kinds submenu of View ▸ Collision (**View ▸ Collision ▸ Kinds ▸ Invisible walls**, **View ▸ Collision ▸ Kinds ▸ Barriers**, **View ▸ Collision ▸ Kinds ▸ Walls behind scenery**, **View ▸ Collision ▸ Kinds ▸ Road floors**, **View ▸ Collision ▸ Kinds ▸ Floors that are not ground**, **View ▸ Collision ▸ Kinds ▸ Added props'**, **View ▸ Collision ▸ Kinds ▸ Moved props'**, **View ▸ Collision ▸ Kinds ▸ Drawn by this mod**, **View ▸ Collision ▸ Kinds ▸ Show every kind**), the Opacity submenu (**View ▸ Collision ▸ Opacity ▸ 25 %**, **View ▸ Collision ▸ Opacity ▸ 50 %**, **View ▸ Collision ▸ Opacity ▸ 75 %**, **View ▸ Collision ▸ Opacity ▸ 100 %**), **View ▸ Collision ▸ Wireframe** and **View ▸ Collision ▸ Full-height walls** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
+| Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5), **Race ▸ Drive to record**, **Race ▸ Test without selected props**, **Race ▸ What the game loaded**, **Race ▸ Test car and clock…** |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
 
 ## Controls
@@ -100,7 +120,7 @@ do nothing while a text field has the keyboard.
 |---|---|
 | `Q` | Select tool: a click selects a prop or a race point, never adds |
 | `W` | Move tool: drag an arrow to move the selected props |
-| `E` | Rotate tool: drag the ring to turn the selected props (Alt: turn freely) |
+| `E` | Rotate tool: drag the ring to turn the selected props (the snap mode Free: turn freely) |
 | `C` | Checkpoint tool: a click on the road adds a checkpoint |
 | `S` | Start tool: a click on the road puts the start line |
 | `X` | Finish tool: a click on the road puts the finish line |
@@ -110,18 +130,23 @@ do nothing while a text field has the keyboard.
 | `RMB + Q / E  (F / R)` | Fly down / up |
 | `RMB + wheel` | Fly speed |
 | `Shift / Ctrl while flying` | Fast / slow |
-| `Wheel` | Dolly; in the overview and the map: zoom |
+| `Wheel` | Dolly; in the overview: zoom |
 | `F` | Frame the selection |
 | `T` | Top-down overview on / off |
-| `Home` | Fit the overview or the map to the region |
-| `M` | 3D view / Map |
+| `Home` | Fit the overview to the region |
+| `L` | Collision layer: off / invisible barriers / all collision |
+| `H` | Hide the selected props (this view only) |
+| `Shift+H` | Show only the selected props |
+| `Alt+H` | Show every prop again |
 | `LMB / Ctrl+LMB` | Select / add to the selection |
-| `Shift + drag an arrow` | Copy the selection and move the copy |
-| `Alt while dragging or placing` | No snapping |
+| `Shift or Alt + drag an arrow` | Copy the selection and move the copy (Esc cancels it) |
+| `K` | Snap mode: To surface / Keep height / Free (every placing and moving tool follows it) |
 | `Shift + click on the route` | Insert a checkpoint there |
 | `[ / ]` | Previous / next checkpoint |
 | `Ctrl+D` | Duplicate |
 | `Del` | Delete |
+| `B / Shift+B` | Draw wall / Draw ground (Enter or the first corner finishes the outline) |
+| `Esc, Backspace` | In a drawing tool: Esc drops the shape, again puts the tool down; Backspace the last corner |
 | `End` | Drop to the ground |
 | `RMB on a prop / Shift+F10` | The prop menu: Rotate 90°, Rotate…, Face camera |
 | `Ctrl+Z, Ctrl+Y (Ctrl+Shift+Z)` | Undo, redo |
@@ -130,20 +155,42 @@ do nothing while a text field has the keyboard.
 | `Ctrl+Q` | Quit |
 | `Enter` | Confirm a dialog |
 | `F5 / Shift+F5` | Test race / Drive here |
+| `Ctrl+F5` | Restart race (the open test game) |
 | `Space` | Play / pause the simulation (its timeline under the view) |
 | `Left / Right, Shift+Left / Right` | The simulation a recorded frame back / on, a second with Shift |
 | `Up / Down` | Show the line above / below in What went wrong (Simulate tab) |
 
 While the right mouse button is held the tool keys fly the camera instead (W A S D, Q / E).
 
+## Hiding props, views and Go to
+
+These only change what the view shows. None of it is a step in the undo list, none of it is written to the map, and a
+mod saved with props hidden is byte for byte the mod saved without.
+
+- **Hiding props.** **H** hides the selected props, **Shift+H** isolates them (only they are drawn) and **Alt+H**
+  draws everything again; the same three are in the View menu (**Hide selected**, **Isolate selected**, **Show all**).
+  A hidden prop is not drawn and not picked in the 3D view; the collision layer still shows its walls.
+  **This mod's changes only** draws just the props the mod moved, deleted or added, so you see your own work on its
+  own; the Show all item leaves that filter alone, switch it off with its own item. Going to a hidden prop shows it
+  again. An undo that removes added props forgets their hiding.
+- **Camera presets.** **Top view** (T) is the top-down overview, **Isometric view** looks at the selection, or at what
+  the camera looks at, from a corner at 45 degrees, and **Frame selection** (F) flies to the selected props.
+- **Go to…** opens a box that takes coordinates (`x, y`, in the world's metres), a prop's name (part of the name is
+  enough; with several matches the one nearest the camera is taken, and it is selected) or a race point of the
+  selected race: `start`, `finish`, `checkpoint 3` or `grid 2`, counted from 1. When it finds nothing it says so
+  in the box and stays open.
+- **Views.** **View ▸ Views ▸ Save view…** keeps the camera and the layers (the collision layer, the race barriers,
+  3D view or Map, and the changes-only filter) under a name; the same name again replaces that view. Saved views
+  are listed in the same menu, a click brings one back, and the Views menu's **Delete view** submenu removes one. They are
+  kept per mod in `editor.toml` next to the camera, not in the mod, so they are not exported or shared with it.
+
 ## Props
 
 - **Select** a prop with a click in the view or in the tree; Ctrl+click adds to the selection. **Edit ▸ Select
   all of this solid** selects every placement of the same model.
 - **Move** shows an arrow per axis, **Rotate** (E) a ring around the vertical. The handles keep their size on
-  screen, in the 3D view and in Top. Moves snap to 0.25 m and turns to 15° while **Snap** is on (right-click it
-  for other steps; Alt held: no snapping, the ring turns freely). Shift while dragging an arrow moves a copy. A
-  drag moves the world as you drag and is one undo step when released. With a prop selected the hint line names
+  screen, in the 3D view and in Top, and so does the reach of a race point's grab in Top (12 points at any zoom). Moves snap to 0.25 m and turns to 15° unless the snap mode is Free (see Snap modes; right-click **Snap** for other steps). Shift or Alt while dragging an arrow moves a copy. A
+  drag moves the world as you drag and is one undo step when released; **Esc** during a drag puts everything back exactly as it was (a copy is taken back too) and leaves no undo step, for a race point as well. The hint line names the snap mode in force. With a prop selected the hint line names
   the Rotate key and the prop menu.
 - **The prop menu**: right-click a prop in the view (a click, not a flight: the camera must not move between
   press and release), or press Shift+F10 with props selected. It selects the prop when it is not selected yet and
@@ -179,8 +226,8 @@ While the right mouse button is held the tool keys fly the camera instead (W A S
 - **Race ▸ New race** (or **New race…** in the tree) makes a sprint on the selected race's base track, else on the race
   track whose roads come nearest to where the camera looks, and arms Start: click the road for the start line, then for the checkpoints (the Checkpoint tool is armed for you),
   finish last for a sprint. The race tools work the same in the 3D view, in **Top** and on the **Map**: a click
-  places the point, a drag moves it, each one undo step. Points snap to the base track's nearest road while Snap
-  is on (Alt: no snapping); in Top and on the Map a point takes its height from the road under it, never from
+  places the point, a drag moves it, each one undo step. Points snap to the base track's nearest road unless the snap mode
+  is Free; in Top and on the Map a point takes its height from the road under it, never from
   the camera. The selected race's base-track roads are drawn faint green over the 3D view (near the camera), in
   Top and on the map: a race may only use those roads. On the Map, a drag that does not start on a race point
   pans as before.
@@ -188,8 +235,15 @@ While the right mouse button is held the tool keys fly the camera instead (W A S
   checkpoints. With Checkpoint armed, Shift+click on the route inserts a checkpoint into that leg. Grid adds a
   slot (8 at most; with a slot selected, a click moves it).
 - **Properties** of a race: name, mode (circuit, sprint, street X, drift), laps, **Base track** (which race track
-  lends the road network, barriers, AI lanes, traffic and opponents), **Direction** (forward or backward),
+  lends the road network, barriers, AI lanes, traffic and opponents; the list names each track's race modes and
+  neighbourhood), **Direction** (forward or backward),
   length, status, **Delete race**; of a race point its position.
+- **Race** (bottom tab): the selected race as one strip, S · 1 · 2 · … · F, with the length of each leg's road and
+  whether a road leads through it (a leg without one is dashed red, with **Show** and its fix); a circuit ends with
+  the way back to the first checkpoint. A stop selects that point; the **+** between two checkpoints puts a new one
+  into that leg, in the middle of its road (one undo step, the same edit as `race point add --index`). Under the
+  name stands the race's badge: can't race, not tested or tested. Tab and the arrows move between the stops and the
+  buttons, Enter takes one (A on the pad).
 - **Validation** (bottom tab): every problem of every race, each with **Show** and, where one exists, a
   one-click fix (**Try base track N**, **Snap grid to road**, **Snap start to road**, **Snap finish to route**,
   **Turn start along route**, **Set laps to N**, **Rename to …**). A start line facing more than 45° off the
@@ -207,7 +261,12 @@ While the right mouse button is held the tool keys fly the camera instead (W A S
   under it); a removed wall the region's collision does not have (removing it does nothing); a drawn wall or ground
   partly outside the region's collision area (the game leaves that part out). `overbright-studio-cli checks run`
   runs them too, on the region's world with the mod's drawn collision applied, so a race start on drawn ground has
-  a floor.
+  a floor. In the Validation tab, **Show** on an entry about a drawn wall or ground selects it (and switches the
+  collision layer on if it was off).
+- **View ▸ Show nearest road** marks the road nearest the selected race point or prop (with none selected, the
+  camera) in the roads the view shows, draws a line to it and takes the camera there; the status bar says how far
+  it is. The mark stays until the next use or until Roads is turned off. It is a way of looking at the view, so
+  the command line has no counterpart; `checks run` reports how far a checkpoint is from the roads.
 
 ## Saving
 
@@ -226,7 +285,7 @@ then stay in the history for the next opening.
 One program writes a mod at a time. A mod already open in another editor (or another program of Overbright
 Studio) opens read-only, with a strip over the view saying which program has it; edits are not kept, the view
 follows the other program's steps, and **Try again** opens the mod for writing once the other program has let go.
-When another program writes `map.obmap` while the mod is open, its change becomes one step that Undo takes back.
+When another program writes a file of the mod while the mod is open (`map.obmap`, `looks.toml`, a texture file), each change becomes one step, "Outside change: <file>", that Undo takes back ([The game link](studio.md#the-game-link)).
 
 An older editor wrote unsaved changes to `.editor/map.obmap.autosave`. When that file is newer than the mod,
 opening the mod offers it once through the same prompt; the editor removes it after the answer and never writes
@@ -236,7 +295,7 @@ The editor's own files live in the mod's `.editor/` folder. They are never expor
 
 | File | Holds |
 |---|---|
-| `editor.toml` | the view: region, camera, the widths of the tree and the properties and the height of the bottom tabs (written on save, when another mod is opened and when the window closes) |
+| `editor.toml` | the view: region, camera, the saved views, the widths of the tree and the properties and the height of the bottom tabs (written on save, when another mod is opened and when the window closes) |
 | `history.journal` | every step, with its author and the last saves (the history) |
 | `saved-by.json` | the build that last wrote the mod's files and each file's hash then, written on every save, so a later build can repair what an older one wrote wrong (checked by `every_save_records_the_build_that_wrote_it`) |
 | `studio.lock`, `studio-owner.toml` | the write lock while a program has the mod open, and which program it is (removed when it closes the mod; one left by a program that died is ignored) |
@@ -272,6 +331,42 @@ the game next to the editor on that copy:
 game --map-file <mod folder>/.editor/run/map.obmap --map-race <id> --map-result <mod folder>/.editor/test-result.txt
 ```
 
+The test game stays open and takes your edits. Studio starts it with `--studio-link <mod folder>/.editor/link`: two
+small files in that folder (`command.txt` from Studio, `game.txt` from the game), each written through a temporary file;
+nothing listens on a network, and it is the same on Windows and Linux. Without the flag the game never looks at the
+folder. About ten times a second, between two frames (never inside a simulation step, so play is the same at any
+frame rate), the game reads `command.txt`; a new command reads the mod's run copy again. Moved, deleted and added props and drawn or removed collision go into the
+running world in place, within a moment and without a loading screen: a linked run keeps the region's original
+placements beside the modded state, so each edit derives the placements again from original and mod (the same world a
+fresh load of the edited mod makes), the renderer's instances and the scenery collision follow, the car stays where it is
+and the clock keeps running. An added or removed prop makes the world renderer again (a pause of a moment, no load). What
+cannot go in place (the run's own race, a new aim, car or clock) starts the run over behind the loading screen, and the
+status bar says "reloaded" with the reason. **Race ▸ Restart race** (Ctrl+F5) only starts over. F5 or Shift+F5 while the game is
+open send the new race or spot instead of refusing. Free roam goes on from where the car is after a reload. A run that
+cannot start (the race was deleted, no road at the spot) stays as it was and the status bar says why. The game writes its own state about twice
+a second; the status bar shows "Game connected", "Game applying changes", "Game reloading the world" (the run's own race
+changed: the run starts over), and then what the game did ("Game: applied live", "Game: reloaded: the race under test changed"),
+"Game not answering" or "Game not connected". Studio also sends a probe every few seconds while the game is idle (a
+command the game answers at once, so a game that beats but does not read the command file shows as not answering; a
+probe never goes over a command the game has not read). At most four game runs (test windows and simulations, of every
+mod and window of the data folder) are open at once; a fifth waits ("4 game runs are open already") and a place that
+nothing touched for 15 seconds counts as free. `--map-car <name>` and `--map-clock <seconds>` start the run with a car of
+the game and a world clock (the time of day and weather as the game's cycle has them that long after a load; 1 to 3600);
+Studio sends its test focus (car, clock) at the start and with the next command when it changes, which starts the run
+over; **Race ▸ Test car and clock…** sets it (a car's name in the game, like 240SX, and a clock of 1 to 3600 seconds; each
+empty means the game's own, and the game refuses a car it does not have and keeps the run as it was). Studio starts its runs with `--map-mem-cap 8192`: a run whose resident memory passes that many MiB (Linux; it is not measured elsewhere) stops itself and says so over the link, so one runaway run cannot take the machine down with the others. A simulation (`--simulate`) takes `--studio-link` as well: it answers a probe and ends on a stop command, and is
+not started over (it says so).
+
+The run copy is the mod's one unsaved-work layer: every run of the mod (the test window and the simulations) reads that
+single file, Studio writes it only when its content changes, and removes it when the last run of the data folder has
+ended, so no stale unsaved copy stays behind. **Race ▸ Test without selected props** starts a test with the selected
+props' edits (moved, deleted or added) left out of the layer for that one run: the original is there instead, the mod and
+`map.obmap` are not changed, the status bar says how many were left out, and the next test is whole again.
+While such a run is open, **File ▸ Export…** and **File ▸ Export as mod pack…** ask first ("N props are left out of the running test. They stay in what you share.", Share or Cancel); what is shared is always the whole mod.
+**Race ▸ What the game loaded** asks the open test game for an opt-in answer (`op=loaded` over the link, the game writes
+`loaded.txt` next to `game.txt`): the mod and the file it was read from, how many props were moved, deleted and added,
+the races and collision edits, and the texture folders with their file counts. The game writes it only when asked.
+
 Test race does not save `map.obmap` itself; the status bar adds "(testing unsaved changes)" while the mod
 has steps not yet saved. `--map-file <path>` reads the mod from that file; in the run the mod is known by
 its folder's name (for a run copy, the mod's folder; for any other file, the folder holding it, or `map-file`
@@ -296,7 +391,8 @@ start (an unknown id, no route, no career event of its mode on its base track) m
 reason in its log and no result line, which the editor reports.
 
 **Drive here** (Shift+F5) does the same with `--map-at x,y,z,heading` (heading in degrees around +z from +x) in
-place of `--map-race`: free roam with only this mod, from the camera's spot on the ground. Esc ends the run
+place of `--map-race`: free roam with only this mod, from the camera's spot on the ground. While the pointer is on the **Drive here** button the view marks the spot (the car's footprint with its nose
+along the heading); the spot is moved out of the way of any prop this mod added, so the car never starts inside one. Esc ends the run
 (`drove=yes`). A spot with no floor of the game's collision under it at any height (past a road's edge) ends the
 start with "no ground at x, y" in the log, as a race that cannot be raced does; `--simulate-world` ends its stream
 with that reason, which the Simulate tab shows.
@@ -327,11 +423,19 @@ game --map-file <run copy> --map-at x,y,z,heading --simulate-world --stream - --
   with the race's events (below). The same seed gives the same stream, byte for byte.
 - The run ends at the race's end (every racer through), after `--sim-seconds` (default 900 for a race, 120 in
   free roam), or when standard input reads `quit` (the editor's **Stop**).
+- `--run-channels drive,hash` adds the opt-in channels to the file: each car's gear, rpm and pedals, and the
+  state hash of every tick instead of every 60 (docs/modding/asset-format/runs.md, 3.3). Without it the file is
+  as it was. Reading the channels changes nothing in the run.
 - `--stream`, `--sim-seed` and `--sim-seconds` without `--simulate` / `--simulate-world`, `--simulate` without
   `--map-race`, or `--simulate-world` without `--map-at` are usage errors.
 
+`--record <file>` (with `--map-file` or `--map-mod` and `--map-race` or `--map-at`, not with `--simulate`) makes the
+test window write the same run file as you drive it, one frame per update at any frame rate, until the race ends,
+the window closes or the run is started over by the link; `--run-channels` applies to it too. Studio's **Drive to
+record** starts the game this way (docs/modding/studio.md, "Runs"). Without the flag nothing is written.
+
 The editor reads the stream while it arrives and never waits for the game. A run shown has a **timeline** under
-the 3D view / Map (it reads only the recorded run, so it serves a saved one too): a track over everything recorded
+the 3D view or the top view (it reads only the recorded run, so it serves a saved one too): a track over everything recorded
 so far that a click or drag moves along (always to a recorded frame), **<** / **>** a recorded frame back / on
 (Left / Right; Shift: a second), **Play** / **Pause** (Space), the speed (0.25x to 4x), the time, and the camera:
 **Free camera** (fly it yourself), **Follow** (behind and above the car chosen beside it) or **Chase** (the game's
@@ -456,7 +560,35 @@ drawn collision"). It is drawn again whenever an edit, undo or redo changes the 
 - **View ▸ Collision ▸ Invisible barriers** draws the walls a player cannot see: in red the invisible walls,
   in amber the race and career barriers.
 - **View ▸ Collision ▸ All collision** adds, in grey, the walls that stand behind scenery and, in the 3D view,
-  the floors near the camera.
+  the floors near the camera: road floors in the road colour, floors the wheels do not count as ground in lime.
+
+The L key steps through the three.
+
+- **View ▸ Collision ▸ By kind** (the default) colours the walls and floors as above.
+- **View ▸ Collision ▸ By surface** colours every wall, barrier and floor by the surface id its face carries in the
+  pack (grip and sound; the same id always has the same colour), and the key lists the most common ids with their
+  counts. Ids have no names yet.
+
+The mod's own collision is set apart from the original's in every mode, in thicker lines, and shows in Invisible
+barriers too: an added prop's collision in blue, a moved prop's at its new place in lime, the walls and ground the
+mod drew in green; the key counts each. It is a view only: nothing is written to the mod.
+
+Which kinds are drawn, and how, is the window's own view setting:
+
+- The Kinds submenu (View ▸ Collision) shows or hides each kind the key lists (the invisible walls, the barriers, the walls
+  behind scenery, the road floors, the floors that are not ground, and the mod's own added, moved and drawn
+  collision); **Show every kind** brings them all back. Under **By surface** the key's surface rows switch single
+  surface ids. A click on a row of the key does the same as the menu item.
+- The Opacity submenu draws the layer at 25, 50, 75 or 100 % of its strength.
+- **View ▸ Collision ▸ Wireframe** draws outlines only, without the see-through fill.
+- **View ▸ Collision ▸ Full-height walls** draws a wall the game makes reach from -2048 m to 2048 m that tall,
+  not only beside the floors.
+- With the layer shown, a click on a wall (3D view, top view and Map) names its surface id and what it belongs to
+  in the status line and the Properties panel: its barrier group, the nearest prop of the original's scenery, or the
+  mod. With all collision shown, a click on a floor names its surface and kind in the status line.
+
+None of this is written to the mod: saved before and after, the mod is byte-identical. The menu is the keyboard and
+pad way to every switch.
 
 A key at the view's bottom right names the colours and counts each kind in the region. In the 3D view a wall is
 a see-through panel with its outline; in the top overview and on the Map it is a line along its foot.
@@ -483,26 +615,49 @@ What is drawn:
 With the collision layer shown, a click on a wall in the 3D view selects it (outlined in lime; a click inside a
 drawn ground selects that), and the Properties panel names it and its size.
 
-- **Remove wall** (Del) takes the selected wall out of the game's collision: an invisible wall, a wall behind
+- **Edit ▸ Collision ▸ Remove wall** (Del, or the Properties panel's button) takes the selected wall out of the game's collision: an invisible wall, a wall behind
   scenery, or a drawn wall or ground (named **Delete** for those). It is one undo step ("Remove wall",
   "Remove wall-1"); the scenery standing there stays. Race and career barriers cannot be removed (the game
   switches them per race). Only static collision is touched: knock-over props keep their own.
-- **Edit ▸ Draw wall**: two clicks on the ground make a wall between them, of the Properties panel's height
+- **Edit ▸ Collision ▸ Draw wall** (B): two clicks on the ground make a wall between them, of the Properties panel's height
   (0.5 to 50 m, default 2 m), standing on the ground's height at each end. A drawn wall is a closed box 0.5 m
   thick reaching 0.5 m below the ground, so a car meets it from either side at any frame rate. The tool stays
-  armed for the next wall; Esc stops it.
-- **Edit ▸ Draw ground**: clicks on the ground make an outline (3 to 32 corners, not crossing itself), ended
+  armed for the next wall.
+- **Edit ▸ Collision ▸ Draw ground** (Shift+B): clicks on the ground make an outline (3 to 32 corners, not crossing itself), ended
   with Enter or a click on its first corner: a floor over it, at its corners' heights. Drawn ground goes first
   in its cells and competes by height with the other floors there (flag 0x01), so it carries a car that drives
   onto it without taking the ground from a road above or below it.
 - Picking and drawing work in the 3D view, in Top and on the Map alike: in Top and on the Map the point is the
   mouse's x/y at the road's or floor's height there (as for race points), and a click picks a wall by its foot.
   Drawn points snap to existing collision corners and to the ends of your own drawn walls and outlines within
-  10 points on the screen; a ring shows the corner a click takes, and Alt places the point where the mouse is.
+  10 points on the screen; a ring shows the corner a click takes, and the snap mode Free places the point where the mouse is.
   Enter, Esc and Del work as in the 3D view.
 - Each drawn wall and ground has a surface id (grip and sound): by default that of the floor under its first
   point; the Properties panel sets another.
 - With Show off, drawing switches the layer to Invisible barriers so the new wall shows.
+
+One grammar for the collision tools (draw wall, draw ground, remove wall; moving scenery takes its collision along
+by itself and has no tool of its own):
+
+- **One menu group**: the three tools are the Collision group of the Edit menu, with their keys on the items. The
+  layer's own settings stay in the Collision group of the View menu.
+- **One selection**: a click on a wall (or inside a drawn ground) selects it, one piece at a time, and clears the
+  prop selection; picking a prop clears the wall. A tool armed does not pick.
+- **One set of keys**: a click places or picks, the snap mode Free places without snapping, Enter confirms what is begun (an
+  outline), Del removes the selected piece (also from the menu). Esc steps back one level at a time: the shape
+  being drawn is dropped (the tool stays armed), the next Esc puts the tool down, the next clears the selected
+  wall. Backspace takes back an outline's last corner.
+- **One undo granularity**: every finished wall, every finished ground and every removal is one undo step named
+  after it ("Draw wall", "Draw ground", "Remove wall", "Remove wall-1"); a half-drawn shape is not a step. Moved
+  scenery's collision is part of the move's step.
+- **One status**: the hint line under the view names the tool ("Draw wall", "Draw ground"), what the next click
+  does and what Esc does; the same words head the Properties panel; the status bar reports each finished step.
+- Keyboard and pad reach all of it: the menu group opens like any other menu, and the keys above are the ones the
+  Controls dialog lists.
+
+What is written to the mod does not depend on how an edit was made (menu, key, or the command line): a recorded
+sequence of draws and removals writes the same file bytes (test
+`a_recorded_collision_sequence_writes_the_same_mod`).
 
 In the file these are `[collision.remove]`, `[collision.wall]` and `[collision.ground]` sections (see File
 format); the game's load and the editor's world write them as they write moved scenery's walls (below), so Test
@@ -510,13 +665,30 @@ race, Drive here and Simulate collide with them as the editor shows. A removed f
 counted in the log ("removed collision face(s) … are not in its collision") and does nothing. Without such
 sections nothing changes.
 
+## Pop-in and models of added and moved props
+
+The game draws a prop only while the road section under the camera lists the prop's section (the region's visible
+lists) and the prop is big enough on screen (the scenery size cull; docs/notes/graphics/pop-in.md). An added prop
+takes the section of the nearest placement, a moved one keeps its own. Validation therefore warns, with **Show** to
+the prop's place:
+
+- **would pop in**: an added or moved prop that some road section within sight of it (its cull radius: about 135 m
+  for an ordinary prop, at most 400 m) does not draw its section for. A moved prop is reported only for the road
+  sections it is newly out of: the ones that already did not draw it at its old place are the original's own.
+- **cannot be loaded**: an added prop none of whose drawn sections (the road sections that draw the prop's
+  section, with their lists) has a placement of its model is an error, one some of them lack a warning. This is
+  inferred from the region's placements; the game's loader itself is not consulted. An added prop whose model has
+  no triangles is an error.
+
+At most 25 of each are listed, the rest counted. The checks only read the world; nothing is written to the mod.
+
 ## Collision of edited scenery
 
 The game bakes the collision of its static scenery into each stream section's collision pack; nothing in a pack
 names the placement a face came from. A map mod's scenery gets the collision the original gives the same solid:
 
 - **Knock-over props** (cones, road barriers, fences, barrels, …) are knock-over props wherever they stand: an
-  added copy knocks over like the original, a moved one is hit where it now stands, a deleted one is gone.
+  added copy knocks over like the original (choice: format rule; the original's layout is in docs/formats/), a moved one is hit where it now stands, a deleted one is gone.
 - **Static solids** (street lights, walls, …): a solid's collision is the walls standing inside the box of one
   of its original placements, taken into the solid's own space. Walls of a barrier group (race barriers), walls
   reaching ±2048 m (invisible walls) and floors are never taken. Where the solid's placements differ, the shape
@@ -641,7 +813,7 @@ picture. scripts/checks/editor_shots.sh runs it at every size of the resolution 
   (`crates/ob-studio-gui/tests/reference/collision-layer.png`, `OB_BLESS=1` writes it again).
 - The simulation's cars: the game writes each car's look and wheels into the stream
   (`src/bin/game/enh/sim_stream.rs`; a car keeps the visual parts it was built with, `Car::look_parts`);
-  `crates/ob-studio-gui/src/editor/sim/record.rs` keeps the looks by time and blends each car between the two
+  `crates/ob-studio/src/runs/record.rs` keeps the looks by time and blends each car between the two
   updates around the time shown (`Recording::cars_at`), and `editor/sim/cars.rs` builds each look once with the
   game's car loader (on up to four threads; a shot waits for them), gives each car its own car renderer and
   draws them right after the world, through `nfsu2::studio_api::{car, render::car}`.

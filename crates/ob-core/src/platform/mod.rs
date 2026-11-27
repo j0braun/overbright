@@ -8,6 +8,7 @@
 
 pub mod dirs;
 pub mod fs;
+pub mod guard;
 pub mod paths;
 pub mod timer;
 pub mod vulkan;

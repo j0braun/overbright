@@ -40,6 +40,7 @@ pub mod json;
 pub mod kinds;
 pub mod layering;
 pub mod manifest;
+pub mod modpack;
 pub mod mount;
 pub mod names;
 pub mod order;

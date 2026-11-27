@@ -81,6 +81,7 @@ pub fn follow(s: &mut EditorState) {
 fn tidy(s: &mut EditorState) {
     let n = s.session.world.placements.len();
     s.selection.retain(|&i| i < n);
+    s.filter.prune(n);
 }
 
 /// Apply `s.session.map` to the world again from scratch (opening a mod,
@@ -222,5 +223,24 @@ mod tests {
         assert_eq!(s.status, "Undone: Delete XC_CONE_01");
         assert!(redo(&mut s));
         assert_eq!(s.status, "Redone: Delete XC_CONE_01");
+    }
+
+    /// The props and races panels, the checks' fixes and the mod's details change the mod only by running an
+    /// op (the same JSON the command line sends); the in-place `commit` is left to restoring an old autosave.
+    #[test]
+    fn panels_send_their_edits_as_ops() {
+        for (name, src) in [
+            ("props", include_str!("props.rs")),
+            ("races", include_str!("races.rs")),
+            ("validate", include_str!("validate.rs")),
+            ("tree_props", include_str!("tree_props.rs")),
+            ("tree_races", include_str!("tree_races.rs")),
+            ("viewport", include_str!("viewport.rs")),
+            ("browser", include_str!("browser.rs")),
+            ("menu", include_str!("menu.rs")),
+        ] {
+            let code = src.split("#[cfg(test)]").next().unwrap();
+            assert!(!code.contains("commit("), "{name}.rs edits the mod in place");
+        }
     }
 }

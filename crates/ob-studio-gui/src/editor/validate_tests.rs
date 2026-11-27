@@ -29,6 +29,7 @@ pub(crate) fn straight(barrier: bool) -> RoadNet {
         spline_length: 200.0,
         exits,
         barriers,
+        tracks: Default::default(),
     };
     net.segments = vec![seg(0, [vec![], vec![(1, 0)]], vec![]), seg(3, [vec![(0, 1)], vec![]], vec![0])];
     net.closed = vec![barrier];
@@ -357,4 +358,35 @@ fn a_drawn_wall_across_the_route_is_named_and_shown_where_it_crosses() {
     let at = w[0].at.unwrap();
     assert!(at.distance(Vec2::new(100.0, 0.0)) < 0.5, "Show goes to the crossing: {at}");
     assert!(!c.iter().any(|c| c.ok && c.text.contains("grid slots")), "no all-clear line with a warning");
+}
+
+/// Show on a warning about a drawn wall selects that wall (and puts the collision layer on to draw it); one about a
+/// wall the mod does not have selects nothing.
+#[test]
+fn show_selects_the_drawn_wall_an_entry_names() {
+    use crate::editor::collision::Show;
+    use crate::tools::map::ops::CollisionKey as Target;
+    use crate::tools::map::CollisionEdit;
+    let mut s = crate::editor::props::tests::state();
+    s.session.map.collision = vec![CollisionEdit::Wall {
+        id: "wall-1".into(),
+        region: s.session.region.clone(),
+        from: Vec3::new(100.0, -8.0, 1.0),
+        to: Vec3::new(100.0, 8.0, 1.0),
+        height: 2.5,
+        surface: 0,
+    }];
+    s.selection = vec![0];
+    assert_eq!(s.collision, Show::Off);
+    let c = Check::general(Level::Warning, "x".into(), Vec2::new(100.0, 0.0)).wall("wall-1");
+    show(&mut s, &c);
+    let p = s.wall.clone().expect("the wall is selected");
+    assert_eq!(p.key, Target::Drawn("wall-1".into()));
+    assert_eq!(p.z, (1.0, 3.5));
+    assert!(s.selection.is_empty(), "a prop selection gives way");
+    assert_eq!(s.collision, Show::Invisible, "the layer that draws the selection is on");
+    // A name the mod does not have: the selection is left alone.
+    s.wall = None;
+    show(&mut s, &Check::general(Level::Warning, "y".into(), Vec2::ZERO).wall("wall-9"));
+    assert!(s.wall.is_none());
 }

@@ -461,7 +461,7 @@ impl Game {
         }
         self.traffic_models_draws(placed);
         if let (Some(t), Some(plan), Some(d)) = (race.racers.traffic.as_mut(), plan, self.sim.drive.as_ref()) {
-            crate::sim::traffic::place::traffic_fill_apply(&d.world, t, plan, true);
+            crate::sim::traffic::place::traffic_fill_apply(&d.world, t, plan, true, Some(&race.route.road));
         }
         self.placed_traffic_renderers(race.racers.traffic.iter().flat_map(|t| t.cars.iter().map(|c| (&c.id, &*c.car))));
     }
@@ -1097,7 +1097,10 @@ impl Game {
     /// race outside the career: no progress, no reward) or free roam at the
     /// spot. The mod was chosen at the start (`tools::map::set_only`).
     pub(crate) fn start_map_test(&mut self, t: &crate::shell::cli::MapTest) -> Result<()> {
+        self.map_focus(t)?;
         match self.profile.take() {
+            // The focus's car (the save let go, as for the default).
+            _ if t.car.is_some() => {}
             Some(p) if !p.car.is_empty() => {
                 let installed = nfsu2::car::with_derived_slots(&p.installed, &self.game_data.parts, &p.car);
                 self.quick.parts = Some((installed, p.perf.clone()));
@@ -1111,6 +1114,50 @@ impl Game {
             }
         }
         log::info!("map test: car {}", self.quick.car.as_deref().unwrap_or("?"));
+        self.start_map_target(t)
+    }
+
+    /// The focus of the run `t`: its car by name (`--map-car`; else the
+    /// run's own) and the world clock a drive starts at (`--map-clock`).
+    /// Refused when the car is not one of the game's.
+    pub(crate) fn map_focus(&mut self, t: &crate::shell::cli::MapTest) -> Result<()> {
+        if let Some(name) = &t.car {
+            let car = self.game_data.car_types.iter().find(|c| c.name.eq_ignore_ascii_case(name)).with_context(|| format!("no car {name}"))?;
+            (self.quick.parts, self.quick.car) = (None, Some(car.name.clone()));
+        }
+        self.test_clock = t.clock;
+        Ok(())
+    }
+
+    /// Start the run over with the mod as `reload_active` has it now: the
+    /// drive goes (so the region's world is loaded again, with the mod's
+    /// props), then the race or spot as at the start. A run that cannot
+    /// start (the race is gone, no road there) leaves the old drive as it
+    /// was. Between two frames only (Studio's link).
+    pub(crate) fn restart_map_test(&mut self, t: &crate::shell::cli::MapTest) -> Result<()> {
+        let old = self.sim.drive.take();
+        self.loads.preload = None;
+        self.loads.kept_ahead = None;
+        if let Err(e) = self.map_focus(t) {
+            self.sim.drive = old;
+            return Err(e);
+        }
+        match self.start_map_target(t) {
+            // The old drive's car renderer goes with its id (the render
+            // state's sweep).
+            Ok(()) => Ok(()),
+            Err(e) => {
+                if self.sim.drive.is_none() {
+                    self.sim.drive = old;
+                }
+                Err(e)
+            }
+        }
+    }
+
+    /// The run's race or spot, on the car and set-up `start_map_test` chose
+    /// (Studio's link starts it over from here, `shell::studio_link`).
+    pub(crate) fn start_map_target(&mut self, t: &crate::shell::cli::MapTest) -> Result<()> {
         if let Some(id) = &t.race {
             let race = nfsu2::tools::map::find_race(&t.folder, id)
                 .with_context(|| format!("map mod {} has no race {id}", t.folder))?;
@@ -1166,7 +1213,7 @@ pub(crate) fn map_race_event(career: &career::CareerData, race: &nfsu2::tools::m
 }
 
 #[cfg(test)]
-mod map_test_tests {
+pub(crate) mod map_test_tests {
     use crate::*;
     use nfsu2::tools::map::{CustomRace, MapMod, RaceKind, store};
 
@@ -1175,7 +1222,7 @@ mod map_test_tests {
     /// is the test thread's sandbox (`test_isolation`, only with
     /// `dev-harness`): without it these tests would write into the
     /// player's maps folder, so they are ignored then.
-    fn sprint_mod(game: &Game, folder: &str) -> (CustomRace, career::Route) {
+    pub(crate) fn sprint_mod(game: &Game, folder: &str) -> (CustomRace, career::Route) {
         let event = game
             .game_data
             .career
@@ -1246,6 +1293,72 @@ mod map_test_tests {
         let d = game.sim.drive.as_ref().unwrap();
         assert!(d.state.position.truncate().distance(at.truncate()) < 5.0, "{} vs {at}", d.state.position);
         assert!((d.state.heading().to_degrees() - 90.0).abs() < 5.0, "{}", d.state.heading().to_degrees());
+    }
+
+    /// Studio's link starts the run over with the mod read again: a race
+    /// point added in the mod file shows in the run (the world loaded anew,
+    /// the race on its grid); a race the mod no longer has leaves the run
+    /// as it was.
+    #[test]
+    #[cfg_attr(
+        any(not(ob_game), not(feature = "dev-harness")),
+        ignore = "needs NFSU2_ROOT (the player's own game files) and the dev-harness test sandbox (it writes a map mod)"
+    )]
+    fn a_run_starts_over_with_the_mod_read_again() {
+        let mut game = Game::new().unwrap();
+        let (mut race, native) = sprint_mod(&game, "test-link");
+        game.profile = None;
+        let t = crate::shell::cli::MapTest { folder: "test-link".into(), race: Some("short".into()), ..Default::default() };
+        game.start_map_test(&t).unwrap();
+        assert_eq!(game.sim.map_race.as_ref().unwrap().checkpoints.len(), 3);
+        race.checkpoints = native.checkpoints[..4].to_vec();
+        let m = MapMod { name: "Test".into(), races: vec![race], ..Default::default() };
+        store::save(&store::maps_dir(), "test-link", &m).unwrap();
+        nfsu2::tools::map::reload_active();
+        game.restart_map_test(&t).unwrap();
+        assert!(matches!(game.mode, Mode::Race(_)));
+        assert_eq!(game.sim.map_race.as_ref().unwrap().checkpoints.len(), 4, "the edit is in the run");
+        assert!(game.sim.drive.is_some());
+        let gone = crate::shell::cli::MapTest { race: Some("nope".into()), ..t };
+        assert!(game.restart_map_test(&gone).is_err());
+        assert!(game.sim.drive.is_some() && matches!(game.mode, Mode::Race(_)), "the run as it was");
+    }
+
+    /// The focus: the run starts with the car and the world clock it names,
+    /// over the link too (a start over with another car), and a car the
+    /// game does not have leaves the run as it was.
+    #[test]
+    #[cfg_attr(
+        any(not(ob_game), not(feature = "dev-harness")),
+        ignore = "needs NFSU2_ROOT (the player's own game files) and the dev-harness test sandbox (it writes a map mod)"
+    )]
+    fn a_run_starts_with_the_focus_car_and_clock() {
+        let mut game = Game::new().unwrap();
+        let (_, route) = sprint_mod(&game, "test-focus");
+        game.profile = None;
+        let at = route.grid.first().map(|g| g.0).unwrap_or(route.checkpoints[0].extend(0.0));
+        let names: Vec<String> = game.game_data.car_types.iter().map(|c| c.name.clone()).collect();
+        let (first, other) = (names[0].clone(), names.iter().find(|n| **n != names[0]).unwrap().clone());
+        let t = crate::shell::cli::MapTest {
+            folder: "test-focus".into(),
+            at: Some((at, 90.0)),
+            car: Some(first.clone()),
+            clock: Some(600.0),
+            ..Default::default()
+        };
+        game.start_map_test(&t).unwrap();
+        assert_eq!(game.quick.car.as_deref(), Some(first.as_str()));
+        let c = game.sim.drive.as_ref().unwrap().clock;
+        assert!(c >= 600.0, "the world clock starts at the focus's: {c}");
+        // Over the link: another car, another clock; a start over.
+        let t2 = crate::shell::cli::MapTest { car: Some(other.to_lowercase()), clock: Some(900.0), ..t.clone() };
+        game.restart_map_test(&t2).unwrap();
+        assert_eq!(game.quick.car.as_deref(), Some(other.as_str()), "the game's own spelling of the name");
+        assert!(game.sim.drive.as_ref().unwrap().clock >= 900.0);
+        let bad = crate::shell::cli::MapTest { car: Some("NOSUCHCAR".into()), ..t2 };
+        assert!(game.restart_map_test(&bad).is_err());
+        assert_eq!(game.quick.car.as_deref(), Some(other.as_str()));
+        assert!(game.sim.drive.is_some(), "the run as it was");
     }
 
     /// Every car's heading at the green light relative to `heading`

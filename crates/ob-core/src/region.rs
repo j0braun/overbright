@@ -53,7 +53,7 @@ pub fn european(region: u32) -> bool {
 // prov: inferred region.detect
 /// there and CORSA and PEUGOT106 are not, else 6. Names match without case.
 pub fn detect(root: &Path) -> u32 {
-    let has = |car: &str| crate::game_fs::find(root, &format!("CARS/{car}")).is_some_and(|p| p.is_dir());
+    let has = |car: &str| crate::game_fs::is_dir(root, &format!("CARS/{car}"));
     if has("CIVIC") && has("RSX") && !has("CORSA") && !has("PEUGOT106") { US } else { EUROPE }
 }
 

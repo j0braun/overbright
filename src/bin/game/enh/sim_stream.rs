@@ -16,8 +16,8 @@ use crate::*;
 
 use nfsu2::tools::map::sim::detect::{Tick, Watch, checkpoints_passed};
 use nfsu2::tools::map::sim::format::{
-    CarInfo, CarKind, CarLook, CarSample, Event, EventKind, Frame, Header, LIGHT_BRAKE, LIGHT_HEAD, Line, ResultRow,
-    SCHEMA, SimMode, StateHash, VERSION, Wheels,
+    CarInfo, CarKind, CarLook, CarSample, Drive, Event, EventKind, Frame, Header, LIGHT_BRAKE, LIGHT_HEAD, Line,
+    ResultRow, SCHEMA, SCHEMA_DRIVE, SimMode, StateHash, VERSION, Wheels,
 };
 
 /// The stream's ids: the player's slot 0, opponents from 1, traffic from
@@ -26,6 +26,47 @@ const TRAFFIC_ID: u32 = 100;
 const ENCOUNTER_ID: u32 = 200;
 /// One update of the original's 60 fps cadence, ns.
 const TICK_NS: u64 = 1_000_000_000 / 60;
+
+/// The opt-in channels of a run file beyond the poses (`--run-channels drive,hash`, runs.md): all off writes the
+/// file as before. Reading them changes nothing in the run.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct Channels {
+    /// Each car's gear, rpm and pedals after its wheels (`ob.run/1.1`).
+    pub(crate) drive: bool,
+    /// The state hash every tick (the header's `hash=1`) instead of every 60.
+    pub(crate) hash: bool,
+}
+
+impl Channels {
+    /// `drive`, `hash` (a `,`-separated list); a usage error for anything else.
+    pub(crate) fn parse(s: &str) -> std::result::Result<Channels, String> {
+        let mut c = Channels::default();
+        for w in s.split(',') {
+            match w {
+                "drive" => c.drive = true,
+                "hash" => c.hash = true,
+                _ => return Err(format!("--run-channels: `{w}` is not a channel (drive, hash)")),
+            }
+        }
+        Ok(c)
+    }
+
+    /// The ticks between two state hashes.
+    fn hash_every(self) -> u64 {
+        if self.hash { 1 } else { StateHash::EVERY }
+    }
+
+    /// The schema id of a file written with these channels (1.0 when none: the file is as it was).
+    fn schema(self) -> &'static str {
+        if self.drive || self.hash { SCHEMA_DRIVE } else { SCHEMA }
+    }
+}
+
+/// A run file being written by the window's test run.
+pub(crate) struct Recorder {
+    out: Streamer<Box<dyn std::io::Write>>,
+    mode: SimMode,
+}
 
 /// What the run is asked for (`shell::cli::MapTest`'s simulate part).
 #[derive(Clone, Debug, PartialEq)]
@@ -63,11 +104,20 @@ pub(crate) struct Streamer<W: std::io::Write> {
     unwritten: Option<u64>,
     /// Events and frames written (the tests read them back).
     pub(crate) lines: u64,
+    pub(crate) channels: Channels,
+    /// A race tick was seen (a run that left for the results menu then ends as a finished race).
+    raced: bool,
+    /// Written by the window's test run: a pause menu is not the end of the run (only the results are).
+    windowed: bool,
 }
 
 impl<W: std::io::Write> Streamer<W> {
     pub(crate) fn new(out: W) -> Streamer<W> {
-        Streamer { out, tick: 0, named: Default::default(), looks: HashMap::new(), seen: HashMap::new(), road: None, green: false, hash: StateHash::default(), unwritten: None, lines: 0 }
+        Streamer { out, tick: 0, named: Default::default(), looks: HashMap::new(), seen: HashMap::new(), road: None, green: false, hash: StateHash::default(), unwritten: None, lines: 0, channels: Channels::default(), raced: false, windowed: false }
+    }
+
+    pub(crate) fn with_channels(out: W, channels: Channels) -> Streamer<W> {
+        Streamer { channels, ..Streamer::new(out) }
     }
 
     fn put(&mut self, l: &Line) -> Result<()> {
@@ -100,6 +150,7 @@ impl<W: std::io::Write> Streamer<W> {
     pub(crate) fn frame(&mut self, game: &Game, dt: f32) -> Result<()> {
         let mut cars: Vec<(CarSample, String, CarLook, Exact)> = Vec::new();
         let mut events = Vec::new();
+        let drive_on = self.channels.drive;
         let sample = |id: u32, kind: CarKind, car: &Car, st: &CarState| {
             (
                 CarSample {
@@ -112,6 +163,7 @@ impl<W: std::io::Write> Streamer<W> {
                     checkpoint: 0,
                     place: 0,
                     wheels: Some(wheels(kind, car, st)),
+                    drive: drive_on.then(|| drive(st)),
                 },
                 look(id, car),
                 (st.velocity, st.spin),
@@ -247,11 +299,40 @@ impl<W: std::io::Write> Streamer<W> {
         for e in events {
             self.put(&Line::Event(e))?;
         }
-        if (self.tick + 1).is_multiple_of(StateHash::EVERY) {
+        if (self.tick + 1).is_multiple_of(self.channels.hash_every()) {
             self.last_hash()?;
         }
         self.tick += 1;
         Ok(())
+    }
+
+    /// One finished update of `game`: its frame written, and `Some(why)` when the run is over (every racer
+    /// through, or the race left for its results). The simulation's loop and the window's recorder both use it.
+    pub(crate) fn step(&mut self, game: &Game, mode: SimMode, dt: f32) -> Result<Option<&'static str>> {
+        match &game.mode {
+            Mode::Race(r) => {
+                self.raced = true;
+                self.frame(game, dt)?;
+                // Every racer through (or the race over): the results.
+                let all =
+                    r.racers.me.finished.is_some() && r.racers.rivals.iter().all(|x| x.progress.finished.is_some());
+                if all && r.over > 1.0 {
+                    self.results(r)?;
+                    return Ok(Some("finish"));
+                }
+            }
+            Mode::Explore if mode == SimMode::World => self.frame(game, dt)?,
+            Mode::Explore => {}
+            Mode::Menu(m) if self.raced && (!self.windowed || matches!(m, Menu::Results(..))) => {
+                // The race left for its results before every rival was through: the race as the results took it.
+                if let Some(r) = game.sim.paused_race.as_ref().or(game.sim.replay.as_ref()) {
+                    self.results(r)?;
+                }
+                return Ok(Some("finish"));
+            }
+            Mode::Menu(_) => {}
+        }
+        Ok(None)
     }
 
     /// The racers' results from the race as it ended.
@@ -323,6 +404,20 @@ fn wheels(kind: CarKind, car: &Car, st: &CarState) -> Wheels {
     }
 }
 
+/// The car's gearbox, engine and pedals as its last update took them (`ob.run/1.1`'s drive channels; read only).
+fn drive(st: &CarState) -> Drive {
+    let c = st.last_controls();
+    Drive {
+        gear: st.gear_number(),
+        rpm: st.shown_rpm(),
+        throttle: c.throttle,
+        brake: c.brake,
+        handbrake: c.handbrake,
+        steer: c.steer,
+        nitrous: c.nitrous,
+    }
+}
+
 /// `quit` on standard input (a thread reads it; nothing else is read).
 fn quit_watch() -> std::sync::Arc<std::sync::atomic::AtomicBool> {
     let flag = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
@@ -355,6 +450,59 @@ impl Game {
         }
     }
 
+    /// The run file's first line for the run `t` has just started.
+    fn run_header(&self, t: &crate::shell::cli::MapTest, mode: SimMode, seed: u64, channels: Channels) -> Header {
+        let mut header = Header {
+            version: VERSION,
+            schema: channels.schema().into(),
+            mode,
+            seed,
+            hash_every: if channels.hash { 1 } else { 0 },
+            ..Default::default()
+        };
+        if let Some(id) = &t.race
+            && let Mode::Race(r) = &self.mode
+        {
+            header.race = id.clone();
+            header.track = self.sim.map_race.as_ref().map_or(0, |m| m.track);
+            header.laps = r.laps;
+            header.checkpoints = r.route.checkpoints.len() as u32;
+        }
+        header
+    }
+
+    /// `--record <file>`: the window's test run writes its run file as it is driven, a frame per update
+    /// (`record_tick`; the same file as a simulation's, the player's slot driven by its player).
+    pub(crate) fn start_recording(&mut self, t: &crate::shell::cli::MapTest, path: &std::path::Path, seed: u64) -> Result<()> {
+        let file = std::fs::File::create(path).with_context(|| format!("--record {}", path.display()))?;
+        let mut s = Streamer::with_channels(Box::new(std::io::LineWriter::new(file)) as Box<dyn std::io::Write>, t.channels);
+        s.windowed = true;
+        let mode = if t.race.is_some() { SimMode::Race } else { SimMode::World };
+        s.header(self.run_header(t, mode, seed, t.channels))?;
+        self.recorder = Some(Recorder { out: s, mode });
+        Ok(())
+    }
+
+    /// After each update (`advance_tick`): the recording's frame. Reads the game, changes nothing in it; a
+    /// recording that cannot be written stops with a log line, the run goes on.
+    pub(crate) fn record_tick(&mut self, dt: f32) {
+        let Some(mut rec) = self.recorder.take() else { return };
+        match rec.out.step(self, rec.mode, dt) {
+            Ok(None) => self.recorder = Some(rec),
+            Ok(Some(why)) => {
+                let _ = rec.out.end(why);
+            }
+            Err(e) => log::warn!("record: stopped: {e:#}"),
+        }
+    }
+
+    /// Close the recording (the run was left, restarted or the window closed); nothing when none is open.
+    pub(crate) fn end_recording(&mut self, why: &str) {
+        if let Some(mut rec) = self.recorder.take() {
+            let _ = rec.out.end(why);
+        }
+    }
+
     /// Run the simulation `t` asks for into `out`; `quit` stops it early.
     /// Returns why it ended.
     pub(crate) fn simulate<W: std::io::Write>(
@@ -369,19 +517,9 @@ impl Game {
         self.rng = nfsu2::opponents::GameRng::boot(run.seed);
         self.boot_draws();
         self.start_map_test(t)?;
-        let mut header =
-            Header { version: VERSION, schema: SCHEMA.into(), mode: run.mode, seed: run.seed, ..Default::default() };
-        if let Some(id) = &t.race
-            && let Mode::Race(r) = &self.mode
-        {
-            header.race = id.clone();
-            header.track = self.sim.map_race.as_ref().map_or(0, |m| m.track);
-            header.laps = r.laps;
-            header.checkpoints = r.route.checkpoints.len() as u32;
-        }
-        out.header(header)?;
+        out.header(self.run_header(t, run.mode, run.seed, out.channels))?;
         let limit = run.seconds.unwrap_or(if run.mode == SimMode::Race { 900.0 } else { 120.0 });
-        let (mut world, mut raced) = (0.0f32, false);
+        let mut world = 0.0f32;
         loop {
             if quit() {
                 return Ok("quit");
@@ -395,29 +533,8 @@ impl Game {
             self.advance_ns(TICK_NS)?;
             let dt = self.pacing.frame_world;
             world += dt.max(1.0 / 120.0);
-            match &self.mode {
-                Mode::Race(r) => {
-                    raced = true;
-                    out.frame(self, dt)?;
-                    // Every racer through (or the race over): the results.
-                    let all =
-                        r.racers.me.finished.is_some() && r.racers.rivals.iter().all(|x| x.progress.finished.is_some());
-                    if all && r.over > 1.0 {
-                        out.results(r)?;
-                        return Ok("finish");
-                    }
-                }
-                Mode::Explore if run.mode == SimMode::World => out.frame(self, dt)?,
-                Mode::Explore => {}
-                Mode::Menu(_) if raced => {
-                    // The race left for its results before every rival
-                    // was through: the race as the results took it.
-                    if let Some(r) = self.sim.paused_race.as_ref().or(self.sim.replay.as_ref()) {
-                        out.results(r)?;
-                    }
-                    return Ok("finish");
-                }
-                Mode::Menu(_) => {}
+            if let Some(why) = out.step(self, run.mode, dt)? {
+                return Ok(why);
             }
         }
     }
@@ -433,8 +550,12 @@ pub(crate) fn run(game: &mut Game, t: &crate::shell::cli::MapTest, run: &SimRun)
             Box::new(std::io::BufWriter::new(std::fs::File::create(path).with_context(|| format!("--stream {path}"))?))
         }
     };
-    let mut s = Streamer::new(sink);
-    let why = match game.simulate(t, run, &mut s, &|| quit.load(std::sync::atomic::Ordering::Relaxed)) {
+    let mut s = Streamer::with_channels(sink, t.channels);
+    // Studio's link (`--studio-link`): the run answers a probe and ends on a
+    // stop command, besides `quit` on standard input.
+    let link = std::cell::RefCell::new(t.link.clone().map(|d| crate::shell::studio_link::Link::new(d).with_cap(t.mem_cap)));
+    let stop = || quit.load(std::sync::atomic::Ordering::Relaxed) || link.borrow_mut().as_mut().is_some_and(|l| l.poll_headless());
+    let why = match game.simulate(t, run, &mut s, &stop) {
         Ok(why) => why.to_string(),
         Err(e) => format!("error {e:#}"),
     };
@@ -634,6 +755,120 @@ mod tests {
         let got = past(&ticks);
         eprintln!("furthest past the drawn wall: without it {:.1} m, with it {got:.2} m", past(&racers(&plain)));
         assert!(got < 0.0, "a racer's centre passed the drawn wall ({got} m)");
+    }
+
+    /// `simulate` with the channels `c` on.
+    fn simulate_channels(seed: u64, seconds: f32, c: Channels) -> String {
+        sprint_mod_with(&Game::new().unwrap(), "sim-run", Vec::new(), Vec::new());
+        let mut game = Game::new().unwrap();
+        game.profile = None;
+        let t = crate::shell::cli::MapTest { folder: "sim-run".into(), race: Some("short".into()), channels: c, ..Default::default() };
+        let run = SimRun { mode: SimMode::Race, stream: None, seed, seconds: Some(seconds) };
+        let mut s = Streamer::with_channels(Vec::new(), c);
+        let why = game.simulate(&t, &run, &mut s, &|| false).unwrap();
+        s.end(why).unwrap();
+        String::from_utf8(s.out).unwrap()
+    }
+
+    /// A car of an `F` line without its drive fields (the first 24 words: the pose, the wheels and the lights).
+    fn without_drive(line: &str) -> String {
+        match line.strip_prefix("F ") {
+            None => line.to_string(),
+            Some(f) => {
+                let mut w = f.splitn(3, ' ');
+                let (tick, time, cars) = (w.next().unwrap(), w.next().unwrap(), w.next().unwrap_or(""));
+                let cars: Vec<String> =
+                    cars.split('|').map(|c| c.split(' ').take(24).collect::<Vec<_>>().join(" ")).collect();
+                format!("F {tick} {time} {}", cars.join("|"))
+            }
+        }
+    }
+
+    /// The drive channels and the hash of every tick are read from the game and change nothing in it: the same
+    /// seed writes the same poses, events and hashes (at the ticks both write) with them on and off, and the file
+    /// with them says what it is (runs.md 3.3).
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn the_channels_change_nothing_in_the_run() {
+        let off = simulate_channels(7, 30.0, Channels::default());
+        let on = simulate_channels(7, 30.0, Channels { drive: true, hash: true });
+        assert!(off.starts_with("OBSIM 1 schema=ob.run/1.0 ") && !off.lines().next().unwrap().contains("hash="), "{}", off.lines().next().unwrap());
+        assert!(on.lines().next().unwrap().starts_with("OBSIM 1 schema=ob.run/1.1 ") && on.lines().next().unwrap().ends_with(" hash=1"));
+        let sum = ob_asset_format::kinds::run::check_run(&on).unwrap();
+        assert_eq!((sum.schema.as_str(), sum.ended), ("ob.run/1.1", true));
+        // Every line but the header, the drive fields and the extra hashes is the same.
+        let keep = |s: &str| -> Vec<String> {
+            s.lines().skip(1).filter(|l| !l.starts_with("H ")).map(without_drive).collect()
+        };
+        assert!(keep(&off) == keep(&on), "poses, events and results are the same with the channels on");
+        let hashes = |s: &str| -> Vec<(u64, String)> {
+            s.lines().filter_map(|l| l.strip_prefix("H ")).map(|h| h.split_once(' ').map(|(t, x)| (t.parse().unwrap(), x.to_string())).unwrap()).collect()
+        };
+        let (h_off, h_on) = (hashes(&off), hashes(&on));
+        assert!(h_on.len() > 1000 && h_off.len() < h_on.len() / 30, "{} / {} hashes", h_off.len(), h_on.len());
+        for h in &h_off {
+            assert!(h_on.contains(h), "the hash at tick {} is the same with the hash every tick", h.0);
+        }
+        // The player's slot, driven by the AI: its gear and pedals are in the file.
+        let drive: Vec<CarSample> = on
+            .lines()
+            .filter_map(|l| Line::parse(l).unwrap())
+            .filter_map(|l| if let Line::Frame(f) = l { f.cars.into_iter().find(|c| c.id == 0) } else { None })
+            .collect();
+        let d = |c: &CarSample| c.drive.expect("the player's slot has the drive channels");
+        assert!(drive.iter().any(|c| d(c).gear >= 1 && d(c).throttle > 0.5), "it drove in gear with the throttle down");
+        let bad = drive.iter().find(|c| !((0.0..=1.0).contains(&d(c).throttle) && (d(c).gear < 1 || d(c).rpm > 0.0)));
+        assert!(bad.is_none(), "{:?}", bad.map(d));
+        assert!(drive.iter().map(|c| d(c).gear).collect::<std::collections::BTreeSet<_>>().len() >= 2, "it shifted");
+    }
+
+    /// The window's recording (`--record`): a run of `seconds` at `fps` frames a second, with the recorder on
+    /// (its file) or off; and the player's car at the end (position, velocity: exact bits).
+    fn recorded(fps: f32, seconds: f32, record: bool) -> (String, [u32; 6]) {
+        sprint_mod_with(&Game::new().unwrap(), "rec-run", Vec::new(), Vec::new());
+        let mut game = Game::new().unwrap();
+        game.profile = None;
+        let c = Channels { drive: true, hash: true };
+        let t = crate::shell::cli::MapTest { folder: "rec-run".into(), race: Some("short".into()), channels: c, ..Default::default() };
+        game.rng = nfsu2::opponents::GameRng::boot(5);
+        game.boot_draws();
+        game.start_map_test(&t).unwrap();
+        let path = std::env::temp_dir().join(format!("ob-record-{}-{fps}-{record}.obrun", std::process::id()));
+        if record {
+            game.start_recording(&t, &path, 5).unwrap();
+        }
+        for _ in 0..(seconds * fps) as usize {
+            game.advance(1.0 / fps).unwrap();
+        }
+        game.end_recording("quit");
+        let st = &game.sim.drive.as_ref().expect("the player's car").state;
+        let bits = [st.position.x, st.position.y, st.position.z, st.velocity.x, st.velocity.y, st.velocity.z].map(f32::to_bits);
+        let text = std::fs::read_to_string(&path).unwrap_or_default();
+        let _ = std::fs::remove_file(&path);
+        (text, bits)
+    }
+
+    /// Drive to record: the window's run written as it is played is one file whatever the frame rate, is a valid
+    /// run file with the channels, and recording leaves the simulation exactly as it is without it.
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    fn a_recorded_window_run_is_the_same_at_any_frame_rate_and_leaves_the_run_alone() {
+        let (base, base_bits) = recorded(60.0, 12.0, true);
+        let sum = ob_asset_format::kinds::run::check_run(&base).unwrap();
+        assert!(sum.records.iter().find(|r| r.0 == "F").unwrap().1 > 300, "{:?}", sum.records);
+        assert_eq!(sum.ended, true);
+        assert!(base.lines().next().unwrap().contains("schema=ob.run/1.1") && base.contains(" hash=1"));
+        let (_, off_bits) = recorded(60.0, 12.0, false);
+        assert_eq!(base_bits, off_bits, "the player's car is the same with the recording on and off");
+        let frames = |t: &str| -> Vec<String> { t.lines().filter(|l| l.starts_with("F ") || l.starts_with("H ")).map(String::from).collect() };
+        let a = frames(&base);
+        for fps in [30.0, 120.0, 200.0] {
+            let (text, _) = recorded(fps, 12.0, true);
+            let b = frames(&text);
+            let n = a.len().min(b.len());
+            assert!(n > 300, "{fps} fps: {n} lines");
+            assert!(a[..n] == b[..n], "{fps} fps: the same frames and hashes as at 60");
+        }
     }
 
     #[test]

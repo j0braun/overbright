@@ -10,7 +10,7 @@ yet.
 
 ## Wheels and force feedback
 
-A racing wheel drives as in the original: its own steering (the **Wheel Range** slider on the Wheel
+A racing wheel drives as in the original (traced: docs/formats/front-end.md, Wheels and Force feedback): its own steering (the **Wheel Range** slider on the Wheel
 options page sets how much of the wheel's turn gives full lock), and the original's force feedback — a
 centring spring at full lock and in the menus, a damper that fades with speed, the tyres' pull as a
 steering force (its divisor is **Road Feedback**), the road surface as a vibration, a light wheel in
@@ -24,7 +24,7 @@ driving device; there is no extra option. Without such a device nothing changes.
   skipped: the mainline Logitech driver (hid-logitech, lg4ff) has only the steering force and autocenter,
   so the spring, damper, surface and jolts need a driver that offers them (new-lg4ff, hid-tmff2, the
   Fanatec driver).
-- Windows: the effects go through DirectInput 8, as in the original: the game controller with the wheel's
+- Windows: the effects go through DirectInput 8, as in the original (open: no trace note for the Windows force-feedback path): the game controller with the wheel's
   vendor and product id that reports force-feedback actuators, opened exclusive in the foreground (so the
   forces stop while the game window is in the background, as in the original). Not yet tried on a real
   wheel: the calls are tested against the original's parameters and the build runs under Wine, but no
@@ -82,7 +82,7 @@ All under **Enhancements → Controller**. Each is off, or at the original's val
 | Stick Dead Zone | 0–25 % | 0 % |
 | Trigger Dead Zone | 0–20 % | 0 % |
 | Stick Saturation | 100 / 95 / 90 / 85 / 80 % | 100 % |
-| Steering Linearity | 1.00 / 1.25 / 1.50 / 2.00 / 0.75 | 1.00 (linear, as the original) |
+| Steering Linearity | 1.00 / 1.25 / 1.50 / 2.00 / 0.75 | 1.00 (linear, as the original; inferred: docs/formats/cars-1.md, Steering) |
 | Rumble | Off / Low / Medium / High | Off |
 | Pause on Disconnect | Off / On | Off |
 | Safe Axis Binding | Off / On | Off |
@@ -108,7 +108,7 @@ All under **Enhancements → Controller**. Each is off, or at the original's val
 - **Restore Native** and the graphics presets leave Controller Layout alone, as they leave the resolution
   alone. Restore Native does put the other settings in this group back to the original's values.
 - Your custom bindings are kept per layout. Switching the layout and then saving drops the other layout's
-  custom bindings, as the original keeps only the attached pads' blocks.
+  custom bindings, as the original (open: no trace note for pad-block saving) keeps only the attached pads' blocks.
 
 ### Rebinding
 
@@ -123,7 +123,7 @@ This is what the original's own controls give a modern pad, and what Original st
 | Xbox (045E) | left stick | **buttons** B / A; the triggers do nothing (the default combined pedal axis lRz does not exist on the XInput HID layout) | RB / LB, Start = shift up, Back = shift down | **none** (no pad pause in the original's defaults) | A / B |
 | PlayStation (054C) | left stick | **right stick** up/down (lRz), Cross = throttle, Square = brake; triggers unused | R1 / L1 … | none | **Square / Cross** |
 | Switch Pro (057E), Steam Deck / Steam Input (28DE), 8BitDo, generic | left stick | right stick up/down; West = brake, South = throttle | | none | **West / South** |
-| Racing wheel (Logitech, Thrustmaster, Fanatec and the others SDL lists) | the wheel, through the original's wheel steering (Wheel Range, no rate limit) | a combined pedal axis is bound only on a wheel without separate pedal axes; otherwise bind the pedals on the Controls page, as in the original | generic buttons | none | as a generic pad |
+| Racing wheel (Logitech, Thrustmaster, Fanatec and the others SDL lists) | the wheel, through the original's wheel steering (Wheel Range, no rate limit) | a combined pedal axis is bound only on a wheel without separate pedal axes; otherwise bind the pedals on the Controls page, as in the original (open: no trace note for the wheel pedal default) | generic buttons | none | as a generic pad |
 
 Other things the original does with a pad, which Original keeps:
 
@@ -149,7 +149,7 @@ nothing), and a third pad is taken when one of the first two is unplugged (befor
 
 The rest of this page is for developers. The original's pad model and addresses are in
 [formats.md](../formats.md) **Gamepads and joysticks**. Code: `src/pad.rs` (the original's logic),
-`src/pad/host.rs` (gilrs and the scripted pad), `src/pad/extras.rs` (the optional settings), game.rs
+`src/pad/host.rs` (gilrs and the scripted pad), `crates/ob-settings/src/pad/extras.rs` (the optional settings), game.rs
 `pad_frame` / `controls`. Detection and hot-plug use gilrs, with the SDL_GameControllerDB built in and its
 filters off.
 
@@ -235,7 +235,7 @@ Auto is a default for how a device is presented, like the display mode: document
   Modern; old DirectInput pads and wheels to Original. The scripted pad's `connect <id> <vid> <pid> legacy`
   forces a non-standard device.
 - **Saved bindings keep working:** when the profile holds an Original block for the pad (its own GUID) that
-  differs from the original's defaults, Auto presents the pad as Original (`Host::set_saved_blocks`, called by
+  differs from the original's defaults, Auto presents the pad as Original (choice: the Auto layout rule is Overbright's own) (`Host::set_saved_blocks`, called by
   `apply_pad_maps` at start-up and on every profile load). The switch goes one way within a session (Modern →
   Original), so restoring a pad's defaults on the Controls page does not flip its layout mid-session.
 - **No pad attached:** nothing changes (no pad state, no prompts; the state hashes of the checks are

@@ -188,6 +188,14 @@ impl UiFrame {
         )
     }
 
+    /// A target pixel as a canvas point for elements placed by `place` (the inverse of [`Self::to_pixels`]).
+    pub fn from_pixels(&self, px: glam::Vec2, place: Place) -> glam::Vec2 {
+        glam::Vec2::new(
+            (px.x - self.origin.0 - place.x as f32 * self.reach_x(place)) / self.scale.0,
+            (px.y - self.origin.1 - place.y as f32 * self.reach.1) / self.scale.1,
+        )
+    }
+
     /// The target's rectangle, in canvas units, as `place` sees it
     /// (top left, bottom right).
     pub fn edges(&self, place: Place) -> (glam::Vec2, glam::Vec2) {

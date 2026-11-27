@@ -7,6 +7,8 @@
 //! * [`inside`]: the keys and the pad inside an area, Find's entries, the places behind ←.
 //! * [`nav`]: the areas, the key table, the pad's buttons, Esc / B and the legend row's rule.
 //! * [`address`]: `ob://` addresses of items and screens, back and forward.
+//! * [`browser`]: the Browser workspace (the game's models and textures by name, and where each is used).
+//! * [`runs`]: the Runs workspace's list (the editor's playback, Telemetry tab and compare are the editor's).
 //! * [`changes`]: the Changes page (what the open mod changes, value by value, and who wins).
 //! * [`mod_page`]: the Mod page (details, files, clashes, ready to share, export).
 //! * [`new_mod`]: the New mod dialog.
@@ -18,7 +20,9 @@
 //! * [`world`]: the World and Races workspaces: the map editor hosted in the window.
 
 pub mod address;
+pub mod browser;
 pub mod changes;
+pub mod data;
 pub mod draw;
 pub mod focus;
 pub mod guide;
@@ -30,6 +34,7 @@ pub mod memory;
 pub mod mod_page;
 pub mod nav;
 pub mod new_mod;
+pub mod runs;
 pub mod shell;
 pub mod shot;
 pub mod words;
@@ -39,9 +44,19 @@ pub mod world;
 pub use shell::Studio;
 
 #[cfg(test)]
+mod browser_tests;
+#[cfg(test)]
+mod docs_tests;
+#[cfg(test)]
 mod guide_tests;
 #[cfg(test)]
 mod inside_tests;
+#[cfg(test)]
+mod parity_tests;
+#[cfg(test)]
+mod matrix;
+#[cfg(test)]
+mod runs_tests;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]

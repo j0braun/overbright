@@ -42,6 +42,7 @@ pub mod sounds;
 pub mod start_log;
 pub mod studio_seen;
 pub mod transfer;
+pub mod trial;
 pub mod ui;
 #[cfg(windows)]
 mod win_dialog;
@@ -49,3 +50,5 @@ pub mod window;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod texture_mod_tests;

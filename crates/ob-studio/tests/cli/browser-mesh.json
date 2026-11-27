@@ -1,0 +1,40 @@
+{
+  "command": "browser.mesh",
+  "exit": 0,
+  "format": 1,
+  "hash": "0x00000055",
+  "lit": false,
+  "markers": 0,
+  "max": [
+    1.0,
+    1.0,
+    2.0
+  ],
+  "min": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "model": "XC_CONE_01",
+  "ok": true,
+  "parts": [
+    {
+      "name": "ROAD",
+      "texture": "world:0x00000ABC",
+      "triangles": 1
+    },
+    {
+      "name": "slot1",
+      "texture": "world:0x00000ABD",
+      "triangles": 1
+    }
+  ],
+  "region": "L4RA",
+  "size": [
+    1.0,
+    1.0,
+    2.0
+  ],
+  "triangles": 2,
+  "vertices": 4
+}

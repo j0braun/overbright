@@ -24,15 +24,15 @@ manual. `qol::volumetric_fog()` = 3 and `qol::sky()` = 1 switch them.
 
 | file | what |
 |---|---|
-| `src/render/atmosphere.rs`, `atmosphere.wgsl` | the froxel medium (new) |
-| `src/render/sky_ng.rs`, `sky_ng.wgsl` | the Next-Gen sky (ported from the earlier `night_sky` prototype) with the panorama |
-| `src/render/volumetric.rs` | `Frame::next` (the Next-Gen inputs; with them postfx runs the atmosphere instead of the cones) |
-| `src/render/postfx.rs` | the dispatch (same place in the chain as the temporal tier's fog: after SSAO / SSR, before the native passes) |
-| `src/render/lamps.rs` | `WorldRenderer::lamp_shadow_layers` (read-only: the Lamp Shadows maps, views and holders) |
-| `src/render/volume_fx.rs`, `smoke_volume.rs`, `smoke_cinematic.rs` | additive accessors `medium()` (the smoke's density volume and placement) |
-| `src/render/mod.rs` | `WorldCore::sky_rows / sky_ng`, the sky's prepare (plan_views), panorama update (record_views), draws (draw_pass_faded); `set_weather` → `sky_ng::set_rain` |
+| `crates/ob-render/src/render/atmosphere.rs`, `atmosphere.wgsl` | the froxel medium (new) |
+| `crates/ob-render/src/render/sky_ng.rs`, `sky_ng.wgsl` | the Next-Gen sky (ported from the earlier `night_sky` prototype) with the panorama |
+| `crates/ob-render/src/render/volumetric.rs` | `Frame::next` (the Next-Gen inputs; with them postfx runs the atmosphere instead of the cones) |
+| `crates/ob-render/src/render/postfx.rs` | the dispatch (same place in the chain as the temporal tier's fog: after SSAO / SSR, before the native passes) |
+| `crates/ob-render/src/render/lamps.rs` | `WorldRenderer::lamp_shadow_layers` (read-only: the Lamp Shadows maps, views and holders) |
+| `crates/ob-render/src/render/volume_fx.rs`, `smoke_volume.rs`, `smoke_cinematic.rs` | additive accessors `medium()` (the smoke's density volume and placement) |
+| `crates/ob-render/src/render/mod.rs` | `WorldCore::sky_rows / sky_ng`, the sky's prepare (plan_views), panorama update (record_views), draws (draw_pass_faded); `set_weather` → `sky_ng::set_rain` |
 | `src/bin/game.rs` | `volumetric_frame` fills `Frame::next` for tier 3; `atmosphere_drive` adds the clock and the smoke medium |
-| `src/qol/`, `src/frontend/{options,graphics_table}.rs` | the tier, the row, label, help, costs |
+| `src/qol/`, `crates/ob-menus/src/frontend/{options,graphics_table}.rs` | the tier, the row, label, help, costs |
 
 ## Volumetric Fog "Next-Gen" (`render::atmosphere`)
 

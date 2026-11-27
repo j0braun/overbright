@@ -44,6 +44,9 @@
 #               present, MESA_VK_WSI_DEBUG=sw: Xvfb has no DRI3): reads the monitor and its modes (a display
 #               mode without its fields must not stop it, docs/notes/graphics/resolutions.md), starts and reaches the title
 #               screen ("boot: the title screen"; Enter skips the boot movies), no panic line
+#   w_link      Studio's link: `game.exe --simulate-world --studio-link` on a map mod made here; the files are written as
+#               Studio writes them: a probe and the opt-in "what did the game load" question are answered (game.txt,
+#               loaded.txt) and a stop ends the run, no panic line
 #   l_play      the launcher with "Start the game directly" set starts game.exe beside it: the game's own log
 #               (in the launcher's data folder) reaches the title screen, no panic line in either log
 # The map editor (overbright-editor.exe beside the build's game: $WINE_EDITOR, else dist/windows/overbright-editor.exe;
@@ -143,11 +146,39 @@ wrun() {
   BAD=$(ck_bad "$O/$name.log")
 }
 # result NAME OK DETAIL: a step's line; OK = ok | XFAIL | anything else (a failure).
+# A step's duration is the time since the previous step's result (the steps run one after the other); every
+# duration is printed at the end ("step_seconds:"), so a slow run shows where it was slow.
+LAST_T=$(date +%s) DURS=() EVID=()
+# evidence NAME SECS DETAIL: a failed step keeps its log, its work folders (screen.txt, PNGs) and its timing in
+# $WINE_EVIDENCE_DIR (default `overbright-wine-evidence` in the system temp folder)/<date-time>-<rev>-NAME/, outside the gate folder that is
+# deleted afterwards; the 20 newest folders stay. Not kept in --selfcheck / --env-check (broken inputs on purpose)
+# unless WINE_EVIDENCE_DIR is set. Failing to keep evidence never changes the result.
+evidence() {
+  local n=$1 base=${WINE_EVIDENCE_DIR:-} d rev f
+  if [ -z "$base" ]; then
+    [ "$SELFCHECK" = 1 ] || [ "$ENVCHECK" = 1 ] && return 0
+    base="${TMPDIR:-/tmp}/overbright-wine-evidence"
+  fi
+  rev=$(git -C "$REPO" rev-parse --short HEAD 2> /dev/null || echo norev)
+  d="$base/$(date +%Y%m%d-%H%M%S)-$rev-$n"
+  mkdir -p "$d" 2> /dev/null || return 0
+  for f in "$O/$n.log" "$O/$n"*.png; do [ -f "$f" ] && cp -- "$f" "$d/"; done
+  for f in "$O/$n" "$O/tmp/$n"; do [ -d "$f" ] && { mkdir -p "$d/$(basename "$f")_dir"; cp -r -- "$f/." "$d/$(basename "$f")_dir/" 2> /dev/null; }; done
+  printf 'step=%s\nseconds=%s\ndetail=%s\nrev=%s\ndate=%s\n' "$n" "$2" "$3" "$rev" "$(date -Is)" > "$d/timing.txt"
+  EVID+=("$d")
+  # Keep the 20 newest (the names start with the date-time); older ones go by literal path.
+  local all=() old i
+  while IFS= read -r f; do all+=("$f"); done < <(ls -1d "$base"/[0-9]*-*/ 2> /dev/null | sed 's:/$::' | sort)
+  old=$(( ${#all[@]} - 20 ))
+  for (( i = 0; i < old; i++ )); do rm -rf -- "${all[$i]}"; done
+  return 0
+}
 result() {
+  local now secs; now=$(date +%s); secs=$(( now - LAST_T )); LAST_T=$now; DURS+=("$1=${secs}s")
   case $2 in
     ok) say "$1: ok $3" ;;
     XFAIL) XFAIL+=("$1"); say "$1: XFAIL $3" ;;
-    *) FAIL+=("$1"); say "$1: FAIL $3" ;;
+    *) FAIL+=("$1"); say "$1: FAIL $3"; evidence "$1" "$secs" "$3" ;;
   esac
 }
 
@@ -232,6 +263,53 @@ check_window() { # EXE
   local ok=ok; [ "$TITLE" = 1 ] && [ "$BAD" = 0 ] && [ "$snd" = 0 ] || ok=no
   result w_window $ok "$(( $(date +%s) - t )) s: title screen $([ "$TITLE" = 1 ] && echo reached || echo NOT reached), panic=$BAD, sound device lines=$snd; $(grep -m1 -oE 'monitor Some.*Resolution list rebuilt' "$O/w_window.log" | cut -c1-90)"
 }
+# check_link EXE: Studio's link (docs/modding/map-editor.md, "The test window stays open") under Wine: a headless
+# simulation of a map mod made here is started with `--studio-link`; the files in the link folder are written by this
+# script as Studio writes them (`command.txt`) and read as Studio reads them (`game.txt`, `loaded.txt`): a probe is
+# answered, the opt-in "what did the game load" question is answered with a `loaded.txt`, and a stop ends the run.
+# The link is plain files, so there is no pipe to check; what Wine can break is the atomic rename and the file times.
+link_send() { # DIR SEQ OP: one command, through a temporary file as Studio writes it
+  printf 'seq=%s op=%s\n' "$2" "$3" > "$1/command.tmp" && mv -f "$1/command.tmp" "$1/command.txt"
+}
+link_wait() { # DIR SEQ SECS: until game.txt says it dealt with command SEQ
+  local i
+  for ((i = 0; i < $3 * 2; i++)); do
+    grep -q " seq=$2 .* ok=yes" "$1/game.txt" 2> /dev/null && return 0
+    sleep 0.5
+  done
+  return 1
+}
+check_link() { # EXE
+  local d="$O/tmp/w_link"; rm -rf "$d"; mkdir -p "$d/data/maps/smoke" "$d/link"
+  printf 'overbright-map 1\nname = Wine link\n' > "$d/data/maps/smoke/map.obmap"
+  local t=$(date +%s) ok=ok why=""
+  W NFSU2_ROOT="$ROOT_W" NFSU2_DATA_DIR="$(wp "$d/data")" TMP="$(wp "$d")" TEMP="$(wp "$d")" NFSU2_NO_PADS=1 NFSU2_HEADLESS_ONLY=1 \
+    RUST_LOG="${RUST_LOG:-info},naga=warn,wgpu_hal=warn,wgpu_core=warn" \
+    timeout 240 wine "$1" --map-mod smoke --map-at -220.79,-1577.06,13.61,0 --simulate-world --sim-seconds 86400 --stream "$(wp "$d/out.run")" \
+    --studio-link "$(wp "$d/link")" --map-mem-cap 8192 > "$O/w_link.log" 2>&1 &
+  local pid=$!
+  # The game is up when its state file says so (the world load comes first).
+  local i
+  for ((i = 0; i < 240; i++)); do [ -s "$d/link/game.txt" ] && break; kill -0 $pid 2> /dev/null || break; sleep 1; done
+  if [ ! -s "$d/link/game.txt" ]; then ok=no; why="no game.txt: the game did not come up under Wine ($(grep -v MESA "$O/w_link.log" | tail -1 | cut -c1-100))"; fi
+  if [ $ok = ok ]; then
+    link_send "$d/link" 1 probe; link_wait "$d/link" 1 20 || { ok=no; why="the probe was not answered"; }
+  fi
+  if [ $ok = ok ]; then
+    link_send "$d/link" 2 loaded; link_wait "$d/link" 2 20 && grep -q '^mod=smoke' "$d/link/loaded.txt" 2> /dev/null \
+      || { ok=no; why="the loaded probe was not answered"; }
+  fi
+  if [ $ok = ok ]; then
+    link_send "$d/link" 3 stop
+    for ((i = 0; i < 60; i++)); do kill -0 $pid 2> /dev/null || break; sleep 1; done
+    kill -0 $pid 2> /dev/null && { ok=no; why="the run did not end on stop"; }
+  fi
+  WINEPREFIX="$O/prefix" wineserver -k > /dev/null 2>&1
+  wait $pid 2> /dev/null
+  BAD=$(ck_bad "$O/w_link.log")
+  [ "$BAD" = 0 ] || { ok=no; why="$why panic=$BAD"; }
+  result w_link $ok "$(( $(date +%s) - t )) s: probe, loaded and stop over the link${why:+: $why}"
+}
 # check_play LAUNCHER_EXE: the launcher with "Start the game directly" set starts the game beside it, as a
 # player's double-click does: the game's own log (in the launcher's data folder) reaches the title screen.
 check_play() {
@@ -303,7 +381,7 @@ editor_args() {
   case $1 in
     e_start) echo "--size 1280x720" ;;
     e_props) echo "--size 1280x720 --mod smoke --mode props --view 3d --tab browser" ;;
-    e_races) echo "--size 1600x960 --scale 1.5 --mod smoke --mode races --view map --tab validation" ;;
+    e_races) echo "--size 1600x960 --scale 1.5 --mod smoke --mode races --view top --tab validation" ;;
     s_start) echo "--size 1280x720" ;;
   esac
 }
@@ -421,6 +499,12 @@ EOF
   done
   ok=ok; grep -qx 'env: NFSU2_HEADLESS_ONLY=1' "$O/env_headless.log" || ok=no
   result env_headless $ok "$(grep -m1 -o 'NFSU2_HEADLESS_ONLY=.*' "$O/env_headless.log")"
+  # Self-test of the evidence copy (selfcheck.sh): a faked failed step with a log and a work folder.
+  if [ -n "${WINE_EVIDENCE_FAKE:-}" ]; then
+    mkdir -p "$O/fake_step"; echo "fake log" > "$O/fake_step.log"; echo "fake screen" > "$O/fake_step/screen.txt"; : > "$O/fake_step/a.png"
+    result fake_step no "faked failure"
+    say "evidence: ${EVID[*]:-none}"
+  fi
   if [ ${#FAIL[@]} = 0 ]; then say "WINE_SMOKE_ENVCHECK: PASS ($(( $(date +%s) - T0 )) s)"; exit 0; fi
   say "WINE_SMOKE_ENVCHECK: FAIL (${FAIL[*]}) ($(( $(date +%s) - T0 )) s)"; exit 1
 fi
@@ -509,6 +593,7 @@ say "private set $PRIV as $PRIV_W"
 
 if [ "$SELFCHECK" = 0 ]; then
   check_window "$O/exe/game.exe"
+  check_link "$O/exe/game.exe"
   check_harness "$O/exe/game.exe"
   check_version "$O/exe/game.exe"
   check_game "$O/exe/game.exe" "$ROOT_W"
@@ -647,7 +732,9 @@ if command -v xdotool > /dev/null; then
   say "windows on :$DNUM at the end: $(DISPLAY=":$DNUM" xdotool search --onlyvisible --name . 2> /dev/null | wc -l) (the shots are headless)"
 fi
 SECS=$(( $(date +%s) - T0 ))
+say "step_seconds: ${DURS[*]}"
 X=""; [ ${#XFAIL[@]} -gt 0 ] && X=" xfail: ${XFAIL[*]};"
 if [ ${#FAIL[@]} = 0 ]; then say "WINE_SMOKE: PASS (${X# } $SECS s)"; exit 0; fi
-say "WINE_SMOKE: FAIL (${FAIL[*]};$X $SECS s)"
+E=""; [ ${#EVID[@]} -gt 0 ] && E=" evidence: ${EVID[*]};"
+say "WINE_SMOKE: FAIL (${FAIL[*]};$X$E $SECS s)"
 exit 1

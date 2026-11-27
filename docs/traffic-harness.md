@@ -163,6 +163,7 @@ Per run, then per side as `mean [min-max] (runs)`; `*` marks a metric whose rang
 | `enc_out`, `enc_mode4`, `enc_within100`, `enc_player_d_p50` | racers out per sample, their share on the BeltMover, within 100 m of the player, their median distance from it |
 | `enc_act_avoid`, `enc_avoid_traffic`, `enc_act_hit`, `enc_act_unstuck` | racer samples in AvoidAvoidable (of them tracking traffic), IJustGotHit, GetUnstuck |
 | `enc_speed_p50/p90`, `enc_traffic_within30`, `enc_m_per_min` | racer speeds off the belt, traffic cars within 30 m of a racer off the belt, metres a racer drives a minute |
+| `rival_traffic_touches`, `rival_touches_sameway`, `rival_touches_oncoming`, `rival_sameway_passes` | a Quick Race's rivals and the traffic: touches (the centres under 3 m on the straight line between two consecutive samples, both cars moving; one per pair until it has been apart for 1 s), same-way (headings within 90°) and oncoming, and the rivals' passes of same-way traffic (within 30°: ahead to behind between two samples, under 6 m to the side). The line between samples keeps them independent of the sampling rate: the original's poll reads 3–15 samples a second, and a count of samples under 3 m misses most of its short touches at the lower rates (this game's tables thinned to 3 a second count 2.7 such touches where the line counts 8.4) |
 | `game_rate` | the original's game seconds per wall second over the run (`# rate` line); under about 0.98 the original got fewer frames than its own rate (a loaded machine): leave that run out |
 | `enc_wrong_side`, `enc_off_over2` | racers nearer a lane running the other way, or over 2 m off a lane (the lane columns) |
 
@@ -203,6 +204,23 @@ road node (controller +0x0C: the point's place and race coordinate +0x08, as the
 `# c` each traffic car's race coordinate (+0x8FC) and `# w` the world's tracked count (+0x14), coordinates
 (+0xE0 / +0xE4) and places (+0x80 / +0x90) that 0x5F12B0 / 0x5F0FC0 measure from, and the player's +0x8FC.
 A placed car's `# c` at its spawn row less the player's is the placement's race-coordinate distance.
+
+## The placer's tries
+
+`TRAFH_PLACER=1` (this game, a dev-harness build) writes a `# try` line for each placer try
+(0x42F910): the car's slot, whether it was parked, its race coordinate less the player's, whether it
+was placed, the outcome (`ok:<reach measure>`, `jam` / `zone` for 0x42F800's 99999 refusal, `keep`
+for 0x42ED4C, `reach`, `walk0`, `walk`, `stay`, `tries`), the player's race coordinate, the spacing and
+the start (cursor, number of starts, 0x417D80), and a `# p` line per row set (countdown, cursor,
+`slot:parked:race coordinate` per car). In the original, `TRAFH_NAT_WORLD=1` adds a `# p` line per
+sample (placer world +0x118: countdown +0, cursor +4; `slot:car:<+0x77C><+0x77D>:<walk +0xC8>` per
+traffic car; the start cursor +0x0C; 0x827ACC) and once a `# jn` line (the junctions with +0x0C bit
+21, which make 0x40ABB0 park a car near its walk's end: none on 4001 and 4014). `TRAFH_NAT_PLACE=1`
+counts the placer's outcomes in place (tools/parity/placecnt.py: 0x42F800 and 0x42E9F0 entries and
+each way 0x42E9F0 gives up, stubs after the parity cave) and writes them as `# pc` lines. The
+original's Quick Race menu taps can miss the Traffic Level row (three of ten earlier 4001 runs raced
+at Minimum, one with Difficulty set to Easy instead): `trafh_native.py` reads the race's level
+(0x89E7A8) at the green and fails a run whose level is not `--level`.
 
 ## Screenshots, horns, outruns
 

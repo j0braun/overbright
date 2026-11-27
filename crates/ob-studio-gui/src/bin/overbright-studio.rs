@@ -6,9 +6,10 @@
 //! overbright-studio [--mod <name|folder>] [--maps <dir>]  the window, with that mod open (its folder name in the
 //!                                                        mods folder, or its folder's path)
 //! overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
-//!                   [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
+//!                   [--workspace home|world|races|browser|runs|mod|settings|changes|data] [--input mouse|keyboard|xbox|playstation|deck]
 //!                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address]
-//!                   [--select N] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME]
+//!                   [--run NAME] [--compare NAME] [--car ID] [--at SECONDS]
+//!                   [--select N] [--collision off|invisible|all] [--search WORDS] [--kind models|textures|sounds|strings] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME]
 //!                                   the whole window drawn off-screen into a PNG (no window)
 //! ```
 //! A `--shot` prints one line "studio layout: fits …" or "studio layout: clipped: …" (the clip and overlap check).
@@ -33,7 +34,7 @@ use winit::event::WindowEvent;
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
-const USAGE: &str = "usage: overbright-studio [--mod <folder>] [--maps <dir>]\n       overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>] [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck] [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address] [--select N] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME] [--tutorial 1-6] [--race-tutorial 1-7]";
+const USAGE: &str = "usage: overbright-studio [--mod <folder>] [--maps <dir>]\n       overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>] [--workspace home|world|races|mod|settings|changes|data] [--input mouse|keyboard|xbox|playstation|deck] [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address] [--select N] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME] [--tutorial 1-6] [--race-tutorial 1-7]";
 
 #[derive(Default)]
 struct Cli {
@@ -54,6 +55,15 @@ struct Cli {
     address: bool,
     /// The placement selected in World; on Changes, the focused value row (a `--shot`).
     select: Option<usize>,
+    /// The Browser's search text and kind (a `--shot`).
+    search: Option<String>,
+    collision: Option<ob_studio_gui::editor::collision::Show>,
+    kind: Option<String>,
+    /// Runs: the run opened, the run compared with it, the car whose telemetry shows, the time shown (a `--shot`).
+    run: Option<String>,
+    compare: Option<String>,
+    car: Option<u32>,
+    at: Option<f32>,
     /// The New mod dialog open with this name typed (a `--shot`).
     new_mod: Option<String>,
     /// The first tutorial ("Your first mod") at this step (1 … 5, 6: the last card) on the open mod (a `--shot`).
@@ -131,6 +141,19 @@ fn parse(args: impl Iterator<Item = String>) -> Result<Cli> {
             "--find" => c.find = true,
             "--address" => c.address = true,
             "--select" => c.select = Some(val("--select")?.parse()?),
+            "--collision" => {
+                let v = val("--collision")?;
+                c.collision = Some(
+                    ob_studio_gui::editor::collision::Show::parse(&v.to_ascii_lowercase())
+                        .with_context(|| format!("--collision {v}? (off, invisible or all)"))?,
+                );
+            }
+            "--search" => c.search = Some(val("--search")?),
+            "--kind" => c.kind = Some(val("--kind")?),
+            "--run" => c.run = Some(val("--run")?),
+            "--compare" => c.compare = Some(val("--compare")?),
+            "--car" => c.car = Some(val("--car")?.parse()?),
+            "--at" => c.at = Some(val("--at")?.parse()?),
             "--new-mod" => c.new_mod = Some(val("--new-mod")?),
             "--race-tutorial" => {
                 let n: usize = val("--race-tutorial")?.parse()?;
@@ -181,12 +204,17 @@ fn new_studio(cli: &Cli) -> Result<Studio> {
         Box::new(|root, region| nfsu2::studio_api::world::World::load(root, region)),
     );
     s.attach_editor(editor);
+    ob_studio_gui::editor::weak::load();
+    // OB_STUDIO_WEAK=auto|full|weak overrides the saved choice for this run (shots, testing).
+    if let Some(p) = std::env::var("OB_STUDIO_WEAK").ok().and_then(|v| ob_studio_gui::editor::weak::Pref::parse(&v)) {
+        ob_studio_gui::editor::weak::set_pref(p);
+    }
     Ok(s)
 }
 
 fn main() -> ExitCode {
     ob_core::console::attach();
-    let _ = env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).try_init();
+    let logger = || env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info"));
     if std::env::args().nth(1).as_deref() == Some("--version") {
         println!("{} studio (preview)", ob_core::build_info::version_line());
         return ExitCode::SUCCESS;
@@ -194,11 +222,23 @@ fn main() -> ExitCode {
     let cli = match parse(std::env::args().skip(1)) {
         Ok(c) => c,
         Err(e) => {
+            let _ = logger().try_init();
             ob_core::console::fatal(&format!("{e:#}"));
             return ExitCode::from(2);
         }
     };
+    // A window run keeps a log and a note that goes with a clean end (the launcher shows its crash report
+    // window for a note left behind); a picture does neither.
+    if cli.shot.is_none() {
+        let inner = logger().build();
+        let filter = inner.filter();
+        ob_core::studio_run::begin("Overbright Studio", Box::new(inner), filter);
+    } else {
+        let _ = logger().try_init();
+    }
     let r = if cli.shot.is_some() { run_shot(&cli) } else { window(cli) };
+    // Whatever returns here is an end the program chose (a quit, or an error it tells the player).
+    ob_core::studio_run::finish();
     match r {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
@@ -228,6 +268,11 @@ fn run_shot(cli: &Cli) -> Result<()> {
         if w == Workspace::Changes {
             let folder = s.open_mod().map(|m| m.folder.clone());
             s.changes.ensure(folder.as_deref());
+        }
+        if w == Workspace::Data {
+            let folder = s.open_mod().map(|m| m.folder.clone());
+            s.changes.ensure(folder.as_deref());
+            s.data_enter();
         }
         if w == Workspace::Mod {
             let folder = s.open_mod().map(|m| m.folder.clone());
@@ -305,7 +350,47 @@ fn run_shot(cli: &Cli) -> Result<()> {
         s.command(ob_studio_gui::studio::nav::Command::EditAddress, None);
         s.nav.input = cli.input.unwrap_or(InputKind::Keyboard);
     }
-    if let Some(i) = cli.select
+    if s.nav.workspace == Workspace::Runs {
+        // Frames so the mod opens in the editor; then the run, the run compared and the car.
+        shot::frames(&mut s, size, scale, 3);
+        if let Some(folder) = s.open_mod().map(|m| m.folder.clone()) {
+            let dir = ob_studio_gui::editor::sim::library::dir(&s.maps, &folder);
+            let sim = s.editor.as_ref().map(|h| h.app.panels.sim.clone());
+            if let (Some(sim), Some(r)) = (sim.as_ref(), cli.run.as_deref()) {
+                let ctx = s.ctx.clone();
+                s.runs.open(&dir, sim, &ctx, r);
+                shot::frames(&mut s, size, scale, 3);
+                if let Some(c) = cli.compare.as_deref() {
+                    s.runs.compare(&dir, sim, c);
+                }
+                let mut b = sim.borrow_mut();
+                b.tele_car = cli.car;
+                if let Some(t) = cli.at {
+                    let rec = b.rec.clone();
+                    b.play.seek_frame(&rec, t);
+                }
+            }
+        }
+        shot::frames(&mut s, size, scale, 3);
+    } else if s.nav.workspace == Workspace::Browser {
+        use ob_studio::browser::Kind;
+        // Frames so the mod opens in the editor and the index is made, then the search and the focused result.
+        shot::frames(&mut s, size, scale, 2);
+        if let Some(t) = &cli.search {
+            s.browser.query.text = t.clone();
+        }
+        match cli.kind.as_deref() {
+            Some("models") => s.browser.query.kind = Kind::Models,
+            Some("textures") => s.browser.query.kind = Kind::Textures,
+            Some("sounds") => s.browser.query.kind = Kind::Sounds,
+            Some("strings") => s.browser.query.kind = Kind::Strings,
+            _ => {}
+        }
+        shot::frames(&mut s, size, scale, 2);
+        if let Some(i) = cli.select {
+            s.browser.focus = ob_studio_gui::studio::browser::FIRST_RESULT + i;
+        }
+    } else if let Some(i) = cli.select
         && s.nav.workspace == Workspace::Changes
     {
         s.changes.focus = i.min(s.changes.lines().len().saturating_sub(1));
@@ -314,6 +399,13 @@ fn run_shot(cli: &Cli) -> Result<()> {
         shot::frames(&mut s, size, scale, 1);
         if let Some(st) = s.editor.as_mut().and_then(|h| h.app.state.as_mut()) {
             st.selection = vec![i];
+        }
+    }
+    if let Some(c) = cli.collision {
+        // One frame so World opens the mod, then the layer.
+        shot::frames(&mut s, size, scale, 1);
+        if let Some(st) = s.editor.as_mut().and_then(|h| h.app.state.as_mut()) {
+            st.collision = c;
         }
     }
     if let Some(name) = &cli.new_mod {
@@ -528,6 +620,8 @@ impl ApplicationHandler for Runner {
         let pads = self.poll_pads();
         let Some(w) = self.win.as_ref() else { return };
         let now = Instant::now();
+        // The run note names the mod open (name only).
+        ob_core::studio_run::set_open(self.studio.open_mod().map(|m| m.folder.as_str()));
         // The map editor's history: saving at quiet points, steps from other programs.
         if pads || self.studio.tick(now) {
             w.window.request_redraw();

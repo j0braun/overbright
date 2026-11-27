@@ -104,7 +104,23 @@ fn scan_menu(src: &str, body: &str, outer: &[&str], out: &mut Vec<(String, Optio
             out.extend(super::collision::Show::ALL.map(|c| (format!("{menu} ▸ {}", c.label()), None)));
             continue;
         }
-        let drawn = ["item(ui, \"", "item(ui, words::", "command(ui, s, \"", "command(ui, s, words::", "Button::selectable(", "ui.button(\""];
+        if line.contains("state::SnapMode::ALL") {
+            out.extend(super::state::SnapMode::ALL.map(|c| (format!("{menu} ▸ {}", c.label()), None)));
+            continue;
+        }
+        if line.contains("collision::Class::ALL") {
+            out.extend(super::collision::Class::ALL.map(|c| (format!("{menu} ▸ {}", c.label()), None)));
+            continue;
+        }
+        if line.contains("collision::OPACITIES") {
+            out.extend(super::collision::OPACITIES.map(|c| (format!("{menu} ▸ {}", super::collision::opacity_label(c)), None)));
+            continue;
+        }
+        if line.contains("collision::Colour::ALL") {
+            out.extend(super::collision::Colour::ALL.map(|c| (format!("{menu} ▸ {}", c.label()), None)));
+            continue;
+        }
+        let drawn = ["item(ui, \"", "item_why(ui, \"", "item(ui, words::", "command(ui, s, \"", "command(ui, s, words::", "Button::selectable(", "ui.button(\""];
         if !drawn.iter().any(|d| line.contains(d)) {
             continue;
         }

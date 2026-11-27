@@ -76,6 +76,7 @@ pub fn mount(spec: &str, base: &Path, root: &Path) -> Result<String, ob_asset_fo
         );
     }
     crate::game_fs::mount(root, std::sync::Arc::new(s));
+    crate::mod_packs::set_base(crate::mod_packs::base_of(&set.display().to_string(), base));
     Ok(id)
 }
 

@@ -166,19 +166,19 @@ overridable.
 | `utk_rc`, `utk_codebooks`, `utk_commands` | UTK decoder | decoder | src/audio/codec/utk.rs |
 | `mp3_huff`, `mp3_linbits`, `mp3_window_rows` | layer III decoder | decoder | src/audio/codec/mp3_tables.rs |
 | `vp6` | `Vp6Tables` | decoder | crates/ob-formats/src/formats/vp6.rs, src/movie.rs |
-| `in_game_rig`, `default_rig` | `[RigLight; 3]` | tunable | src/render/native/car/lighting.rs |
+| `in_game_rig`, `default_rig` | `[RigLight; 3]` | tunable | crates/ob-render/src/render/native/car/lighting.rs |
 | `slot_shots`, `vinyl_shots`, `suv_engine_shot` | `[[(u32, Shot); 42]; 2]`, `[[Shot; 7]; 2]`, `Shot` | tunable | src/garage.rs |
-| `world_map_zooms` | `[(f32, f32, f32, u32); 6]` | tunable | src/frontend/screens/ingame_map.rs |
-| `magazine_lines`, `dvd_lines`, `rating_lines` | `[(u32, u32); 20]`, `[(u32, u32); 10]`, `[u32; 11]` | fixed (career texts and covers) | src/frontend/dday/hints.rs |
+| `world_map_zooms` | `[(f32, f32, f32, u32); 6]` | tunable | crates/ob-menus/src/frontend/screens/ingame_map.rs |
+| `magazine_lines`, `dvd_lines`, `rating_lines` | `[(u32, u32); 20]`, `[(u32, u32); 10]`, `[u32; 11]` | fixed (career texts and covers) | crates/ob-menus/src/frontend/dday/hints.rs |
 | `part_type_names` | `[&str; 0x69]` | fixed (solid names of parts) | src/car/model.rs |
 | `slot_types`, `slot_categories`, `vinyl_categories` | `[u8; 0xAA]`, `[u8; 0xAA]`, `[u8; 28]` | fixed (the part database's structure and the native save's layout) | crates/ob-formats/src/formats/parts.rs |
 | `opponent_cars` | `[u8; 26]` (type indices) | tunable (region 0's pool only, §3.4) | src/opponents.rs |
-| `vinyl_groups` | `[(u8, u32, u32); 28]` | fixed (shop structure) | src/frontend/graphics/graphics_shop.rs |
-| `opponent_names` | `[&str; 53]` | tunable | src/frontend/quick_race/race_setup.rs |
-| `ea_trax`, `ea_trax_where` | `[(&str, &str, &str); 27]`, `[&str; 27]` | fixed (music, and the playlist a fresh native profile stores) | src/audio/trax/caption.rs (the music caption's title, artist and album), src/frontend/screens/jukebox.rs, src/frontend/career/native_map/fresh.rs |
-| `tuning_names` | `[u32; 25]` | fixed (the 25 tuning parameters' labels) | src/frontend/screens/tuning.rs |
-| `card_scores` | `[(u32, u32, u8); 120]` | fixed (hardware detection, not content) | src/frontend/settings/gpu_rating.rs |
-| `qr_default_cars`, `ranked_rides` | `[u32; 2]`, `[u32; 0x12]` | fixed (written into fresh native profiles) | src/frontend/career/native_map/fresh.rs |
+| `vinyl_groups` | `[(u8, u32, u32); 28]` | fixed (shop structure) | crates/ob-menus/src/frontend/graphics/graphics_shop.rs |
+| `opponent_names` | `[&str; 53]` | tunable | crates/ob-menus/src/frontend/quick_race/race_setup.rs |
+| `ea_trax`, `ea_trax_where` | `[(&str, &str, &str); 27]`, `[&str; 27]` | fixed (music, and the playlist a fresh native profile stores) | src/audio/trax/caption.rs (the music caption's title, artist and album), crates/ob-menus/src/frontend/screens/jukebox.rs, crates/ob-menus/src/frontend/career/native_map/fresh.rs |
+| `tuning_names` | `[u32; 25]` | fixed (the 25 tuning parameters' labels) | crates/ob-menus/src/frontend/screens/tuning.rs |
+| `card_scores` | `[(u32, u32, u8); 120]` | fixed (hardware detection, not content) | crates/ob-menus/src/frontend/settings/gpu_rating.rs |
+| `qr_default_cars`, `ranked_rides` | `[u32; 2]`, `[u32; 0x12]` | fixed (written into fresh native profiles) | crates/ob-menus/src/frontend/career/native_map/fresh.rs |
 
 Why the `fixed` ones are refused: they define the structure the native save and the part database follow, or
 values a fresh native profile stores; a pack must never change what goes into a native save (the save sidecar
@@ -188,11 +188,11 @@ set's data is decoded: changing them would change what every texture, sound and 
 ### 3.4 Constants outside the holder
 
 Many traced constants are written in the modules that use them, not in `Tables`, and are **not overridable** in
-1.0: e.g. the car-lot exclusions and Quick Race's always-offered cars by region (src/frontend/career/lists.rs:7–14),
-the alternate opponent pool (the one region 6 uses) and the SUV pool (src/frontend/career/events.rs:147, :151), the
-neighbourhood names and their bits (0x800C38, src/frontend/career/triggers.rs:75), the reputation table by winning
-margin and reward class (0x7F7AC8, written as code in src/frontend/career/rewards.rs:53), the minimap icon names
-(0x7F4348, src/frontend/screens/ingame_map.rs:142), the AI throttle caps (0x783A28, src/ai/driver/mod.rs:104), the
+1.0: e.g. the car-lot exclusions and Quick Race's always-offered cars by region (crates/ob-menus/src/frontend/career/lists.rs:7–14),
+the alternate opponent pool (the one region 6 uses) and the SUV pool (crates/ob-menus/src/frontend/career/events.rs:147, :151), the
+neighbourhood names and their bits (0x800C38, crates/ob-menus/src/frontend/career/triggers.rs:75), the reputation table by winning
+margin and reward class (0x7F7AC8, written as code in crates/ob-menus/src/frontend/career/rewards.rs:53), the minimap icon names
+(0x7F4348, crates/ob-menus/src/frontend/screens/ingame_map.rs:142), the AI throttle caps (0x783A28, src/ai/driver/mod.rs:104), the
 part-exclusion groups (crates/ob-formats/src/formats/parts.rs:34–39), the AI looks' chances, colour sets and paint matches
 (src/ai_looks.rs:28, :52, :63), the nitrous curve (src/nitrous.rs:12), the hatch and closed-scoop type lists
 (src/car/parts.rs:288, src/car/lod.rs:38), the shared car part files (src/car/assets.rs:240). Note that `opponent_cars` holds region 0's
@@ -323,9 +323,9 @@ impl Tables {
 - Region 6's opponent pool and the other constants of §3.4 are outside the holder; overriding `opponent_cars` alone
   is region-dependent until they move.
 - Candidates for the registry (§9) among the career constants that are plain Rust today (§3.4): the car-lot
-  exclusions and Quick Race's always-offered cars (src/frontend/career/lists.rs:7–14), the alternate and SUV
-  opponent pools (src/frontend/career/events.rs:147, :151), the neighbourhood names (src/frontend/career/triggers.rs:75)
-  and the reputation reward table (0x7F7AC8, src/frontend/career/rewards.rs:53, today code rather than a table). Each
+  exclusions and Quick Race's always-offered cars (crates/ob-menus/src/frontend/career/lists.rs:7–14), the alternate and SUV
+  opponent pools (crates/ob-menus/src/frontend/career/events.rs:147, :151), the neighbourhood names (crates/ob-menus/src/frontend/career/triggers.rs:75)
+  and the reputation reward table (0x7F7AC8, crates/ob-menus/src/frontend/career/rewards.rs:53, today code rather than a table). Each
   needs a class; those that decide what a native save or a fresh native profile holds would be `fixed`.
 - Value checks beyond shape and range (a monotonic curve, a sane steering lock) are not defined: any in-range value
   is accepted, as the original would hold it.

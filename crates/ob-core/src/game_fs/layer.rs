@@ -50,6 +50,18 @@ pub trait Layer: Send + Sync {
     fn absent(&self, _key: &str) -> bool {
         false
     }
+    /// The SHA-256 of the game file `key`'s bytes as the set recorded them (the set's bundles are verified at
+    /// mount, so the bytes [`Layer::get`] answers have this digest), when it knows it. The asset cache keys a
+    /// source by it ([`identity`]) instead of the game folder's stat.
+    fn digest(&self, _key: &str) -> Option<[u8; 32]> {
+        None
+    }
+    /// The entries directly in the game folder `dir` (its name relative to the game folder, upper case, `/`
+    /// separated), as (upper-case name, is a folder): None when the layer cannot answer the whole listing (it does
+    /// not know the folder, or keeps only part of it), and the folder is asked.
+    fn list(&self, _dir: &str) -> Option<Vec<(String, bool)>> {
+        None
+    }
     /// A short name for log lines (the base set's id).
     fn name(&self) -> &str;
 }
@@ -86,6 +98,10 @@ pub fn mount(root: &Path, layer: Arc<dyn Layer>) {
     *MOUNT.write().unwrap_or_else(std::sync::PoisonError::into_inner) = Some(Mount { roots, layer });
 }
 
+/// Held by a test that mounts a layer: the mount is process-wide.
+#[cfg(test)]
+pub static TEST_MOUNT: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Takes the layer down (tests; the game mounts once and keeps it).
 pub fn unmount() {
     *MOUNT.write().unwrap_or_else(std::sync::PoisonError::into_inner) = None;
@@ -118,6 +134,35 @@ fn key(rel: &str) -> Option<String> {
 fn key_of_path(m: &Mount, path: &Path) -> Option<String> {
     let rel = m.roots.iter().find_map(|r| path.strip_prefix(r).ok())?;
     key(rel.to_str()?)
+}
+
+/// What the layer holds for the game file at `path`, without counting a read (the read-ahead's question: it warms
+/// what a load will read, it is not one).
+pub fn peek(path: &Path) -> Lookup {
+    let g = MOUNT.read().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(m) = g.as_ref() else { return Lookup::Folder };
+    let Some(k) = key_of_path(m, path) else { return Lookup::Folder };
+    if let Some(b) = m.layer.get(&k) {
+        Lookup::Held(b)
+    } else if m.layer.absent(&k) {
+        Lookup::Absent
+    } else {
+        Lookup::Folder
+    }
+}
+
+/// The identity of the game file at `path` as the mounted layer holds it: its size and its recorded content digest
+/// (the first 128 bits of the SHA-256, as two words). None without a layer, outside the game folder, or when the
+/// layer does not hold the file or does not know its digest. Reads nothing and counts nothing: the layer's own
+/// record answers, so a cache over the file is checked without touching the game folder or the bytes.
+pub fn identity(path: &Path) -> Option<(u64, [u64; 2])> {
+    let g = MOUNT.read().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let m = g.as_ref()?;
+    let k = key_of_path(m, path)?;
+    let len = m.layer.get(&k)?.len() as u64;
+    let d = m.layer.digest(&k)?;
+    let w = |i: usize| u64::from_le_bytes(d[i..i + 8].try_into().expect("8 bytes"));
+    Some((len, [w(0), w(8)]))
 }
 
 /// What the layer answers for one game file.
@@ -182,15 +227,56 @@ pub fn layered(path: &Path) -> Option<Mapped> {
     }
 }
 
+/// The layer's key of `rel` under `root`.
+fn key_rel(m: &Mount, root: &Path, rel: &str) -> Option<String> {
+    match key_of_path(m, root) {
+        Some(base) => key(&format!("{base}/{rel}")),
+        None if m.roots.iter().any(|r| r == root) => key(rel),
+        None => None,
+    }
+}
+
+/// What the layer knows of a name under the game folder.
+pub enum Presence {
+    File,
+    Dir,
+    /// The layer knows there is no such file or folder.
+    Absent,
+    /// No layer, outside the game folder, or the layer cannot tell: ask the folder.
+    Unknown,
+}
+
+/// Whether the game file or folder `rel` under `root` is there, by the layer's index (reads nothing, counts
+/// nothing).
+pub(super) fn presence(root: &Path, rel: &str) -> Presence {
+    let g = MOUNT.read().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let Some(m) = g.as_ref() else { return Presence::Unknown };
+    let Some(k) = key_rel(m, root, rel) else { return Presence::Unknown };
+    if m.layer.get(&k).is_some() {
+        Presence::File
+    } else if m.layer.list(&k).is_some() {
+        Presence::Dir
+    } else if m.layer.absent(&k) {
+        Presence::Absent
+    } else {
+        Presence::Unknown
+    }
+}
+
+/// The layer's listing of the folder `rel` under `root` (upper-case names, `true` for a folder); None when the
+/// layer does not answer it.
+pub(super) fn list_rel(root: &Path, rel: &str) -> Option<Vec<(String, bool)>> {
+    let g = MOUNT.read().unwrap_or_else(std::sync::PoisonError::into_inner);
+    let m = g.as_ref()?;
+    let k = key_rel(m, root, rel)?;
+    m.layer.list(&k)
+}
+
 /// What the layer answers for the game file `rel` under `root`.
 pub(super) fn lookup_rel(root: &Path, rel: &str) -> Lookup {
     let g = MOUNT.read().unwrap_or_else(std::sync::PoisonError::into_inner);
     let Some(m) = g.as_ref() else { return Lookup::Folder };
-    let k = match key_of_path(m, root) {
-        Some(base) => key(&format!("{base}/{rel}")),
-        None if m.roots.iter().any(|r| r == root) => key(rel),
-        None => None,
-    };
+    let k = key_rel(m, root, rel);
     match k {
         Some(k) => served(m, &k),
         None => Lookup::Folder,

@@ -7,7 +7,7 @@ With no world pack (row Off, no variable) nothing here runs and the native track
 as before, byte for byte. No SPEED2.EXE behaviour is involved (the texture packs are a clone feature).
 
 ## The pack-applied arrays' cache
-* `WorldRenderer::new` (src/render/mod.rs): with a world pack, the upload-ready arrays with the
+* `WorldRenderer::new` (crates/ob-render/src/render/mod.rs): with a world pack, the upload-ready arrays with the
   pack applied (`prepared::arrays_with_pack`) are written after the first load to a file of their own
   beside the track's: `<cache>/track-<REGION>-pack.nfc` (`TrackCache::pack_file` / `store_pack`,
   crates/ob-core/src/cache/). It holds the same "gpu.meta" / "gpu.a*" sections as the native data (no geometry;

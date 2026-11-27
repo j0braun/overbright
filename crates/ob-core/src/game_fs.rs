@@ -34,8 +34,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, PoisonError};
 
 mod layer;
+#[cfg(test)]
+pub use layer::TEST_MOUNT;
 pub use layer::{
-    FileBytes, FileReader, Layer, Lookup, Mapped, absent_count, counts, layered, lookup, misses, mount, mounted,
+    FileBytes, FileReader, Layer, Lookup, Mapped, Presence, absent_count, counts, identity, layered, lookup, misses, mount, mounted, peek,
     open_file, open_reader, read_file, unmount,
 };
 
@@ -182,6 +184,72 @@ pub fn path(root: &Path, rel: &str) -> PathBuf {
 /// file or directory (or the name is refused).
 pub fn find(root: &Path, rel: &str) -> Option<PathBuf> {
     resolve(root, rel).ok().flatten()
+}
+
+/// Whether the game file `rel` under `root` is there: the layer's index answers when it can, else the folder.
+pub fn is_file(root: &Path, rel: &str) -> bool {
+    match layer::presence(root, rel) {
+        Presence::File => true,
+        Presence::Dir | Presence::Absent => false,
+        Presence::Unknown => find(root, rel).is_some_and(|p| p.is_file()),
+    }
+}
+
+/// Whether the game folder `rel` under `root` is there ([`is_file`]'s way).
+pub fn is_dir(root: &Path, rel: &str) -> bool {
+    match layer::presence(root, rel) {
+        Presence::Dir => true,
+        Presence::File | Presence::Absent => false,
+        Presence::Unknown => find(root, rel).is_some_and(|p| p.is_dir()),
+    }
+}
+
+/// Whether the game file or folder `rel` under `root` is there.
+pub fn exists(root: &Path, rel: &str) -> bool {
+    match layer::presence(root, rel) {
+        Presence::File | Presence::Dir => true,
+        Presence::Absent => false,
+        Presence::Unknown => find(root, rel).is_some(),
+    }
+}
+
+/// The names in the game folder `rel` under `root` (files and folders), `None` when there is no such folder: the
+/// layer's listing (upper-case names) when it answers one, else the folder's own (kept listing, real spelling).
+pub fn list(root: &Path, rel: &str) -> Option<Vec<String>> {
+    if let Some(l) = layer::list_rel(root, rel) {
+        return Some(l.into_iter().map(|(n, _)| n).collect());
+    }
+    let dir = find(root, rel)?;
+    // Listed afresh (as the callers did): a file added meanwhile is seen.
+    let mut v: Vec<String> = std::fs::read_dir(&dir).ok()?.flatten().map(|e| e.file_name().to_string_lossy().into_owned()).collect();
+    v.sort();
+    Some(v)
+}
+
+/// The file `name` (without regard to case) in the game folder `dir` under `root`, as a path for [`read_file`]
+/// and the readers that follow it; None when the folder has no such name. The listing is the layer's when it has
+/// one ([`list`]), so with a layer the game folder is not asked.
+pub fn find_in(root: &Path, dir: &str, name: &str) -> Option<PathBuf> {
+    list_paths(root, dir)?.into_iter().find(|p| p.file_name().is_some_and(|n| n.eq_ignore_ascii_case(name)))
+}
+
+/// The game file `rel` under `root` (its last name without regard to case, like [`find_in`]; the folders above as
+/// [`find`] takes them), None when there is no such file: a path for [`read_file`] and the readers that follow it.
+pub fn find_file(root: &Path, rel: &str) -> Option<PathBuf> {
+    match components(rel).ok()?.as_slice() {
+        [.., _] if !rel.contains(['/', '\\']) => find(root, rel).filter(|p| p.is_file()),
+        parts => {
+            let (name, dirs) = parts.split_last()?;
+            find_in(root, &dirs.join("/"), name).filter(|_| !is_dir(root, rel))
+        }
+    }
+}
+
+/// The entries of the game folder `dir` under `root` as paths (sorted by name; [`list`]'s names under the folder).
+pub fn list_paths(root: &Path, dir: &str) -> Option<Vec<PathBuf>> {
+    let names = list(root, dir)?;
+    let base = if layer::list_rel(root, dir).is_some() { literal(root, dir) } else { find(root, dir)? };
+    Some(names.into_iter().map(|n| base.join(n)).collect())
 }
 
 /// The bytes of the game file `rel` under `root` (as `std::fs::read` of

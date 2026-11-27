@@ -1,15 +1,18 @@
 # Asset format: run files
 
 A run file holds one run of the game's simulation: every car's look, pose, wheels and lights at each 60 Hz tick,
-the race's events, the results and a state hash. It is one file for simulations, recordings and replays: the
+the race's events, the results and a state hash, and, when asked for, each car's gear, engine speed and pedals
+(the drive channels) and the state hash of every tick. It is one file for simulations, recordings and replays: the
 map editor's Simulate tab plays it (docs/modding/map-editor.md, "Simulation stream"), and Studio's runs and ghosts
 read the same file.
 
 ## 1. Scope
 
 Overbright's own data; nothing of the original maps here (the original's replays are not files). A run file is
-written by the game while it runs (`game … --simulate --stream <file>`, docs/modding/map-editor.md) and read while
-it grows. It is not part of a pack: packs do not ship runs, and no other kind refers to one.
+written by the game while it runs (`game … --simulate --stream <file>`, docs/modding/map-editor.md; or, for a
+test window the player drives, `game … --record <file>`, 3.4) and read while it grows. It is not part of a pack: packs do not ship runs, and no other kind refers to one. Studio keeps the runs of a mod
+in its editor folder (`.editor/runs/`, never exported) and lists them in its Runs workspace
+(docs/modding/studio.md, "Runs").
 
 ## 2. Files and keys
 
@@ -41,6 +44,7 @@ Generated from the code (crates/ob-asset-format/src/kinds/run.rs, `RUN`):
 |  | `track=` | u16 | no | The base track. |
 |  | `laps=` | u32 | no | The race's laps. |
 |  | `checkpoints=` | u32 | no | The race's checkpoints. |
+|  | `hash=` | u32 | no | How often `H` is written, in ticks (60 when absent; 1: every tick). |
 | `C`: A car's first appearance. | `id` | u32 | yes | The car. |
 |  | `kind` | enum | yes | Its role. |
 |  | `name` | text | no | Its name (the rest of the line). |
@@ -89,6 +93,13 @@ Generated from the code (crates/ob-asset-format/src/kinds/run.rs, `RUN`):
 |  | `lift2` | f32 m | no |  |
 |  | `lift3` | f32 m | no |  |
 |  | `lights` | u8 | no | Bit 1 headlights, bit 2 brake lights. |
+|  | `gear` | i32 | no | The drive channels: -1 reverse, 0 neutral, 1.. the gear. |
+|  | `rpm` | f32 | no | The shown engine speed. |
+|  | `throttle` | f32 | no | The pedals as the car took them, 0..1. |
+|  | `brake` | f32 | no |  |
+|  | `handbrake` | f32 | no |  |
+|  | `steerin` | f32 | no | The steering input, -1 (left) .. 1 (right). |
+|  | `nitrous` | u8 | no | 1 while the nitrous key is held. |
 <!-- /generated -->
 
 `schemas/run.schema.json` describes one line read as an object of its named fields, with `record` its tag (the
@@ -104,9 +115,33 @@ not, so two runs whose files look the same but whose cars differ in the last bit
 The same seed gives the same file byte for byte, hashes included; a replay or a second run that parts from the
 first shows it at the first `H` that differs.
 
-### 3.3 Example
+### 3.3 Channels and recording
 
-[`examples/runs/race.obrun`](examples/runs/race.obrun): a two-car race's first two ticks.
+Besides the poses, a run file has two opt-in channels, asked for with `--run-channels drive,hash` (a
+simulation's or a recording's; neither flag, and the file is as it was, `ob.run/1.0`, byte for byte):
+
+- `drive`: each car's gear (-1 reverse, 0 neutral, 1..), shown engine speed (rpm), throttle, brake, handbrake,
+  steering input and nitrous key, as trailing fields of the car in `F` (after the lights). They are what the car
+  took in its last update, so the player's own inputs in a recording and the AI's in a simulation.
+- `hash`: the state hash every tick instead of every 60 (the header says `hash=1`), so a second run's first
+  difference is the tick it parted at.
+
+A file with either channel says `schema=ob.run/1.1`; a reader of 1.0 skips the trailing fields and reads the rest
+(§9). The channels are read from the car after each update and never written back: the run is the same with them
+on or off (the same seed gives the same poses and the same `H` lines at the ticks both write).
+
+`--record <file>` makes the window's test run (`--map-file … --map-race <id>` or `--map-at …`, docs/modding/map-editor.md)
+write the same file as the player drives: one `F` per update, whatever the frame rate, in a race and in free roam;
+a pause writes nothing; the file ends `finish` when the race does, `quit` when the window is closed and `restart`
+when Studio's link starts the run over. The header's `seed=` is the game's own boot seed, which the run
+does not depend on (the player's inputs decide it). Studio's Drive to record starts this and keeps the file as a run
+(docs/modding/studio.md, "Runs").
+
+### 3.4 Example
+
+[`examples/runs/race.obrun`](examples/runs/race.obrun): a two-car race's first two ticks;
+[`examples/runs/drive.obrun`](examples/runs/drive.obrun): a recorded drive's first ticks with the drive channels
+and the hash of every tick (`ob.run/1.1`).
 
 ## 4. Layering
 
@@ -146,6 +181,8 @@ minor version adds records, trailing fields and event words; a change in what a 
 ## 10. Open points
 
 - The spinners' own turn is not in a run yet.
+- A recording does not carry the player's raw device (the key or the wheel): the pedals and steering are as the car
+  took them.
 - More events (a car's crash with another, the nitrous, the police in free roam) come as a minor version.
 
 ## 11. Sizes and timing

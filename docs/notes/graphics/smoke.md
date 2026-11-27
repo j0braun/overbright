@@ -20,7 +20,7 @@ fix below (a native-path fix, checked against the original).
 `qol::particles()`; label id 0xC104E070 (`options::PARTICLES`, chosen clear of 0x5C.. that other
 later graphics work may take). Presets: Ultra → Particles Ultra (cost below); Modern / Original unchanged.
 
-### What changes (`src/render/gpu_particles.rs`, `gpu_particles.wgsl`)
+### What changes (`crates/ob-render/src/render/gpu_particles.rs`, `gpu_particles.wgsl`)
 * **Fed by the native emitters.** `particles::System` got one clone-only field, `births`: while
   set (High / Ultra) every particle `emit` spawns is also copied there. `Effects::step` (game.rs)
   sets it per 1/60 s world update and hands the births to `Feeder::record`, which keeps those of
@@ -165,7 +165,7 @@ what it does and that it is cheaper than Ultra in thick smoke. `qol::PARTICLE_ST
 `enh.particles` clamps at 3; the describe line says "particles cinematic".
 
 ### Code (new files; High / Ultra's path untouched)
-`src/render/smoke_cinematic.rs`, `src/render/smoke_cinematic.wgsl`. It reuses only
+`crates/ob-render/src/render/smoke_cinematic.rs`, `crates/ob-render/src/render/smoke_cinematic.wgsl`. It reuses only
 `gpu_particles::Feeder` (the native births, recorded per 1/60 s world update) and a few constants;
 `gpu_particles.rs` / `.wgsl` are not edited (the second performance audit works on their cost). game.rs: an `Effects::cinematic`
 field, `Effects::step` records into it when the row is 3, `particle_quads` prepares it (and drops High /
@@ -304,13 +304,13 @@ new label id.** the Cinematic smoke work's billboard look stays reachable for co
 
 | file | what |
 |---|---|
-| `src/render/volume_fx.rs`, `volume_fx.wgsl` | **the reusable module**: renderer (`VolumeFx`) and GPU particle pool (`ParticlePool`); nothing smoke-specific |
-| `src/render/volume_fx_ambient.wgsl` | The smoke integration: the scene ambient (block averages of the target) |
-| `src/render/smoke_volume.rs`, `smoke_volume.wgsl` | the smoke-specific layer: Cinematic puffs → volume particles, the smoke's lights and look |
-| `src/render/smoke_cinematic.rs` / `.wgsl` | The Cinematic smoke work's tier: its simulation (native births → puffs) unchanged except steam; draws through `SmokeVolume` |
+| `crates/ob-render/src/render/volume_fx.rs`, `volume_fx.wgsl` | **the reusable module**: renderer (`VolumeFx`) and GPU particle pool (`ParticlePool`); nothing smoke-specific |
+| `crates/ob-render/src/render/volume_fx_ambient.wgsl` | The smoke integration: the scene ambient (block averages of the target) |
+| `crates/ob-render/src/render/smoke_volume.rs`, `smoke_volume.wgsl` | the smoke-specific layer: Cinematic puffs → volume particles, the smoke's lights and look |
+| `crates/ob-render/src/render/smoke_cinematic.rs` / `.wgsl` | The Cinematic smoke work's tier: its simulation (native births → puffs) unchanged except steam; draws through `SmokeVolume` |
 | `src/bin/game.rs` | hooks: the player's underglow colour (`shadow::neon_rgb`, the smoke integration) and the frame's fog (`FogState::drawn`, the smoke integration) into the smoke's `View` |
-| `src/fog.rs`, `src/shadow.rs`, `src/render/postfx.rs` | The smoke integration: `FogState::drawn`; `neon_rgb`; the multisampled scene readable with Cinematic |
-| `src/frontend/graphics_table.rs` | the tier's help text and cost |
+| `src/fog.rs`, `src/shadow.rs`, `crates/ob-render/src/render/postfx.rs` | The smoke integration: `FogState::drawn`; `neon_rgb`; the multisampled scene readable with Cinematic |
+| `crates/ob-menus/src/frontend/graphics_table.rs` | the tier's help text and cost |
 
 ### The reusable module (`render::volume_fx`)
 

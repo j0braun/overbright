@@ -285,6 +285,8 @@ pub(super) fn winchain(game: &mut Game, cx: &ShotCtx) -> Result<Mode> {
             break;
         }
     }
+    // The chain's key script taps faster than a player (as the scripted modes': an icon menu's accept acts at once).
+    crate::dev::hooks::INSTANT_FORWARD.store(true, std::sync::atomic::Ordering::Relaxed);
     let name = |m: &Mode| match m {
         Mode::Menu(Menu::Results(_, Some(_))) => "results (won)",
         Mode::Menu(Menu::Results(_, None)) => "results",

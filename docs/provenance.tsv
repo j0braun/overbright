@@ -187,7 +187,6 @@ game.race_start_scene	open	docs/formats.md	Open: the complete NISMover pose/forc
 game.racer_think	inferred	docs/formats.md	NIS movers is inferred: no gas, the hold's brake, neutral).
 game.replay_typed_input	inferred	docs/notes/parity/drag-drift-outrun-parity.md,docs/notes/parity/replay-cameras.md	path's curvature (0x5EB320; inferred here from the velocity's turn
 game.reset_to_road	inferred	docs/formats.md,docs/original/nis-mover.md	Inferred: the human's road node is the AI racer controller's route
-game.road_car	inferred	docs/formats.md	half its length and width (handling +0x224 / +0x228, inferred for
 game.shop_preview_item	inferred	docs/formats.md	(under Wine RED's underglow; inferred that it is
 game.shop_preview_item-2	inferred	docs/formats.md	0x4C2100(0x1D)). Inferred: the rims' strip picks the
 game.shop_rating_quads_of	inferred	docs/formats.md	inferred: the overlay's opening refresh pushes it).
@@ -206,7 +205,6 @@ game.traffic_fill	inferred	docs/formats.md	teleporters (0x883DC8 of them, none i
 game.traffic_fill-2	inferred	docs/formats.md	their places located on the race road (inferred; a car placed by
 game.traffic_fill-3	inferred	docs/formats.md	0x5F0FC0 are taken as the player alone (inferred: which cars are
 game.traffic_think	inferred	docs/formats.md	inferred; the other races keep `dist`).
-game.traffic_think-2	inferred	docs/formats.md	(inferred, as `dist` does).
 game.tuning_start	inferred	docs/formats.md	has nothing to resume (inferred: nothing happens there). The
 game.tuning_start-2	inferred	docs/formats.md	does (the dyno settings, the run's race set-up; inferred
 game.unique_part_label	open	docs/formats.md	are open (the memory-card / profile states are not traced).
@@ -245,6 +243,5 @@ game.race_idle_brake	open	docs/formats.md	the race input object analog brake byt
 props.sound.splash_flag	inferred	docs/notes/parity/prop-hits.md	the drum's splashed flag (+0x50C) set when its sound is posted, not at the object's start after the five-object cap
 audio.collision.copy_life	inferred	docs/notes/parity/prop-hits.md	a started collision object's mix copy kept while its layers or splash play (its end with its record is not traced)
 ai.traffic.lane_reach	inferred	docs/formats/ai.md	A lane's reach on a record entered by a junction is taken from its first point (observed timing; +0x68 of a junction target not traced).
-ai.traffic.race_coord_step	inferred	docs/formats/ai.md	A traffic car's race coordinate (+0x8FC) moves on in 11.6 m steps of its place (observed under Wine); the writer and the exact trigger are not traced.
 game_assets.language_support	inferred	docs/modding/asset-format/text.md	the one-byte languages (English, French, German, Italian, Spanish, Dutch, Swedish, Danish) show through the English character map; only Spanish and Italian were tried (observed); the others were not. The original's language table gives English to Danish one set of fonts (docs/formats/front-end.md "Language selection").
 format.separators	inferred	docs/formats/front-end.md	the number separators by language (SetLanguage 0x43CB20): '.' and ',' English, ',' and ' ' French, ',' and '.' German to Danish; which of the two is the decimal mark is inferred.

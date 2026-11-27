@@ -1,0 +1,9 @@
+{
+  "error": {
+    "kind": "usage",
+    "message": "`looks find` needs --text (see `overbright-studio-cli help`)"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

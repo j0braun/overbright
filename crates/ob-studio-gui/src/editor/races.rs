@@ -4,8 +4,8 @@
 //! behind it ([`super::validate`]).
 //!
 //! Every tool works on a world point (the viewport's ground point under
-//! the cursor, or the map view's x/y) and snaps it to the base track's
-//! road network unless snapping is off or Alt is held. Every edit is an
+//! the cursor, or the top view's x/y) and snaps it to the base track's
+//! road network unless the snap mode is Free. Every edit is an
 //! [`Op`] run through [`undo::run`]: one undo step per click, per drag
 //! (on release) and per typed value. The tracks and their road networks
 //! are read through the state's [`MapAssets`](crate::tools::map::assets::MapAssets).
@@ -30,6 +30,15 @@ pub use crate::tools::map::assets::TrackInfo;
 
 /// A click this close (metres) to a race point picks it instead of placing.
 pub const PICK_M: f32 = 5.0;
+/// In the top view a race point is grabbed within this many screen points, at any zoom (the handles keep their
+/// pixel size); the 3D view keeps [`PICK_M`].
+pub const PICK_POINTS: f32 = 12.0;
+
+/// The metres a click may be from a race point to pick it: [`PICK_POINTS`] on screen in the top view `top`, else
+/// [`PICK_M`].
+pub fn pick_radius(top: Option<(super::camera::TopView, egui::Rect)>) -> f32 {
+    top.map_or(PICK_M, |(t, r)| t.metres_per_point(r) * PICK_POINTS)
+}
 /// The start and finish lines are drawn this wide.
 const LINE_HALF_M: f32 = 7.0;
 /// The race properties' label column.
@@ -61,8 +70,6 @@ pub struct Preview {
 #[derive(Default)]
 pub struct Races {
     pub tool: Tool,
-    /// Snap placed points to the road network.
-    pub snap: bool,
     /// The region's race tracks (read on first use through the assets),
     /// and the region they are of.
     tracks: Option<(String, Vec<TrackInfo>)>,
@@ -70,9 +77,13 @@ pub struct Races {
     /// What the checks and previews were made from.
     seen: Option<(MapMod, Vec<u16>)>,
     pub checks: Vec<Check>,
+    /// Where the inspector's Mode buttons were drawn last (the layout test reads them).
+    pub mode_buttons: Vec<egui::Rect>,
     pub previews: Vec<Preview>,
     /// The point being dragged.
     dragging: Option<RacePoint>,
+    /// How near a click picks a race point (metres; None: [`PICK_M`]); the overlay sets it from the view.
+    pub pick_m: Option<f32>,
     /// A race being changed live (a drag, a dragged value): its index and
     /// how it was before, put back when the gesture ends in its op.
     live: Option<(usize, CustomRace)>,
@@ -330,7 +341,7 @@ fn row<R>(ui: &mut egui::Ui, name: &str, add: impl FnOnce(&mut egui::Ui) -> R) -
 
 impl Races {
     pub fn new() -> Races {
-        Races { snap: true, ..Races::default() }
+        Races::default()
     }
 
     /// The region's race tracks: those with a career event (whose set-up
@@ -399,9 +410,9 @@ impl Races {
         self.checks.iter().find(|c| c.race == Some(k) && c.level == super::state::Level::Error).map(|c| c.text.clone())
     }
 
-    fn snapped(&mut self, s: &mut EditorState, at: Vec3, bypass: bool) -> (Vec3, Option<RoadPoint>) {
+    fn snapped(&mut self, s: &mut EditorState, at: Vec3) -> (Vec3, Option<RoadPoint>) {
         let Some(track) = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| r.track) else { return (at, None) };
-        if !self.snap || bypass {
+        if !s.snap_mode.snaps() {
             return (at, None);
         }
         let Some(rp) = self.net(s, track).and_then(|n| race::snap(n, at.truncate())) else { return (at, None) };
@@ -432,15 +443,14 @@ impl Races {
 
     /// A click at world point `at` in the viewport or the map: pick a
     /// point near it, else use the armed tool there (Select only clears
-    /// the point). `shift`: insert a checkpoint into the route; `alt`: no
-    /// snapping.
-    pub fn click(&mut self, s: &mut EditorState, at: Vec3, shift: bool, alt: bool) {
+    /// the point). `shift`: insert a checkpoint into the route.
+    pub fn click(&mut self, s: &mut EditorState, at: Vec3, shift: bool) {
         self.update(s);
         let Some(k) = s.race.filter(|&k| k < s.session.map.races.len()) else {
             s.status = "Make a race first: Race > New race".into();
             return;
         };
-        if !shift && let Some(p) = pick(&s.session.map.races[k], at.truncate(), PICK_M) {
+        if !shift && let Some(p) = pick(&s.session.map.races[k], at.truncate(), self.pick_m.unwrap_or(PICK_M)) {
             s.point = Some(p);
             self.dragging = Some(p);
             return;
@@ -449,7 +459,7 @@ impl Races {
             s.point = None;
             return;
         }
-        let (at, road) = self.snapped(s, at, alt);
+        let (at, road) = self.snapped(s, at);
         let r = &s.session.map.races[k];
         let insert_at = insert_index(r, self.previews.get(k), s.point, at.truncate(), shift);
         let f = s.camera.forward();
@@ -470,9 +480,9 @@ impl Races {
 
     /// The pointer dragged to `at` with a point picked by [`Races::click`]
     /// (the race changes live; the op is run on release).
-    pub fn drag(&mut self, s: &mut EditorState, at: Vec3, alt: bool) {
+    pub fn drag(&mut self, s: &mut EditorState, at: Vec3) {
         let (Some(p), Some(k)) = (self.dragging, s.race) else { return };
-        let (at, road) = self.snapped(s, at, alt);
+        let (at, road) = self.snapped(s, at);
         self.begin_live(s, k);
         if let Some(r) = s.session.map.races.get_mut(k) {
             move_point(r, p, at, road);
@@ -482,6 +492,19 @@ impl Races {
     /// A point picked by the last click is being dragged.
     pub fn is_dragging(&self) -> bool {
         self.dragging.is_some()
+    }
+
+    /// Esc during a drag: the race goes back exactly as it was, with no undo step.
+    pub fn cancel_drag(&mut self, s: &mut EditorState) {
+        if self.dragging.take().is_none() {
+            return;
+        }
+        if let Some((k, before)) = self.live.take()
+            && let Some(r) = s.session.map.races.get_mut(k)
+        {
+            *r = before;
+        }
+        s.status = crate::studio::words::DRAG_CANCELLED.into();
     }
 
     /// The drag ended: one undo step.
@@ -549,6 +572,10 @@ impl Races {
         }
         use egui::Key;
         let pressed = |k: Key| ctx.input(|i| i.key_pressed(k) && i.modifiers.is_none());
+        if self.dragging.is_some() && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, Key::Escape)) {
+            self.cancel_drag(s);
+            return;
+        }
         if pressed(Key::Delete) {
             self.delete_selected(s);
         }
@@ -587,7 +614,7 @@ impl Races {
         self.paint(s, painter, &|p: Vec3| to(p), &ground, true, near);
     }
 
-    /// The same over the 2D map view; `to_screen` maps world x/y.
+    /// The same over the top view; `to_screen` maps world x/y.
     pub fn paint_map(&mut self, s: &mut EditorState, painter: &egui::Painter, to_screen: &dyn Fn(Vec2) -> egui::Pos2) {
         self.update(s);
         let to = |p: Vec3| Some(to_screen(p.truncate()));
@@ -783,7 +810,9 @@ impl Races {
                 tracks.iter().find(|t| t.number == r.track).map_or_else(|| format!("{}", r.track), |t| t.name.clone());
             egui::ComboBox::from_id_salt("race-track").selected_text(current).show_ui(ui, |ui| {
                 for t in &tracks {
-                    if ui.selectable_label(t.number == r.track, &t.name).clicked() && t.number != r.track {
+                    let detail = t.detail();
+                    let label = if detail.is_empty() { t.name.clone() } else { format!("{}  ({detail})", t.name) };
+                    if ui.selectable_label(t.number == r.track, label).clicked() && t.number != r.track {
                         ops.push(Op::SetTrack { race: id.clone(), track: t.number });
                     }
                 }
@@ -799,12 +828,23 @@ impl Races {
                 .wrap(),
             );
         });
+        // The modes in two columns, on purpose: four buttons never fit one line of the narrow panel, and a grid
+        // keeps each in the same place whatever the width (a wrapped line would split Circuit | Sprint, StreetX | Drift
+        // by chance).
+        self.mode_buttons.clear();
         row(ui, "Mode", |ui| {
-            for kind in RaceKind::ALL {
-                if ui.selectable_label(r.kind == kind, kind_title(kind)).clicked() && r.kind != kind {
-                    ops.push(Op::SetKind { race: id.clone(), kind });
+            egui::Grid::new("race-mode").num_columns(2).spacing([6.0, 4.0]).show(ui, |ui| {
+                for (i, kind) in RaceKind::ALL.into_iter().enumerate() {
+                    let resp = ui.selectable_label(r.kind == kind, kind_title(kind));
+                    self.mode_buttons.push(resp.rect);
+                    if resp.clicked() && r.kind != kind {
+                        ops.push(Op::SetKind { race: id.clone(), kind });
+                    }
+                    if i % 2 == 1 {
+                        ui.end_row();
+                    }
                 }
-            }
+            });
         });
         row(ui, "Laps", |ui| {
             let mut laps = s.session.map.races[k].laps;
@@ -921,6 +961,7 @@ impl Races {
                     point: Some(p),
                     at: Some(Vec2::new(x, y)),
                     fix: None,
+                    wall: None,
                 };
                 validate::show(s, &c);
             }
@@ -956,6 +997,13 @@ impl Races {
         if validate::panel(s, &checks, ui) {
             self.update(s);
         }
+    }
+
+    /// The Race tab: the selected race as a strip ([`super::race_strip`]).
+    pub fn strip(&mut self, s: &mut EditorState, ui: &mut egui::Ui) {
+        self.update(s);
+        let (checks, previews) = (self.checks.clone(), self.previews.clone());
+        super::race_strip::tab(s, &checks, &previews, ui);
     }
 
     /// The counts for the tab's title and the status bar: (errors, warnings).

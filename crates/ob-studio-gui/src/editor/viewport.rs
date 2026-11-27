@@ -1,7 +1,7 @@
 //! The 3D viewport: the world drawn by the game's own [`WorldRenderer`] into
 //! an off-screen target that egui shows as an image, the fly camera, mouse
-//! picking, the selection outline, and the 2D map view (M) in the same
-//! place.
+//! picking, the selection outline, and the top view's road layer.
+
 //!
 //! Two calls a frame, both from the shell:
 //! 1. [`Panel::ui`] inside the egui pass, after the shell's overlays (the
@@ -50,10 +50,10 @@ use glam::{Vec2, Vec3};
 
 use super::app::{self, Gfx};
 use super::camera::{self as cam, FlyCam, FlyInput, TopView};
-use super::mapview::MapView;
 use super::menu::{self, Command};
 use super::overlay::{Overlay, colour};
-use super::state::{EditorState, Mode, Panel, View};
+use super::roads::RoadLayer;
+use super::state::{EditorState, Mode, Panel};
 use crate::render::{FrameParams, Gpu, RenderOptions, WorldRenderer, create_depth};
 use crate::world::{HIDDEN_FLAG, World};
 
@@ -83,6 +83,8 @@ pub const WHOLE_MIN_PX: f32 = 2.0;
 /// The look bar's width (points); it is left out when the image is
 /// narrower.
 pub const LOOK_BAR_WIDTH: f32 = 520.0;
+/// The look buttons' layer: above the overlays' (route, checkpoints, gizmo) and below dialogs and menus.
+pub const LOOK_BAR_ORDER: egui::Order = egui::Order::Middle;
 
 /// How the 3D viewport draws the world.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -237,8 +239,8 @@ struct Target {
 /// The viewport panel.
 pub struct Viewport {
     pub fly: FlyCam,
-    /// The 2D map view (shown when the state's view is [`View::Map`]).
-    pub map: MapView,
+    /// The road network drawn over the top view.
+    pub roads: RoadLayer,
     /// The rectangle the image took this frame (screen points).
     pub rect: Rect,
     /// The placement under the mouse (Props mode, not while flying).
@@ -254,6 +256,8 @@ pub struct Viewport {
     target: Option<Target>,
     /// Pixel size the last layout asked for.
     want: (u32, u32),
+    /// Weak-GPU mode in force (see [`super::weak`]), as last resolved on the adapter.
+    weak: bool,
     rebuild_at: Option<Instant>,
     /// The camera last drawn (position, yaw, pitch, fov) and whether a
     /// draw is due for another reason.
@@ -300,6 +304,11 @@ pub struct Viewport {
     cars: Option<super::sim::cars::CarDraw>,
     /// The replay's version last drawn.
     drawn_replay: u64,
+    /// The placements the renderer holds as hidden for the view's filter (view state: the world's own flags
+    /// are untouched).
+    applied: std::collections::HashSet<usize>,
+    /// The filter's generation last applied.
+    applied_gen: u64,
 }
 
 impl Default for Viewport {
@@ -312,7 +321,7 @@ impl Viewport {
     pub fn new() -> Viewport {
         Viewport {
             fly: FlyCam::default(),
-            map: MapView::default(),
+            roads: RoadLayer::default(),
             rect: Rect::NOTHING,
             hover: None,
             click: None,
@@ -321,6 +330,7 @@ impl Viewport {
             renderer: None,
             target: None,
             want: (0, 0),
+            weak: false,
             rebuild_at: None,
             drawn: None,
             redraw: true,
@@ -342,6 +352,8 @@ impl Viewport {
             work: None,
             lit: false,
             cars: None,
+            applied: Default::default(),
+            applied_gen: 0,
             drawn_replay: 0,
         }
     }
@@ -470,11 +482,22 @@ impl Viewport {
             || s.session.world_changed
             || s.session.adds_changed
             || self.rebuild_at.is_some()
-            || self.target.as_ref().is_none_or(|t| t.size != self.want)
+            || self.target.as_ref().is_none_or(|t| t.size != self.goal())
             || self.drawn != Some(camera_key(&s.camera))
             || self.drawn_look != Some((self.look, self.haze))
             || (self.light && !self.lit)
             || self.drawn_replay != s.replay.version
+    }
+
+    /// The size the world is drawn at: the window's, or less in weak-GPU mode.
+    fn goal(&self) -> (u32, u32) {
+        super::weak::drawn_size(self.want, self.weak)
+    }
+
+    /// The render options of a frame: the player's, lightened in weak-GPU mode.
+    fn options(&self) -> RenderOptions {
+        let o = RenderOptions::in_force();
+        if self.weak { super::weak::lighten(&o) } else { o }
     }
 
     /// An overlay painter on the viewport for this frame (clipped to it).
@@ -490,7 +513,8 @@ impl Viewport {
     /// Point the camera at the selection (F): the union of the selected
     /// placements' bounding spheres; nothing when nothing is selected.
     pub fn frame_selection(&mut self, s: &mut EditorState) {
-        let spheres: Vec<(Vec3, f32)> = s.selection.iter().filter_map(|&i| placement_sphere(&s.session.world, i)).collect();
+        let spheres: Vec<(Vec3, f32)> =
+            s.selection.iter().filter_map(|&i| placement_sphere(&s.session.world, i)).collect();
         if let Some((centre, radius)) = union_sphere(&spheres) {
             if self.persp.is_some() {
                 self.top.centre = centre.truncate();
@@ -502,14 +526,55 @@ impl Viewport {
         }
     }
 
-    /// The panel: the map view or the 3D image, with `draw` called to add
+    /// Take a camera goal (View ▸ Top view / Isometric view, Go to, a saved view).
+    pub fn go(&mut self, s: &mut EditorState, goal: super::views::Goal) {
+        use super::views::Goal;
+        match goal {
+            Goal::Top => self.enter_top(s),
+            Goal::Isometric => {
+                self.leave_top(s, None);
+                let spheres: Vec<(Vec3, f32)> =
+                    s.selection.iter().filter_map(|&i| placement_sphere(&s.session.world, i)).collect();
+                let (centre, radius) = union_sphere(&spheres).unwrap_or_else(|| {
+                    let c = s.camera;
+                    let at = ground_hit(&s.session.world, c.position, c.forward(), PICK_RANGE)
+                        .unwrap_or(c.position + c.forward() * 60.0);
+                    (at, 20.0)
+                });
+                s.camera = super::views::isometric(centre, radius * 3.0 + 50.0);
+            }
+            Goal::Frame => {
+                self.leave_top(s, None);
+                self.frame_selection(s);
+            }
+            Goal::At(at) => {
+                self.leave_top(s, None);
+                let ground = s
+                    .session
+                    .world
+                    .collision()
+                    .ground_at(at.extend(500.0))
+                    .map_or(s.camera.position.z.min(0.0), |(z, _)| z);
+                s.camera = cam::fly_to(&s.camera, at.extend(ground));
+            }
+            Goal::Camera(p, yaw, pitch) => {
+                self.leave_top(s, None);
+                s.camera = crate::draw::camera::Camera::new(p, yaw, pitch);
+            }
+        }
+        self.redraw = true;
+    }
+
+    /// The panel: the 3D image or the overview, with `draw` called to add
     /// the other panels' overlays (route, checkpoints, gizmo) on top.
     pub fn show(&mut self, s: &mut EditorState, ui: &mut egui::Ui, draw: impl FnOnce(&mut EditorState, &Overlay)) {
         self.click = None;
-        if s.view == View::Map {
-            self.flying = false;
-            self.map.show(s, ui);
-            return;
+        // A finding shown from the Simulate tab: the overview centres on it and stays.
+        if let Some(at) = crate::editor::sim::panel::take_map_centre(ui.ctx())
+            && self.persp.is_some()
+        {
+            self.top.centre = at;
+            s.camera = self.top.camera();
         }
         // Someone else moved the camera while the overview showed (a
         // "Show" in a list, Reset camera): back to 3D at that place.
@@ -558,7 +623,9 @@ impl Viewport {
         let camera = s.camera;
         let overlay = Overlay::new(&painter, &camera, rect);
         if self.look == Look::Top {
+            self.roads.paint(s, &painter, &self.top, rect);
             self.top_marks(s, &overlay);
+            self.top_camera(s, &painter, rect, response.hover_pos());
         }
         if let Some(h) = self.hover.filter(|h| !s.selection.contains(&h.placement))
             && let Some((t, lo, hi)) = super::overlay::placement_box(&s.session.world, h.placement)
@@ -571,6 +638,9 @@ impl Viewport {
         draw(s, &overlay);
 
         let ctx = ui.ctx().clone();
+        if let Some(goal) = s.goal.take() {
+            self.go(s, goal);
+        }
         if menu::take(&ctx, Command::FrameSelection) {
             self.frame_selection(s);
         }
@@ -608,6 +678,11 @@ impl Viewport {
             ui.ctx().request_repaint_after(at.saturating_duration_since(Instant::now()));
         }
         publish_top(ui.ctx(), self.persp.is_some().then_some((self.top, rect)));
+        // The overview is the plan the overlays draw on (cars as arrows).
+        crate::editor::sim::panel::publish_map(
+            ui.ctx(),
+            self.persp.is_some().then(|| (self.top.centre, 1.0 / self.top.metres_per_point(rect), rect)),
+        );
     }
 
     fn input(&mut self, s: &mut EditorState, ui: &egui::Ui, response: &egui::Response) {
@@ -683,7 +758,7 @@ impl Viewport {
             if let Some(at) = pointer {
                 if moved || self.hover.is_none() {
                     let (eye, dir) = self.pick_ray(s, at);
-                    self.hover = pick(&s.session.world, eye, dir);
+                    self.hover = pick_where(&s.session.world, eye, dir, &|i| super::views::view_hides(s, i));
                 }
             } else {
                 self.hover = None;
@@ -695,7 +770,9 @@ impl Viewport {
         if response.clicked_by(egui::PointerButton::Primary) {
             let Some(at) = response.interact_pointer_pos() else { return };
             let (eye, dir) = self.pick_ray(s, at);
-            let hit = (s.mode == Mode::Props).then(|| pick(&s.session.world, eye, dir)).flatten();
+            let hit = (s.mode == Mode::Props)
+                .then(|| pick_where(&s.session.world, eye, dir, &|i| super::views::view_hides(s, i)))
+                .flatten();
             let modifiers = ctx.input(|i| i.modifiers);
             self.click = Some(Click {
                 at,
@@ -753,8 +830,8 @@ impl Viewport {
             && let Some(at) = response.interact_pointer_pos()
         {
             let (eye, dir) = self.pick_ray(s, at);
-            let ground =
-                ground_hit(&s.session.world, eye, dir, PICK_RANGE).unwrap_or_else(|| self.top.to_world(rect, at).extend(0.0));
+            let ground = ground_hit(&s.session.world, eye, dir, PICK_RANGE)
+                .unwrap_or_else(|| self.top.to_world(rect, at).extend(0.0));
             let from = self.persp.unwrap_or(s.camera);
             self.leave_top(s, Some(cam::fly_to(&from, ground)));
             return;
@@ -765,6 +842,14 @@ impl Viewport {
     /// The overview's marks: the mod's moved and added props (lime). The
     /// races are drawn by Races mode's own overlay, only in that mode.
     fn top_marks(&self, s: &EditorState, o: &Overlay) {
+        // The selection, as the old map drew it.
+        for &i in &s.selection {
+            if let Some(p) = s.session.world.placements.get(i)
+                && let Some(q) = o.at(p.transform.w_axis.truncate())
+            {
+                o.painter.circle_stroke(q, 5.0, egui::Stroke::new(2.0, colour::SELECT));
+            }
+        }
         let base = &s.session.base.placements;
         for (i, p) in s.session.world.placements.iter().enumerate() {
             let changed = match base.get(i) {
@@ -783,6 +868,41 @@ impl Viewport {
         }
     }
 
+    /// The 3D camera over the overview: where it will come back to, as an arrow along its heading, and the x, y
+    /// under the pointer.
+    fn top_camera(&self, s: &EditorState, painter: &egui::Painter, rect: Rect, hover: Option<Pos2>) {
+        if let Some(cam) = self.persp {
+            let (m, c) = (self.top.metres_per_point(rect), rect.center());
+            let p = Pos2::new(
+                c.x + (cam.position.x - self.top.centre.x) / m,
+                c.y - (cam.position.y - self.top.centre.y) / m,
+            );
+            let f = cam.forward();
+            let dir = Vec2::new(f.x, f.y).normalize_or(Vec2::Y);
+            let d = EVec2::new(dir.x, -dir.y);
+            let side = EVec2::new(-d.y, d.x);
+            let tip = p + d * 14.0;
+            let pts = vec![tip, p - d * 6.0 + side * 7.0, p - d * 6.0 - side * 7.0];
+            if rect.contains(p) {
+                painter.add(egui::Shape::convex_polygon(
+                    pts,
+                    colour::SELECT,
+                    egui::Stroke::new(1.5, egui::Color32::BLACK),
+                ));
+            }
+        }
+        if let Some(at) = hover.filter(|a| rect.contains(*a)) {
+            let p = self.top.to_world(rect, at);
+            super::overlay::label2d(
+                painter,
+                rect.left_bottom() + EVec2::new(70.0, -14.0),
+                &format!("{:.0}, {:.0}", p.x, p.y),
+                colour::DIM,
+            );
+        }
+        let _ = s;
+    }
+
     /// The look buttons at the image's top right: Auto, Street, Whole map,
     /// Top (T), Haze for the whole map, then Work light / Game look.
     fn look_bar(&mut self, s: &mut EditorState, ui: &mut egui::Ui, rect: Rect) {
@@ -791,41 +911,66 @@ impl Viewport {
         if !rect.contains_rect(bar) {
             return;
         }
-        ui.painter().rect_filled(bar.expand(2.0), 6.0, colour::PAGE.gamma_multiply(0.85));
-        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(bar.shrink2(EVec2::new(6.0, 2.0))));
         let top = self.persp.is_some();
         let look = self.look;
         let mut pressed = None;
-        child.horizontal_centered(|ui| {
-            let seg = |ui: &mut egui::Ui, on: bool, text: &str, tip: &str| {
-                let rt = egui::RichText::new(text).font(super::theme::font(super::theme::LABEL, 14.0));
-                let rt = if on { rt.color(super::theme::lime()) } else { rt };
-                ui.add(egui::Button::selectable(on, rt)).on_hover_text(tip).clicked()
-            };
-            if seg(ui, self.auto && !top, "Auto", "Street near the ground, whole map from above") {
-                pressed = Some("auto");
-            }
-            if seg(ui, !top && look == Look::Street, "Street", "The game's own draw: what the street shows, fog") {
-                pressed = Some("street");
-            }
-            if seg(ui, !top && look == Look::Whole, "Whole map", "Every section of the region, no fog") {
-                pressed = Some("whole");
-            }
-            if seg(ui, top, "Top", "Top-down overview (T): drag with the right button, wheel zooms, Home fits") {
-                pressed = Some("top");
-            }
-            ui.separator();
-            if seg(ui, self.haze, "Haze", "A light haze over the whole map and the overview") {
-                pressed = Some("haze");
-            }
-            ui.separator();
-            if seg(ui, self.light, "Work light", "Brightens the dark parts for editing; the game is not changed") {
-                pressed = Some("work");
-            }
-            if seg(ui, !self.light, "Game look", "The picture exactly as the game draws it") {
-                pressed = Some("game");
-            }
-        });
+        // Its own layer, above the overlays' (route, checkpoints, gizmo; see [`super::app::OVERLAY_ORDER`]): nothing
+        // draws over the chips.
+        let ctx = ui.ctx().clone();
+        egui::Area::new(egui::Id::new("editor.viewport.look_bar"))
+            .order(LOOK_BAR_ORDER)
+            .fade_in(false)
+            .fixed_pos(bar.min)
+            .constrain(false)
+            .show(&ctx, |ui| {
+                ui.painter().rect_filled(
+                    Rect::from_min_size(bar.min, size).expand(2.0),
+                    6.0,
+                    colour::PAGE.gamma_multiply(0.85),
+                );
+                let mut child = ui.new_child(egui::UiBuilder::new().max_rect(bar.shrink2(EVec2::new(6.0, 2.0))));
+                child.horizontal_centered(|ui| {
+                    let seg = |ui: &mut egui::Ui, on: bool, text: &str, tip: &str| {
+                        let rt = egui::RichText::new(text).font(super::theme::font(super::theme::LABEL, 14.0));
+                        let rt = if on { rt.color(super::theme::lime()) } else { rt };
+                        ui.add(egui::Button::selectable(on, rt)).on_hover_text(tip).clicked()
+                    };
+                    if seg(ui, self.auto && !top, "Auto", "Street near the ground, whole map from above") {
+                        pressed = Some("auto");
+                    }
+                    if seg(
+                        ui,
+                        !top && look == Look::Street,
+                        "Street",
+                        "The game's own draw: what the street shows, fog",
+                    ) {
+                        pressed = Some("street");
+                    }
+                    if seg(ui, !top && look == Look::Whole, "Whole map", "Every section of the region, no fog") {
+                        pressed = Some("whole");
+                    }
+                    if seg(ui, top, "Top", "Top-down overview (T): drag with the right button, wheel zooms, Home fits")
+                    {
+                        pressed = Some("top");
+                    }
+                    ui.separator();
+                    if seg(ui, self.haze, "Haze", "A light haze over the whole map and the overview") {
+                        pressed = Some("haze");
+                    }
+                    ui.separator();
+                    if seg(
+                        ui,
+                        self.light,
+                        "Work light",
+                        "Brightens the dark parts for editing; the game is not changed",
+                    ) {
+                        pressed = Some("work");
+                    }
+                    if seg(ui, !self.light, "Game look", "The picture exactly as the game draws it") {
+                        pressed = Some("game");
+                    }
+                });
+            });
         match pressed {
             Some("auto") => {
                 self.leave_top(s, None);
@@ -869,6 +1014,14 @@ impl Viewport {
         encoder: &mut wgpu::CommandEncoder,
     ) -> bool {
         let now = Instant::now();
+        let weak = super::weak::resolve(super::weak::pref(), &gpu.adapter.get_info());
+        if weak != self.weak {
+            self.weak = weak;
+            if self.renderer.is_some() {
+                self.rebuild_at = Some(now);
+            }
+        }
+        super::weak::set_active(weak);
         if s.session.adds_changed {
             s.session.adds_changed = false;
             if self.renderer.is_some() {
@@ -876,9 +1029,12 @@ impl Viewport {
             }
         }
         if self.renderer.is_none() || self.rebuild_at.is_some_and(|t| now >= t) {
-            self.renderer = Some(WorldRenderer::new(gpu, &s.session.world, FORMAT, &crate::render::RenderOptions::in_force()));
+            self.renderer = Some(WorldRenderer::new(gpu, &s.session.world, FORMAT, &self.options()));
             self.rebuild_at = None;
             self.index = Some(SectionIndex::new(&s.session.world));
+            // The filter's hiding is applied again below.
+            self.applied.clear();
+            self.applied_gen = u64::MAX;
             // A new renderer starts from the world as it is now.
             s.session.world.take_changed();
             s.session.world_changed = false;
@@ -889,16 +1045,35 @@ impl Viewport {
             s.session.world_changed = false;
             for i in s.session.world.take_changed() {
                 if let Some(p) = s.session.world.placements.get(i) {
-                    renderer.update_placement(gpu, i, p.transform, p.flags);
+                    let view = if self.applied.contains(&i) { HIDDEN_FLAG } else { 0 };
+                    renderer.update_placement(gpu, i, p.transform, p.flags | view);
                 }
             }
             self.redraw = true;
+            self.applied_gen = u64::MAX;
+        }
+        // The view's hide / isolate / this-mod-only filter: only the placements whose state changed.
+        if self.applied_gen != s.filter.generation
+            || (self.applied_gen == u64::MAX && (s.filter.active() || !self.applied.is_empty()))
+        {
+            let want = super::views::hidden_set(s);
+            for &i in want.symmetric_difference(&self.applied) {
+                if let Some(p) = s.session.world.placements.get(i) {
+                    let view = if want.contains(&i) { HIDDEN_FLAG } else { 0 };
+                    renderer.update_placement(gpu, i, p.transform, p.flags | view);
+                }
+            }
+            if want != self.applied {
+                self.redraw = true;
+            }
+            self.applied = want;
+            self.applied_gen = s.filter.generation;
         }
         if self.want.0 == 0 || self.want.1 == 0 {
             return false;
         }
-        if self.target.as_ref().is_none_or(|t| t.size != self.want) {
-            let size = self.want;
+        if self.target.as_ref().is_none_or(|t| t.size != self.goal()) {
+            let size = self.goal();
             let texture = gpu.device.create_texture(&wgpu::TextureDescriptor {
                 label: Some("editor viewport"),
                 size: wgpu::Extent3d { width: size.0, height: size.1, depth_or_array_layers: 1 },
@@ -953,16 +1128,19 @@ impl Viewport {
         let size = target.size;
         let aspect = size.0 as f32 / size.1 as f32;
         let time_of_day = crate::sky::TimeOfDay::default();
-        let game_fog = self.fog.update_weighted(&s.session.world, s.camera.position.truncate(), time_of_day.fog_weight());
+        let game_fog =
+            self.fog.update_weighted(&s.session.world, s.camera.position.truncate(), time_of_day.fog_weight());
         let look = self.look;
-        let height = if look == Look::Whole { self.height_over_ground(&s.session.world, s.camera.position) } else { 0.0 };
+        let height =
+            if look == Look::Whole { self.height_over_ground(&s.session.world, s.camera.position) } else { 0.0 };
         let index = self.index.get_or_insert_with(|| SectionIndex::new(&s.session.world));
         let lists = whole_frame(index, &s.camera, look, aspect, height, &self.top, self.haze, game_fog);
         let Some(target) = self.target.as_ref() else { return false };
         let Some(renderer) = self.renderer.as_mut() else { return false };
+        let base = if self.weak { super::weak::lighten(&RenderOptions::in_force()) } else { RenderOptions::in_force() };
         let opts = match look {
-            Look::Street => crate::render::RenderOptions::in_force(),
-            Look::Whole | Look::Top => whole_options(&crate::render::RenderOptions::in_force(), size.0),
+            Look::Street => base,
+            Look::Whole | Look::Top => whole_options(&base, size.0),
         };
         let shown: &[super::sim::cars::ReplayCar] = if s.replay.models { &s.replay.cars } else { &[] };
         let pools = self.cars.as_ref().map(|c| c.pools(shown)).unwrap_or_default();
@@ -976,7 +1154,7 @@ impl Viewport {
             far_sections: None,
             fog: lists.fog,
             time: self.clock.unwrap_or_else(|| self.started.elapsed().as_secs_f32()),
-            road_reflections: look == Look::Street,
+            road_reflections: look == Look::Street && !self.weak,
             road_reflection_plane: None,
             sky: time_of_day.sky(),
             reversed: false,
@@ -1123,8 +1301,11 @@ pub fn top_view(ctx: &egui::Context) -> Option<(TopView, Rect)> {
     ctx.data(|d| d.get_temp::<Option<(TopView, Rect)>>(top_id()).flatten())
 }
 
+/// One wheel notch zooms the overview by this.
+const ZOOM_STEP: f32 = 1.2;
+
 fn mapview_zoom(scroll: f32) -> f32 {
-    super::mapview::ZOOM_STEP.powf(scroll / 50.0)
+    ZOOM_STEP.powf(scroll / 50.0)
 }
 
 /// What a draw depends on in the camera.
@@ -1200,10 +1381,15 @@ pub fn ray_box(o: Vec3, d: Vec3, lo: Vec3, hi: Vec3) -> Option<f32> {
 /// a bounding sphere of at most [`MAX_PICK_RADIUS`], within
 /// [`PICK_RANGE`].
 pub fn pick(world: &World, eye: Vec3, dir: Vec3) -> Option<Hit> {
+    pick_where(world, eye, dir, &|_| false)
+}
+
+/// [`pick`], leaving out the placements `left_out` names (the view's hidden props).
+pub fn pick_where(world: &World, eye: Vec3, dir: Vec3, left_out: &dyn Fn(usize) -> bool) -> Option<Hit> {
     let dir = dir.normalize_or_zero();
     let mut best: Option<Hit> = None;
     for (i, p) in world.placements.iter().enumerate() {
-        if p.flags & (HIDDEN_FLAG | NO_MATRIX_FLAG) != 0 {
+        if p.flags & (HIDDEN_FLAG | NO_MATRIX_FLAG) != 0 || left_out(i) {
             continue;
         }
         let Some((c, r)) = placement_sphere(world, i) else { continue };
@@ -1695,6 +1881,33 @@ mod tests {
         vp.light = false;
         assert!(!vp.needs_frame(&s));
         assert!(!frame(&mut vp, &mut s, &mut egui));
+    }
+
+    /// The look chips are drawn above the overlays (route, checkpoints, gizmo): egui draws a layer that is no area
+    /// after the areas of its order, so the overlays live in a lower order than the chips.
+    #[test]
+    fn the_look_chips_sit_above_the_overlays() {
+        assert!(super::app::OVERLAY_ORDER < LOOK_BAR_ORDER);
+        // Areas of the overlays' order come first; the chips' area is of the higher order, so it is above all.
+        let ctx = egui::Context::default();
+        let screen = Rect::from_min_size(Pos2::ZERO, egui::vec2(900.0, 500.0));
+        // Two frames: an area is sized in its first.
+        let mut out = None;
+        for _ in 0..2 {
+            out = Some(ctx.run_ui(egui::RawInput { screen_rect: Some(screen), ..Default::default() }, |ui| {
+                let layer = egui::LayerId::new(super::app::OVERLAY_ORDER, egui::Id::unique("test.overlay"));
+                let stroke = egui::Stroke::new(3.0, Color32::RED);
+                ui.ctx().layer_painter(layer).line_segment([Pos2::ZERO, Pos2::new(800.0, 400.0)], stroke);
+                egui::Area::new(egui::Id::new("test.chips"))
+                    .order(LOOK_BAR_ORDER)
+                    .show(ui.ctx(), |ui| ui.label("Auto"));
+            }));
+        }
+        let out = out.unwrap();
+        let at = |f: &dyn Fn(&egui::Shape) -> bool| out.shapes.iter().position(|s| f(&s.shape)).unwrap();
+        let line = at(&|s| matches!(s, egui::Shape::LineSegment { .. }));
+        let chips = at(&|s| matches!(s, egui::Shape::Text(_)));
+        assert!(line < chips, "the overlay line is drawn before (under) the chips");
     }
 
     #[test]

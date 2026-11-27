@@ -12,8 +12,10 @@ use crate::editor::menu;
 use crate::editor::theme::{self, SEMI, TITLE, font, rgb, tokens};
 
 use super::address::{Address, CRUMB, Places, STUDIO, Target};
+use super::browser;
 use super::changes::{self, Ask};
-use super::draw::{self, Card, Source};
+use super::data;
+use super::draw::{self, Card, Source, SummaryRow};
 use super::focus::{self, Spot, Spots};
 use super::guide::{self, Guide};
 use super::home::{self, ModSummary, Saved};
@@ -28,9 +30,12 @@ use super::workspace::{Kind, Section, Workspace};
 use ob_studio::create::Template;
 
 /// The menus, left to right (Test and Mod fold into Go and File on narrow windows).
-const MENUS: [&str; 7] = ["File", "Edit", "View", "Go", "Test", "Mod", "Help"];
+const MENUS: [&str; 7] = [words::FILE, words::EDIT, words::VIEW, words::GO, words::TEST, words::MOD, words::HELP];
 /// Home's "what each place does" rows, in rail order.
 const PLACES: [Workspace; 4] = [Workspace::World, Workspace::Races, Workspace::Changes, Workspace::Mod];
+/// The height of Home's "N more…" row under the mod rows.
+pub const MORE_H: f32 = 34.0;
+
 /// Home's "start something new" rows: Empty map mod, the templates, the sample (in that order; as many as fit).
 const NEW_ROWS: [Template; 4] = [Template::Empty, Template::Sprint, Template::Circuit, Template::Sample];
 /// The sample race pack's folder in your mods.
@@ -51,6 +56,15 @@ pub enum BottomTab {
 }
 
 /// One Studio window.
+/// A key of the Data page that is the shell's.
+enum DataKey {
+    Paste(String),
+    Copy,
+    All,
+    Export,
+    Import,
+}
+
 pub struct Studio {
     pub ctx: egui::Context,
     /// The mods' folder.
@@ -83,14 +97,26 @@ pub struct Studio {
     pub(crate) textures: crate::editor::app::PendingTextures,
     /// The Changes page.
     pub changes: changes::Page,
+    /// The Data page.
+    pub data: data::Page,
     /// The Mod page.
     pub mod_page: mod_page::Page,
+    /// The Browser workspace.
+    pub browser: browser::Page,
+    /// The game folder the Browser's sounds and language files are read from, looked up on first use.
+    game: Option<Option<std::path::PathBuf>>,
+    /// The sound output of the Browser's Play button: opened by the first click, never before.
+    pub(super) player: Option<nfsu2::studio_api::media::Player>,
+    /// The Runs workspace's list.
+    pub runs: super::runs::Page,
     /// The New mod dialog, while it is open.
     pub new_mod: Option<new_mod::Dialog>,
     /// Home's focused control (keyboard and pad): an index into [`Studio::home_targets`].
     pub home_focus: usize,
     /// How many of Home's mod rows the last frame had room for.
     home_rows: usize,
+    /// Home shows a "N more…" row under the mod rows (not every mod fit).
+    home_more: bool,
     /// How many of Home's "what each place does" rows the last frame had room for.
     home_places: usize,
     /// How many of Home's "start something new" rows (Empty map mod, the templates, the sample) it had room for.
@@ -116,6 +142,8 @@ pub enum HomeAct {
     NewMod,
     /// Open one of your mods (an index into `mods`).
     Mod(usize),
+    /// "N more…": the full list of your mods (Find, on its mods).
+    MoreMods,
     /// Go to a workspace ("what each place does").
     Place(Workspace),
     /// Start a tutorial (START HERE).
@@ -155,10 +183,16 @@ impl Studio {
             editor: None,
             textures: Default::default(),
             changes: changes::Page::new(maps.clone()),
+            data: data::Page::default(),
             mod_page: mod_page::Page::new(maps.clone()),
+            browser: browser::Page::new(),
+            game: None,
+            player: None,
+            runs: Default::default(),
             new_mod: None,
             home_focus: 0,
             home_rows: 6,
+            home_more: false,
             home_places: 4,
             guide: None,
             guide_rect: None,
@@ -218,6 +252,11 @@ impl Studio {
         if self.nav.workspace == Workspace::Changes {
             v.push(self.changes.mode.name().to_string());
         }
+        if self.nav.workspace == Workspace::Browser
+            && let Some(n) = self.browser.crumb()
+        {
+            v.push(n);
+        }
         v
     }
 
@@ -236,9 +275,12 @@ impl Studio {
             Target::View { view, query } => {
                 let w = Workspace::from_view(&format!("@{view}"))
                     .ok_or_else(|| format!("Studio has no screen @{view} yet"))?;
+                if w == Workspace::Data && (self.open.is_none() || a.pack == STUDIO) {
+                    return Err(words::DATA_SHOWS_A_MOD_OPEN_ONE.into());
+                }
                 if w == Workspace::Changes {
                     if self.open.is_none() || a.pack == STUDIO {
-                        return Err("Changes shows a mod: open one first".into());
+                        return Err(words::CHANGES_SHOWS_A_MOD_OPEN_ONE.into());
                     }
                     let m = changes::Mode::from_query(query).ok_or_else(|| format!("Changes has no view {a}"))?;
                     self.changes.mode = m;
@@ -249,7 +291,7 @@ impl Studio {
             Target::Item { kind, key, .. } if kind == ob_studio::changes::looks::TEXTURE => {
                 // A texture has no view of its own yet: its row on Changes.
                 if self.open.is_none() || a.pack == STUDIO {
-                    return Err("Changes shows a mod: open one first".into());
+                    return Err(words::CHANGES_SHOWS_A_MOD_OPEN_ONE.into());
                 }
                 self.workspace(Workspace::Changes);
                 if !self.changes.focus_item(kind, &key.join("/")) {
@@ -273,8 +315,11 @@ impl Studio {
     pub(super) fn switch_mod(&mut self, i: usize) {
         self.open = Some(i);
         self.memories = Memories::load(&self.mods[i].dir);
-        if self.nav.workspace == Workspace::Changes {
+        if self.nav.workspace == Workspace::Changes || self.nav.workspace == Workspace::Data {
             self.changes.ensure(Some(&self.mods[i].folder.clone()));
+        }
+        if self.nav.workspace == Workspace::Data {
+            self.data_reload();
         }
         if self.nav.workspace == Workspace::Mod {
             self.mod_page.load(Some(&self.mods[i].folder.clone()));
@@ -284,11 +329,18 @@ impl Studio {
     }
 
     pub(super) fn workspace(&mut self, w: Workspace) {
-        if w == Workspace::Changes {
+        if w == Workspace::Changes || w == Workspace::Data {
             // Read again on every visit: World may have changed the mod since.
             match self.open_mod().map(|m| m.folder.clone()) {
                 Some(f) => self.changes.load(&f),
                 None => self.changes.ensure(None),
+            }
+            if w == Workspace::Data {
+                if self.nav.workspace != Workspace::Data {
+                    self.data_enter();
+                } else {
+                    self.data_reload();
+                }
             }
         }
         if w == Workspace::Mod || (self.nav.workspace.kind() == Kind::Tool && w.kind() == Kind::Page) {
@@ -315,6 +367,7 @@ impl Studio {
             legend: self.nav.legend(),
             memory: self.memories.get(self.nav.workspace),
             drawer_open: self.nav.drawer_open,
+            reading: self.nav.workspace == Workspace::Runs,
             ..Want::new(self.nav.workspace.kind())
         }
     }
@@ -475,6 +528,64 @@ impl Studio {
                 return;
             }
         }
+        if self.on_data_rows() {
+            let done = match b {
+                Pad::Up if !self.data.typing() => Some(self.data.step_row(-1, false)),
+                Pad::Down if !self.data.typing() => Some(self.data.step_row(1, false)),
+                Pad::Left if !self.data.typing() => Some(self.data.step_col(-1, false)),
+                Pad::Right if !self.data.typing() => Some(self.data.step_col(1, false)),
+                Pad::View if !self.data.typing() => {
+                    self.data.toggle_extend();
+                    Some(true)
+                }
+                Pad::A => {
+                    self.data_activate();
+                    Some(true)
+                }
+                Pad::B if self.data.back() => Some(true),
+                _ => None,
+            };
+            if done.is_some() {
+                self.nav.input = kind;
+                self.nav.level = Level::Row;
+                return;
+            }
+        }
+        if self.nav.workspace == Workspace::Runs
+            && self.nav.area == Area::Left
+            && self.editing()
+            && matches!(b, Pad::Up | Pad::Down | Pad::A)
+        {
+            // The list in the left panel: the D-pad moves over the runs, A opens the one it is on (Compare,
+            // Rename and Delete are in X's menu).
+            self.nav.input = kind;
+            self.nav.level = Level::Row;
+            match b {
+                Pad::Up => self.runs.step(&self.ctx.clone(), -1),
+                Pad::Down => self.runs.step(&self.ctx.clone(), 1),
+                _ => self.runs.key = Some(egui::Key::Enter),
+            }
+            return;
+        }
+        if self.on_browser_rows() {
+            let handled = match b {
+                Pad::Up => Some(self.browser.step_focus(-1)).map(|_| None),
+                Pad::Down => Some(self.browser.step_focus(1)).map(|_| None),
+                Pad::Left => Some(self.browser.step_chip(-1)).map(|_| None),
+                Pad::Right => Some(self.browser.step_chip(1)).map(|_| None),
+                Pad::A => Some(self.browser.activate()),
+                Pad::X => Some(self.browser.export_or_area_act()),
+                _ => None,
+            };
+            if let Some(act) = handled {
+                self.nav.input = kind;
+                self.nav.level = Level::Row;
+                if let Some(a) = act {
+                    self.browser_act(a);
+                }
+                return;
+            }
+        }
         if self.on_mod_rows() {
             let act = match b {
                 Pad::Up => Some(self.mod_page.step_focus(-1)).map(|_| None),
@@ -622,6 +733,9 @@ impl Studio {
             v.extend(guide::Tutorial::ALL.map(HomeAct::StartTutorial));
         }
         v.extend(self.home_order().into_iter().take(self.home_rows.min(6)).map(HomeAct::Mod));
+        if self.home_more {
+            v.push(HomeAct::MoreMods);
+        }
         v.push(HomeAct::NewMod);
         v.extend(NEW_ROWS[1..].iter().take(self.home_new.saturating_sub(1)).map(|t| HomeAct::Template(*t)));
         v
@@ -648,6 +762,7 @@ impl Studio {
                 self.switch_mod(i);
                 self.home_focus = 0;
             }
+            HomeAct::MoreMods => self.find_mods(),
             HomeAct::Place(w) => self.workspace(w),
             HomeAct::StartTutorial(t) => self.start_tutorial(t),
             HomeAct::Template(t) => self.open_template(t),
@@ -665,6 +780,193 @@ impl Studio {
             && !self.nav.address_text
             && self.verdict.is_none()
             && self.new_mod.is_none()
+    }
+
+    /// The Browser's lines have the keys (↑ ↓, Enter / A, ← → on its chips), the search field the typed letters.
+    pub(super) fn on_browser_rows(&self) -> bool {
+        self.nav.workspace == Workspace::Browser
+            && self.nav.area == Area::View
+            && self.nav.level != Level::Menu
+            && !self.nav.find_open
+            && !self.nav.address_text
+            && self.verdict.is_none()
+            && self.new_mod.is_none()
+    }
+
+    /// Take a Browser result to where it is worked on: a model to World, a texture to Looks (Changes).
+    pub(super) fn browser_act(&mut self, a: browser::Act) {
+        match a {
+            browser::Act::ShowModel { solid, name, placement } => {
+                // Chosen in the prop browser too, so Ctrl+D in World places another.
+                if let Some(h) = self.editor.as_ref() {
+                    h.app.panels.browser.borrow_mut().chosen = Some(name.clone());
+                }
+                let addr = placement.and_then(|pi| {
+                    let s = self.editor.as_ref()?.app.state.as_ref()?;
+                    let (sec, n) = s.session.world.original_key(pi)?;
+                    Some(Address::item(
+                        &s.session.folder,
+                        "placement",
+                        &[&s.session.region, &sec.to_string(), &n.to_string()],
+                    ))
+                });
+                let _ = solid;
+                match addr {
+                    Some(a) => {
+                        self.workspace(Workspace::World);
+                        self.verdict = self.go(&a).err();
+                    }
+                    None => {
+                        self.workspace(Workspace::World);
+                        self.verdict =
+                            Some(format!("{name} is not placed in this region: it is chosen, Ctrl+D places it"));
+                    }
+                }
+            }
+            browser::Act::ExportModel { solid, name } => {
+                let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+                let Some(st) = self.editor.as_ref().and_then(|h| h.app.state.as_ref()) else { return };
+                let game = nfsu2::studio_api::qol::setup::game_root();
+                let dir = ob_studio::browser::gltf::reference_dir(std::path::Path::new(&folder));
+                self.verdict = Some(match st.session.world.solids.get(solid) {
+                    None => format!("{name} is not in the loaded region"),
+                    Some(s) => {
+                        match ob_studio::browser::gltf::write_reference(
+                            &dir,
+                            game.as_deref(),
+                            s,
+                            &st.session.world.textures,
+                            &st.session.region,
+                        ) {
+                            Ok(r) => format!(
+                                "{name} exported to {}: from your game files, for your own 3D program, never shared with the mod",
+                                r.gltf.parent().unwrap_or(&dir).display()
+                            ),
+                            Err(e) => format!("{name} was not exported: {e}"),
+                        }
+                    }
+                });
+            }
+            browser::Act::PlaySound { bank, sample, name } => {
+                let Some(game) = self.game.clone().flatten() else {
+                    self.verdict = Some(words::GAME_FOLDER_NOT_SET.into());
+                    return;
+                };
+                let m = ob_studio::browser::media::GameMedia::new(&game);
+                use ob_studio::browser::media::Media;
+                self.verdict = match m.pcm(&bank, sample) {
+                    None => Some(format!("{name} cannot be decoded: only the banks' own codec plays")),
+                    Some(pcm) => self
+                        .player
+                        .get_or_insert_with(nfsu2::studio_api::media::Player::new)
+                        .play(pcm.rate, pcm.samples)
+                        .err(),
+                };
+            }
+            browser::Act::ExportSound { bank, sample, name } => {
+                let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+                let Some(game) = self.game.clone().flatten() else {
+                    self.verdict = Some(words::GAME_FOLDER_NOT_SET.into());
+                    return;
+                };
+                let m = ob_studio::browser::media::GameMedia::new(&game);
+                let dir = ob_studio::browser::gltf::reference_dir(std::path::Path::new(&folder));
+                let sound = ob_studio::browser::media::Sound {
+                    bank,
+                    name: name.clone(),
+                    samples: vec![sample],
+                    rate: 0,
+                    frames: 0,
+                    playable: true,
+                };
+                self.verdict = Some(match ob_studio::browser::media::write_wav(&dir, Some(&game), &m, &sound) {
+                    Ok(f) => format!(
+                        "{name} written to {}: from your game files, for your own use, never shared with the mod",
+                        f.parent().unwrap_or(&dir).display()
+                    ),
+                    Err(e) => format!("{name} was not written: {e}"),
+                });
+            }
+            browser::Act::ExportArea => {
+                let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+                let Some(st) = self.editor.as_ref().and_then(|h| h.app.state.as_ref()) else { return };
+                let game = nfsu2::studio_api::qol::setup::game_root();
+                let dir = ob_studio::browser::gltf::reference_dir(std::path::Path::new(&folder));
+                let w = &st.session.world;
+                let radius = ob_studio::browser::gltf::AREA_RADIUS;
+                self.verdict = Some(
+                    match ob_studio::browser::gltf::write_area(
+                        &dir,
+                        game.as_deref(),
+                        &w.placements,
+                        &w.solids,
+                        &w.textures,
+                        &st.session.region,
+                        st.camera.position,
+                        radius,
+                    ) {
+                        Ok(r) => format!(
+                            "The area around the camera ({} placements of {} models within {radius} m) exported to {}: from your game files, for your own 3D program, never shared with the mod",
+                            r.placements,
+                            r.models,
+                            r.files.gltf.parent().unwrap_or(&dir).display()
+                        ),
+                        Err(e) => format!("The area was not exported: {e}"),
+                    },
+                );
+            }
+            browser::Act::ImportModel { solid, name } => {
+                let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+                let Some(st) = self.editor.as_ref().and_then(|h| h.app.state.as_ref()) else { return };
+                let world = &st.session.world;
+                self.verdict = Some(match world.solids.get(solid) {
+                    None => format!("{name} is not in the loaded region"),
+                    Some(orig) => {
+                        let file = ob_studio::browser::gltf::reference_dir(std::path::Path::new(&folder))
+                            .join(format!("{}.gltf", ob_studio::browser::gltf::file_stem(&orig.name)));
+                        if !file.is_file() {
+                            format!("{name} has no exported file to bring back: Export glTF (Ctrl+E) first, edit it, then Bring back")
+                        } else {
+                            let done = ob_studio::browser::worker::read(&file)
+                                .and_then(|f| ob_studio::browser::import::map_onto(&f, orig, &world.textures))
+                                .map_err(|r| r.to_string())
+                                .and_then(|imp| {
+                                    ob_studio::browser::import::write_model(
+                                        std::path::Path::new(&folder),
+                                        &imp,
+                                        &world.textures,
+                                        &st.session.region,
+                                        false,
+                                    )
+                                    .map(|k| (imp, k))
+                                });
+                            match done {
+                                Ok((imp, k)) => format!(
+                                    "{name} brought back as a mod model ({} triangles) in {}: from your game files, local-only, never shared with the mod",
+                                    imp.solid.indices.len() / 3,
+                                    k.dir.display()
+                                ),
+                                Err(e) => format!("{name} was not brought back: {e}"),
+                            }
+                        }
+                    }
+                });
+            }
+            browser::Act::OpenTexture { hash, name } => {
+                let id = ob_studio::looks::TextureId::new(ob_studio::looks::Domain::World, hash).to_string();
+                let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+                self.changes.ensure(Some(&folder));
+                let painted = self.changes.data().is_some_and(|d| d.textures.contains_key(&id));
+                if painted {
+                    let a = Address::item(&folder, ob_studio::changes::looks::TEXTURE, &[&id]);
+                    self.verdict = self.go(&a).err();
+                } else {
+                    self.verdict = Some(format!(
+                        "{name} is not changed by this mod yet. Start it with: looks open --texture {id}"
+                    ));
+                }
+            }
+        }
     }
 
     /// The Mod page's rows have the keys (↑ ↓, Enter / A), as the Changes page's do.
@@ -691,9 +993,14 @@ impl Studio {
                     self.editor.as_mut().and_then(|h| h.app.state.as_mut()).filter(|s| s.session.folder == folder);
                 let r = match hosted {
                     Some(st) => {
-                        let changed = mod_page::apply(&mut st.session.map, line, &text);
+                        let mut edited = st.session.map.clone();
+                        let changed = mod_page::apply(&mut edited, line, &text);
                         if changed {
-                            crate::editor::commit(st, words::MOD_DETAILS);
+                            let (name, author, description) = (edited.name, edited.author, edited.description);
+                            let _ = crate::editor::undo::run(
+                                st,
+                                crate::tools::map::ops::Op::Details { name, author, description },
+                            );
                         }
                         let saved = self.editor.as_mut().map_or(Ok(()), |h| h.app.save());
                         saved.map(|()| changed)
@@ -744,6 +1051,117 @@ impl Studio {
             && self.verdict.is_none()
     }
 
+    /// The Data page's rows and cells have the keys (↑ ↓ ← →, Enter / A): its view has focus and nothing else is typed.
+    fn on_data_rows(&self) -> bool {
+        self.nav.workspace == Workspace::Data
+            && self.nav.area == Area::View
+            && self.nav.level != Level::Menu
+            && !self.nav.find_open
+            && !self.nav.address_text
+            && self.verdict.is_none()
+    }
+
+    /// Coming to the Data page: its table on the first kind this mod has values of, from the Changes page's rows.
+    pub fn data_enter(&mut self) {
+        let rows = self.changes.data().map(|d| d.rows.clone()).unwrap_or_default();
+        self.data.open_on_values(&rows);
+        self.data_reload();
+    }
+
+    /// The Changes page's rows, as the Data page's table has them.
+    pub fn data_reload(&mut self) {
+        let rows = self.changes.data().map(|d| d.rows.clone()).unwrap_or_default();
+        self.data.load(&rows);
+    }
+
+    /// Write `text` in a cell of the Data page as one undo step: in the editor session that writes the mod when
+    /// World or Races has it open, else (races only; props need World's loaded city) in the mod's history.
+    pub fn data_edit(&mut self, kind: &'static str, key: &str, field: &'static str, text: &str) {
+        let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+        let session = self.editor.as_mut().and_then(|h| h.app.state.as_mut()).map(|s| &mut s.session);
+        let done = self.changes.edit_cell(session, &folder, kind, key, field, text);
+        self.data.note = Some(match done {
+            Ok(l) => format!("{l} · Ctrl+Z takes it back"),
+            Err(e) => format!("Not changed: {e}"),
+        });
+        self.changes.load(&folder);
+        self.data_reload();
+    }
+
+    /// Enter / pad A on the Data page.
+    fn data_activate(&mut self) {
+        let ask = self.data.activate();
+        self.data_ask(ask);
+    }
+
+    /// What the Data page asked of the shell.
+    fn data_ask(&mut self, ask: Option<data::Ask>) {
+        match ask {
+            Some(data::Ask::Edit { kind, key, field, text }) => self.data_edit(kind, &key, field, &text),
+            Some(data::Ask::Changes { kind, key }) => self.data_show_changes(kind, &key),
+            Some(data::Ask::Cells { kind, edits, label, refused }) => self.data_cells(kind, &edits, &label, &refused),
+            Some(data::Ask::Copy(text)) => self.ctx.copy_text(text),
+            Some(data::Ask::Export) => self.data_export(),
+            Some(data::Ask::Import) => self.data_import(),
+            Some(data::Ask::Moved) | None => {}
+        }
+    }
+
+    /// Several cells of the Data page as one undo step (a fill, a paste, an import).
+    fn data_cells(&mut self, kind: &'static str, edits: &[ob_studio::data::CellEdit], label: &str, refused: &str) {
+        let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+        let session = self.editor.as_mut().and_then(|h| h.app.state.as_mut()).map(|s| &mut s.session);
+        let done = self.changes.edit_cells(session, &folder, kind, edits, label);
+        self.data.note = Some(match done {
+            Ok(l) => format!("{l} · {}", words::TAKES_IT_BACK),
+            Err(e) => format!("{refused}: {e}"),
+        });
+        self.changes.load(&folder);
+        self.data_reload();
+    }
+
+    /// Where the table's file is: the mod's reference folder, the place a model's export goes too (never the game's).
+    fn data_table_file(&self) -> Option<std::path::PathBuf> {
+        let folder = self.open_mod()?.folder.clone();
+        let dir = ob_studio::browser::gltf::reference_dir(&self.maps.join(folder));
+        Some(dir.join(format!("{}.csv", self.data.kind)))
+    }
+
+    /// Write the shown table as CSV.
+    fn data_export(&mut self) {
+        let (Some(file), Some(g)) = (self.data_table_file(), self.data.grid.as_ref()) else { return };
+        let game = self.game.clone().flatten();
+        self.data.note = Some(match ob_studio::data::export_file(g, &file, game.as_deref()) {
+            Ok(()) => format!("{} {}", words::TABLE_WRITTEN_TO, file.display()),
+            Err(e) => format!("{}: {e}", words::NOT_EXPORTED),
+        });
+    }
+
+    /// Bring the table's file back as edits.
+    fn data_import(&mut self) {
+        let Some(file) = self.data_table_file() else { return };
+        if !file.is_file() {
+            self.data.note = Some(words::NO_TABLE_FILE_YET.into());
+            return;
+        }
+        let ask = match ob_studio::data::read_file(&file) {
+            Ok(text) => self.data.import(&text),
+            Err(e) => {
+                self.data.note = Some(format!("{}: {e}", words::NOT_IMPORTED));
+                None
+            }
+        };
+        self.data_ask(ask);
+    }
+
+    /// A Data row's entry on the Changes page.
+    pub(super) fn data_show_changes(&mut self, kind: &str, key: &str) {
+        self.workspace(Workspace::Changes);
+        if !self.changes.focus_item(kind, key) {
+            self.verdict = Some(words::CHANGES_HAS_NO_ENTRY_FOR_THAT.into());
+        }
+    }
+
     /// The keys of this frame's input that are the shell's: taken out of the input, run.
     fn take_keys(&mut self, raw: &mut egui::RawInput) {
         if self.new_mod.is_some() {
@@ -788,20 +1206,58 @@ impl Studio {
             return;
         }
         let mut cmds = vec![];
-        let typing = self.nav.address_text || self.nav.find_open || self.mod_page.editing.is_some();
+        let typing = self.nav.address_text
+            || self.nav.find_open
+            || self.mod_page.editing.is_some()
+            || (self.nav.workspace == Workspace::Data && self.data.typing());
         // In World and Races the map editor has its own keys: its undo, redo and F5 (its shortcuts read them),
         // and while its view, tree or docks have focus the keys that act inside an area.
         let editing = self.editing() && !typing;
         let inside = editing && matches!(self.nav.area, Area::View | Area::Left | Area::Bottom);
-        let rows =
-            self.on_changes_rows() || (self.on_mod_rows() && self.mod_page.editing.is_none()) || self.on_home_rows();
+        let rows = self.on_changes_rows()
+            || (self.on_mod_rows() && self.mod_page.editing.is_none())
+            || self.on_home_rows()
+            || self.on_browser_rows();
+        let data_rows = self.on_data_rows() && !self.data.typing();
+        let browser_rows = self.on_browser_rows();
+        let browser_chips = browser_rows && self.browser.focus < browser::FIRST_RESULT;
+        let mut chip_keys = vec![];
+        let mut export_key = false;
+        let mut area_key = false;
+        let mut import_key = false;
+        let runs_rows = self.nav.workspace == Workspace::Runs && self.runs.row_focused(&self.ctx);
+        let mut runs_steps: Vec<i32> = vec![];
+        let mut runs_key = None;
         let spots = self.on_spots();
         let find = self.nav.find_open;
         let places_menu = self.places_menu;
         let mut row_keys = vec![];
+        let mut data_acts: Vec<DataKey> = vec![];
         let mut spot_keys = vec![];
         let mut find_keys = vec![];
         raw.events.retain(|e| match e {
+            egui::Event::Paste(t) if data_rows => {
+                data_acts.push(DataKey::Paste(t.clone()));
+                false
+            }
+            egui::Event::Copy if data_rows => {
+                data_acts.push(DataKey::Copy);
+                false
+            }
+            egui::Event::Key { key, pressed: true, modifiers, .. }
+                if data_rows
+                    && modifiers.command
+                    && !modifiers.alt
+                    && !modifiers.shift
+                    && matches!(key, egui::Key::A | egui::Key::E | egui::Key::I) =>
+            {
+                data_acts.push(match key {
+                    egui::Key::A => DataKey::All,
+                    egui::Key::E => DataKey::Export,
+                    _ => DataKey::Import,
+                });
+                false
+            }
             egui::Event::Key { key, pressed: true, .. } if places_menu && *key == egui::Key::Escape => {
                 find_keys.push(*key);
                 false
@@ -816,10 +1272,64 @@ impl Studio {
                 false
             }
             egui::Event::Key { key, pressed: true, modifiers, .. }
-                if rows
+                if browser_rows
                     && !modifiers.command
                     && !modifiers.alt
-                    && matches!(key, egui::Key::ArrowUp | egui::Key::ArrowDown | egui::Key::Enter | egui::Key::Tab) =>
+                    && matches!(key, egui::Key::ArrowLeft | egui::Key::ArrowRight) =>
+            {
+                // On a chip line they change the chip; on a result they move the cursor in the search field.
+                if browser_chips {
+                    chip_keys.push(if *key == egui::Key::ArrowLeft { -1 } else { 1 });
+                    false
+                } else {
+                    true
+                }
+            }
+            egui::Event::Key { key: egui::Key::E, pressed: true, modifiers, .. }
+                if browser_rows && modifiers.command && !modifiers.alt && !modifiers.shift =>
+            {
+                export_key = true;
+                false
+            }
+            egui::Event::Key { key: egui::Key::E, pressed: true, modifiers, .. }
+                if browser_rows && modifiers.command && !modifiers.alt && modifiers.shift =>
+            {
+                area_key = true;
+                false
+            }
+            egui::Event::Key { key: egui::Key::I, pressed: true, modifiers, .. }
+                if browser_rows && modifiers.command && !modifiers.alt && !modifiers.shift =>
+            {
+                import_key = true;
+                false
+            }
+            egui::Event::Key { key, pressed: true, modifiers, .. }
+                if runs_rows
+                    && !modifiers.command
+                    && !modifiers.alt
+                    && !modifiers.shift
+                    && matches!(key, egui::Key::ArrowUp | egui::Key::ArrowDown) =>
+            {
+                runs_steps.push(if *key == egui::Key::ArrowUp { -1 } else { 1 });
+                false
+            }
+            // The list's own keys: the editor must not see them (Delete would delete its selection).
+            egui::Event::Key { key, pressed: true, modifiers, .. }
+                if runs_rows
+                    && modifiers.is_none()
+                    && matches!(key, egui::Key::Delete | egui::Key::F2 | egui::Key::C) =>
+            {
+                runs_key = Some(*key);
+                false
+            }
+            egui::Event::Key { key, pressed: true, modifiers, .. }
+                if (rows || data_rows)
+                    && !modifiers.command
+                    && !modifiers.alt
+                    && (matches!(
+                        key,
+                        egui::Key::ArrowUp | egui::Key::ArrowDown | egui::Key::Enter | egui::Key::Tab
+                    ) || (data_rows && matches!(key, egui::Key::ArrowLeft | egui::Key::ArrowRight))) =>
             {
                 row_keys.push((*key, modifiers.shift));
                 false
@@ -885,6 +1395,49 @@ impl Studio {
             self.nav.input = InputKind::Keyboard;
             self.spot_key(key, shift);
         }
+        if runs_key.is_some() {
+            self.runs.key = runs_key;
+        }
+        for d in runs_steps {
+            self.nav.input = InputKind::Keyboard;
+            self.runs.step(&self.ctx, d);
+        }
+        for d in chip_keys {
+            self.nav.input = InputKind::Keyboard;
+            self.browser.step_chip(d);
+        }
+        if export_key {
+            self.nav.input = InputKind::Keyboard;
+            match self.browser.export_act() {
+                Some(a) => self.browser_act(a),
+                None => self.verdict = Some(words::CHOOSE_A_MODEL_OR_SOUND_TO_EXPORT.into()),
+            }
+        }
+        if area_key {
+            self.nav.input = InputKind::Keyboard;
+            self.browser_act(browser::Act::ExportArea);
+        }
+        if import_key {
+            self.nav.input = InputKind::Keyboard;
+            match self.browser.import_act() {
+                Some(a) => self.browser_act(a),
+                None => self.verdict = Some(words::CHOOSE_A_MODEL_TO_BRING_BACK.into()),
+            }
+        }
+        for act in data_acts {
+            self.nav.input = InputKind::Keyboard;
+            let ask = match act {
+                DataKey::Paste(t) => self.data.paste(&t),
+                DataKey::Copy => self.data.copy(),
+                DataKey::All => {
+                    self.data.select_all();
+                    None
+                }
+                DataKey::Export => Some(data::Ask::Export),
+                DataKey::Import => Some(data::Ask::Import),
+            };
+            self.data_ask(ask);
+        }
         for (key, shift) in row_keys {
             self.nav.input = InputKind::Keyboard;
             self.nav.level = Level::Row;
@@ -900,6 +1453,32 @@ impl Studio {
                     egui::Key::ArrowUp => self.home_step(-1),
                     egui::Key::ArrowDown => self.home_step(1),
                     _ => self.home_activate(),
+                }
+                continue;
+            }
+            if self.nav.workspace == Workspace::Data {
+                match key {
+                    egui::Key::ArrowUp => _ = self.data.step_row(-1, shift),
+                    egui::Key::ArrowDown => _ = self.data.step_row(1, shift),
+                    egui::Key::ArrowLeft => _ = self.data.step_col(-1, shift),
+                    egui::Key::ArrowRight => _ = self.data.step_col(1, shift),
+                    _ => self.data_activate(),
+                }
+                continue;
+            }
+            if self.nav.workspace == Workspace::Browser {
+                match key {
+                    egui::Key::ArrowUp => {
+                        self.browser.step_focus(-1);
+                    }
+                    egui::Key::ArrowDown => {
+                        self.browser.step_focus(1);
+                    }
+                    _ => {
+                        if let Some(a) = self.browser.activate() {
+                            self.browser_act(a);
+                        }
+                    }
                 }
                 continue;
             }
@@ -922,6 +1501,22 @@ impl Studio {
             }
         }
         for c in cmds {
+            if self.nav.workspace == Workspace::Data {
+                if c == Command::Select && self.data.editing.is_some() {
+                    self.data_activate();
+                    continue;
+                }
+                if c == Command::Back && self.data.back() {
+                    continue;
+                }
+                if matches!(c, Command::Undo | Command::Redo) && !self.data.typing() {
+                    let session = self.editor.as_mut().and_then(|h| h.app.state.as_mut()).map(|s| &mut s.session);
+                    self.changes.undo_with(c == Command::Redo, session);
+                    self.data.note = self.changes.note.clone();
+                    self.data_reload();
+                    continue;
+                }
+            }
             if matches!(c, Command::Undo | Command::Redo) && self.nav.workspace == Workspace::Changes {
                 let session = self.editor.as_mut().and_then(|h| h.app.state.as_mut()).map(|s| &mut s.session);
                 self.changes.undo_with(c == Command::Redo, session);
@@ -1084,13 +1679,13 @@ impl Studio {
                 ui.spacing_mut().item_spacing.x = MENU_GAP;
                 ui.style_mut().visuals.button_frame = false;
                 let short = l.menu.short_menus;
-                ui.menu_button("File", |ui| {
-                    if ui.add(egui::Button::new(words::NEW_MOD).shortcut_text("Ctrl+N")).clicked() {
+                ui.menu_button(words::FILE, |ui| {
+                    if ui.add(egui::Button::new(words::NEW_MOD).shortcut_text(words::CTRL_N)).clicked() {
                         self.open_new_mod();
                     }
                     ui.separator();
                     if short {
-                        ui.label(RichText::new("Mod").color(rgb(t.dim)));
+                        ui.label(RichText::new(words::MOD).color(rgb(t.dim)));
                         self.mod_menu(ui);
                         ui.separator();
                     }
@@ -1102,19 +1697,19 @@ impl Studio {
                         self.quit = true;
                     }
                 });
-                ui.menu_button("Edit", |ui| {
+                ui.menu_button(words::EDIT, |ui| {
                     if let Some(app) = self.editor_app() {
                         app.menu_items(ui, menu::edit_items);
                         ui.separator();
                     } else {
-                        let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::UNDO).shortcut_text("Ctrl+Z"));
-                        let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::REDO).shortcut_text("Ctrl+Y"));
+                        let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::UNDO).shortcut_text(words::CTRL_Z));
+                        let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::REDO).shortcut_text(words::CTRL_Y));
                     }
-                    if ui.add(egui::Button::new(words::COPY_ADDRESS).shortcut_text("Ctrl+Shift+C")).clicked() {
+                    if ui.add(egui::Button::new(words::COPY_ADDRESS).shortcut_text(words::CTRL_SHIFT_C)).clicked() {
                         self.command(Command::CopyAddress, None);
                     }
                 });
-                ui.menu_button("View", |ui| {
+                ui.menu_button(words::VIEW, |ui| {
                     if let Some(app) = self.editor_app() {
                         app.menu_items(ui, menu::view_items);
                         ui.separator();
@@ -1123,7 +1718,7 @@ impl Studio {
                         self.reset_layout();
                     }
                 });
-                ui.menu_button("Go", |ui| {
+                ui.menu_button(words::GO, |ui| {
                     for w in Workspace::ALL {
                         if ui.add(egui::Button::new(w.name()).shortcut_text(format!("Ctrl+{}", w.ctrl_key()))).clicked()
                         {
@@ -1131,10 +1726,10 @@ impl Studio {
                         }
                     }
                     ui.separator();
-                    if ui.add(egui::Button::new("Find…").shortcut_text("Ctrl+K")).clicked() {
+                    if ui.add(egui::Button::new(words::FIND_2).shortcut_text(words::CTRL_K)).clicked() {
                         self.command(Command::Find, None);
                     }
-                    if ui.add(egui::Button::new("Address").shortcut_text("Ctrl+L")).clicked() {
+                    if ui.add(egui::Button::new(words::ADDRESS).shortcut_text(words::CTRL_L)).clicked() {
                         self.command(Command::EditAddress, None);
                     }
                     if short {
@@ -1142,33 +1737,33 @@ impl Studio {
                         if let Some(app) = self.editor_app() {
                             app.menu_items(ui, menu::race_items);
                         } else {
-                            let _ = ui.add_enabled(false, egui::Button::new("Test").shortcut_text("F5"));
+                            let _ = ui.add_enabled(false, egui::Button::new(words::TEST).shortcut_text("F5"));
                         }
                     }
                 });
                 if !short {
-                    ui.menu_button("Test", |ui| {
+                    ui.menu_button(words::TEST, |ui| {
                         if let Some(app) = self.editor_app() {
                             app.menu_items(ui, menu::race_items);
                         } else {
-                            let _ = ui.add_enabled(false, egui::Button::new("Test").shortcut_text("F5"));
+                            let _ = ui.add_enabled(false, egui::Button::new(words::TEST).shortcut_text("F5"));
                         }
                     });
-                    ui.menu_button("Mod", |ui| self.mod_menu(ui));
+                    ui.menu_button(words::MOD, |ui| self.mod_menu(ui));
                 }
-                ui.menu_button("Help", |ui| {
+                ui.menu_button(words::HELP, |ui| {
                     if ui.add(egui::Button::new(words::TUTORIAL).shortcut_text("F1")).clicked() {
                         self.start_tutorial(guide::Tutorial::FirstMod);
                     }
                     if ui.button(words::RACE_TUTORIAL_ROW).clicked() {
                         self.start_tutorial(guide::Tutorial::FirstRace);
                     }
-                    if ui.button("Controls").clicked() {
+                    if ui.button(words::CONTROLS).clicked() {
                         self.controls = true;
                     }
                     if let Some(app) = self.editor_app() {
                         ui.separator();
-                        ui.label(RichText::new("Map editor").color(rgb(t.dim)));
+                        ui.label(RichText::new(words::MAP_EDITOR).color(rgb(t.dim)));
                         app.menu_items(ui, menu::help_items);
                     }
                 });
@@ -1232,11 +1827,16 @@ impl Studio {
                     x = r.right() + 6.0;
                 }
             }
-            if a.width() > 240.0 {
+            // The Ctrl+L hint only where the names leave room for it (a long address would run into it).
+            let hint_w = p
+                .layout_no_wrap(words::CTRL_L.to_string(), font(SEMI, 11.0), rgb(t.dim))
+                .size()
+                .x;
+            if a.width() > 240.0 && x + 12.0 + hint_w <= a.right() - 10.0 {
                 p.text(
                     pos2(a.right() - 10.0, a.center().y),
                     Align2::RIGHT_CENTER,
-                    "Ctrl+L",
+                    words::CTRL_L,
                     font(SEMI, 11.0),
                     rgb(t.dim),
                 );
@@ -1250,10 +1850,10 @@ impl Studio {
         self.spot(&p, Area::Address, Spot::Find, f, false);
         p.rect_filled(f, 4.0, theme::over(t.field, t.page));
         p.rect_stroke(f, 4.0, Stroke::new(1.0, theme::over(t.field_edge, t.page)), StrokeKind::Inside);
-        let cap_w = draw::glyph_width(&p, ob_look::legends::Glyph::Key("Ctrl+K"));
+        let cap_w = draw::glyph_width(&p, ob_look::legends::Glyph::Key(words::CTRL_K));
         let show_cap = f.width() > cap_w + 70.0;
         if show_cap {
-            draw::key_cap_right(&p, "Ctrl+K", f.right() - 4.0, f.center().y);
+            draw::key_cap_right(&p, words::CTRL_K, f.right() - 4.0, f.center().y);
         }
         let text_r = Rect::from_min_max(
             f.min + vec2(8.0, 2.0),
@@ -1439,6 +2039,7 @@ impl Studio {
                 // The game's textures for the Looks rows' thumbnails: from the region World has loaded.
                 if let Some(s) = self.editor.as_ref().and_then(|h| h.app.state.as_ref()) {
                     self.changes.feed_originals(ui.ctx(), &s.session.world);
+                    self.changes.feed_visibility(&s.session.world.visibility);
                 }
                 let (ask, _) = self.changes.draw(ui, inner, focused, self.time());
                 match ask {
@@ -1452,6 +2053,48 @@ impl Studio {
                         self.places.go(here);
                     }
                     None => {}
+                }
+            }
+            Workspace::Data => {
+                let inner = slab.shrink2(vec2(20.0, 14.0));
+                let focused = self.nav.area == Area::View && self.nav.legend();
+                let (ask, _) = self.data.draw(ui, inner, focused);
+                if let Some(k) = self.data.kind_pick.take() {
+                    let rows = self.changes.data().map(|d| d.rows.clone()).unwrap_or_default();
+                    self.data.set_kind(k, &rows);
+                }
+                self.data_ask(ask);
+            }
+            Workspace::Browser => {
+                let inner = slab.shrink2(vec2(20.0, 14.0));
+                let focused = self.nav.area == Area::View && self.nav.legend();
+                let typing = self.nav.area == Area::View
+                    && self.nav.level != Level::Menu
+                    && !self.nav.find_open
+                    && !self.nav.address_text
+                    && self.verdict.is_none()
+                    && self.new_mod.is_none();
+                let has_mod = self.open_mod().is_some();
+                let a = {
+                    let game = self.game.get_or_insert_with(nfsu2::studio_api::qol::setup::game_root).clone();
+                    let Studio { editor, browser, .. } = self;
+                    match editor.as_ref().and_then(|h| h.app.state.as_ref().map(|s| (h, s))) {
+                        Some((h, s)) if has_mod => {
+                            let mut guard = h.app.panels.browser.borrow_mut();
+                            let src = browser::Source {
+                                region: &s.session.region,
+                                world: &s.session.world,
+                                mod_props: s.session.map.props.len(),
+                                thumbs: Some(&mut guard.thumbs),
+                                game: game.as_deref(),
+                            };
+                            browser.draw(ui, inner, focused, typing, Some(src))
+                        }
+                        _ => browser.draw(ui, inner, focused, typing, None),
+                    }
+                };
+                if let Some(a) = a {
+                    self.browser_act(a);
                 }
             }
             Workspace::Mod => {
@@ -1469,8 +2112,39 @@ impl Studio {
                     font("body", 16.0),
                     rgb(t.dim),
                 );
+                self.world_view_setting(ui, inner.min + vec2(0.0, 110.0), inner.width());
             }
         }
+    }
+
+    /// Settings ▸ World view: Auto, Full or Weak GPU, kept in the settings file.
+    fn world_view_setting(&mut self, ui: &mut egui::Ui, at: egui::Pos2, width: f32) {
+        use crate::editor::weak::{self, Pref};
+        let t = tokens();
+        let p = ui.painter().clone();
+        p.text(at, Align2::LEFT_TOP, words::WORLD_VIEW, font("body", 13.0), rgb(t.dim));
+        let row = Rect::from_min_size(at + vec2(0.0, 26.0), vec2(width.min(560.0), 40.0));
+        let now = weak::pref();
+        let mut chosen = None;
+        ui.scope_builder(egui::UiBuilder::new().max_rect(row), |ui| {
+            ui.horizontal(|ui| {
+                for c in Pref::ALL {
+                    let mut b = draw::pill(c.label());
+                    if c == now {
+                        b = b.stroke(Stroke::new(2.0, rgb(t.lime)));
+                    }
+                    if ui.add(b).clicked() {
+                        chosen = Some(c);
+                    }
+                }
+            });
+        });
+        if let Some(c) = chosen {
+            weak::set_pref(c);
+            weak::save(c);
+        }
+        let g = p.layout(words::WORLD_VIEW_LINE.to_string(), font("body", 14.0), rgb(t.dim), width.min(560.0));
+        p.galley(at + vec2(0.0, 80.0), g, rgb(t.dim));
     }
 
     fn home(&mut self, ui: &mut egui::Ui, inner: Rect) {
@@ -1545,55 +2219,37 @@ impl Studio {
         take(a.rect, a.clicked(), &mut target, &mut acted);
         take(b.rect, b.clicked(), &mut target, &mut acted);
 
-        // The summary rows.
-        let mut y = card.bottom() + 10.0;
-        let rows: Vec<(Mark, &str, String)> = match self.open_mod() {
+        // The summary rows, then the busy line (the launcher's Game check): what runs now.
+        let mut rows: Vec<SummaryRow> = match self.open_mod() {
             Some(m) => vec![
-                (Mark::Ok, "Changes", m.changes_text()),
-                (
+                SummaryRow::new(Mark::Ok, words::CHANGES, m.changes_text()),
+                SummaryRow::new(
                     if m.in_game { Mark::Ok } else { Mark::Info },
-                    "In your game",
-                    if m.in_game { "On".into() } else { words::OFF_IN_GAME.into() },
+                    words::IN_YOUR_GAME,
+                    if m.in_game { words::IN_GAME_ON_SHORT } else { words::OFF_IN_GAME },
                 ),
                 match &m.saved {
-                    Saved::Saved => (Mark::Ok, "Saved", "Automatically".into()),
-                    Saved::Behind => (Mark::Warn, "Saved", words::SAVING_BEHIND.into()),
-                    Saved::Saving => (Mark::Info, "Saved", words::SAVING.into()),
-                    Saved::Error(e) => (Mark::Error, "Saved", e.clone()),
+                    Saved::Saved => SummaryRow::new(Mark::Ok, words::ROW_SAVED, words::AUTOMATICALLY),
+                    Saved::Behind => SummaryRow::new(Mark::Warn, words::ROW_SAVED, words::SAVING_BEHIND),
+                    Saved::Saving => SummaryRow::new(Mark::Info, words::ROW_SAVED, words::SAVING),
+                    Saved::Error(e) => SummaryRow::new(Mark::Error, words::ROW_SAVED, e.clone()),
                 },
-                (
+                SummaryRow::new(
                     if m.read_only_by.is_some() { Mark::Warn } else { Mark::Ok },
-                    "Open for",
+                    words::ROW_OPEN_FOR,
                     match &m.read_only_by {
-                        Some(o) => format!("Looking only · {o} has it"),
+                        Some(o) => words::looking_only_row(o),
                         None => words::ONLY_THIS_WINDOW.into(),
                     },
                 ),
             ],
-            None => vec![(Mark::Info, "Your mods", home::plural(self.mods.len(), "mod", "mods"))],
+            None => vec![SummaryRow::new(Mark::Info, words::ROW_YOUR_MODS, home::plural(self.mods.len(), "mod", "mods"))],
         };
-        // The busy line (the launcher's Game check): what runs now.
-        let mut rows = rows;
         if let Some(job) = self.jobs().first() {
-            rows.push((Mark::Busy, "Jobs", job.line()));
+            rows.push(SummaryRow::busy(words::JOBS, job.line()));
         }
         let label_w = (left.width() * 0.35).min(200.0);
-        for (mark, name, value) in rows {
-            let row = Rect::from_min_size(pos2(left.left(), y), vec2(left.width(), 38.0));
-            draw::lamp(&p, pos2(row.left() + 14.0, row.center().y), 11.0, mark, self.time());
-            p.text(pos2(row.left() + 32.0, row.center().y), Align2::LEFT_CENTER, name, font("body", 16.0), rgb(t.dim));
-            let mut clip = p.clone();
-            clip.set_clip_rect(Rect::from_min_max(pos2(row.left() + label_w, row.top()), row.max));
-            clip.text(
-                pos2(row.left() + label_w, row.center().y),
-                Align2::LEFT_CENTER,
-                value,
-                font("body", 16.0),
-                rgb(t.ink),
-            );
-            p.line_segment([row.left_bottom(), row.right_bottom()], Stroke::new(1.0, draw::rule()));
-            y += 38.0;
-        }
+        let mut y = draw::summary_rows(&p, left, card.bottom() + 10.0, &rows, label_w, self.time());
 
         // What each place does: a row per workspace a mod is made in, as many as fit (left column).
         y += 24.0;
@@ -1668,6 +2324,7 @@ impl Studio {
                 );
                 let mut clip = p.clone();
                 clip.set_clip_rect(row);
+                let line = draw::elide(&p, line, font("body", 13.0), row.width() - 48.0, false);
                 clip.text(
                     pos2(row.left() + 40.0, row.top() + 40.0),
                     Align2::LEFT_CENTER,
@@ -1680,7 +2337,8 @@ impl Studio {
             }
             y += 14.0;
         }
-        p.text(pos2(col.left(), y), Align2::LEFT_TOP, "YOUR MODS", font("body", 12.0), rgb(t.dim));
+        p.text(pos2(col.left(), y), Align2::LEFT_TOP, words::FIND_MODS, font("body", 12.0), rgb(t.dim));
+        let heading_y = y;
         y += 22.0;
         let mut rows_drawn = 0;
         // Room for the new rows under your mods, one mod row still left: all four as tall as your mods' rows, else
@@ -1691,11 +2349,20 @@ impl Studio {
         let step = if room >= 60.0 * n as f32 { 60.0 } else { 46.0 };
         let new_rows = ((room / step).floor() as usize).clamp(1, n);
         let new_h = 36.0 + step * new_rows as f32 + 22.0 * (new_rows == n) as u8 as f32;
-        for (i, m) in self.home_order().into_iter().map(|i| (i, &self.mods[i])).take(6) {
-            // As many as the slab has room for (the rest are in the Mod menu and Find).
-            if y + 56.0 > inner.bottom() - new_h {
-                break;
-            }
+        // As many rows as the slab has room for, and a "N more…" row for the rest when there are any (the full list
+        // is Find's, on your mods).
+        let room_rows = |extra: f32| (((inner.bottom() - new_h - y - extra) + 4.0) / 60.0).floor().max(0.0) as usize;
+        let total = self.mods.len();
+        let fit = total.min(6).min(room_rows(0.0));
+        // Not all fit: the rows leave room for the "more" row under them, or, in a window with room for one row
+        // only, the link sits at the end of the heading and the rows stay.
+        let (shown, more_row) = match (fit < total, room_rows(MORE_H).min(fit)) {
+            (false, _) => (fit, false),
+            (true, 0) => (fit, false),
+            (true, k) => (k, true),
+        };
+        let more = total - shown;
+        for (i, m) in self.home_order().into_iter().map(|i| (i, &self.mods[i])).take(shown) {
             rows_drawn += 1;
             let row = Rect::from_min_size(pos2(col.left(), y), vec2(col.width(), 56.0));
             let open = Some(i) == self.open;
@@ -1718,13 +2385,39 @@ impl Studio {
                 rgb(t.ink),
             );
             let sub = if open { format!("open · {}", m.line()) } else { m.line() };
+            let sub = draw::elide(&p, &sub, font("body", 13.0), row.width() - 48.0, false);
             p.text(pos2(row.left() + 40.0, row.top() + 40.0), Align2::LEFT_CENTER, sub, font("body", 13.0), rgb(t.dim));
             let clicked = ui.interact(row, egui::Id::unique(("mod", i)), egui::Sense::click()).clicked();
             take(row, clicked, &mut target, &mut acted);
             y += 60.0;
         }
+        if more > 0 && !more_row {
+            let text = format!("{more} {}", words::MORE.to_lowercase());
+            let g = p.layout_no_wrap(text, draw::label_font(13.0), rgb(t.lime));
+            let at = pos2(col.right() - g.size().x, heading_y - 2.0);
+            let row = Rect::from_min_size(at, g.size()).expand2(vec2(4.0, 2.0));
+            let resp = ui.interact(row, egui::Id::unique("home.more"), egui::Sense::click());
+            p.galley(at, g, rgb(t.lime));
+            take(row, resp.clicked(), &mut target, &mut acted);
+        }
+        if more > 0 && more_row {
+            let row = Rect::from_min_size(pos2(col.left(), y), vec2(col.width(), MORE_H - 4.0));
+            let resp = ui.interact(row, egui::Id::unique("home.more"), egui::Sense::click());
+            if resp.hovered() {
+                p.rect_filled(row, 6.0, theme::over(t.hover, t.slab.over(t.page)));
+            }
+            p.text(
+                pos2(row.left() + 40.0, row.center().y),
+                Align2::LEFT_CENTER,
+                format!("{more} {}", words::MORE.to_lowercase()),
+                draw::label_font(15.0),
+                rgb(t.lime),
+            );
+            take(row, resp.clicked(), &mut target, &mut acted);
+            y += MORE_H;
+        }
         if self.mods.is_empty() {
-            p.text(pos2(col.left(), y), Align2::LEFT_TOP, "None yet", font("body", 15.0), rgb(t.dim));
+            p.text(pos2(col.left(), y), Align2::LEFT_TOP, words::NONE_YET, font("body", 15.0), rgb(t.dim));
             y += 30.0;
         }
         y += 14.0;
@@ -1779,6 +2472,7 @@ impl Studio {
         self.home_new = new_rows;
         let _ = target;
         self.home_rows = rows_drawn;
+        self.home_more = more > 0;
         if self.home_focus >= self.home_targets().len() {
             self.home_focus = 0;
         }
@@ -1804,7 +2498,7 @@ impl Studio {
         } else if let Some(tb) = l.toolbar {
             let pill_r = Rect::from_min_size(pos2(tb.right() - 160.0, tb.top() + 6.0), vec2(150.0, 28.0));
             self.spot(&p, Area::Toolbar, Spot::Test, pill_r.expand(3.0), false);
-            ui.put(pill_r, theme::main_action("Test  F5"));
+            ui.put(pill_r, theme::main_action(words::TEST_F5));
             p.text(
                 pos2(tb.left() + 12.0, tb.center().y),
                 Align2::LEFT_CENTER,
@@ -1833,15 +2527,18 @@ impl Studio {
             p.line_segment([r.right_top(), r.right_bottom()], Stroke::new(1.0, draw::rule()));
             match l.left_dock {
                 Dock::Open(_) => {
-                    tabs(&p, r, &["Mod"], 0, self.nav.area == Area::Left);
+                    let runs = editing && self.nav.workspace == Workspace::Runs;
+                    tabs(&p, r, &[if runs { words::RUNS } else { words::MOD }], 0, self.nav.area == Area::Left);
                     let body = r.shrink2(vec2(12.0, 0.0)).with_min_y(r.top() + 44.0);
-                    if editing {
+                    if runs {
+                        self.runs_left(ui, body);
+                    } else if editing {
                         self.editor_tree(ui, body);
                     } else {
                         self.mod_tree(&p, body);
                     }
                 }
-                _ => strip(&p, r, "Mod"),
+                _ => strip(&p, r, if editing && self.nav.workspace == Workspace::Runs { words::RUNS } else { words::MOD }),
             }
             if l.left_dock == Dock::Folded
                 && ui.interact(r, egui::Id::unique("left-strip"), egui::Sense::click()).clicked()
@@ -1855,7 +2552,7 @@ impl Studio {
             p.line_segment([r.left_top(), r.right_top()], Stroke::new(1.0, draw::rule()));
             // Problems · Log · Jobs, then the map editor's own tabs (World, Races).
             let extra = self.editor_tabs();
-            let mut names = vec!["Problems", "Log", "Jobs"];
+            let mut names = vec![words::PROBLEMS, words::LOG, words::JOBS];
             names.extend(extra.iter().map(|t| t.1));
             let shown_tab = if self.bottom_tab == BottomTab::Editor { self.editor_tab() } else { None };
             let sel = match self.bottom_tab {
@@ -1930,7 +2627,7 @@ impl Studio {
             p.line_segment([r.left_top(), r.left_bottom()], Stroke::new(1.0, draw::rule()));
             match l.right_dock {
                 Dock::Open(_) => self.right_dock(ui, &p, r),
-                _ => strip(&p, r, "Inspector"),
+                _ => strip(&p, r, words::INSPECTOR),
             }
             if !matches!(l.right_dock, Dock::Open(_))
                 && ui.interact(r, egui::Id::unique("right-strip"), egui::Sense::click()).clicked()
@@ -2019,7 +2716,7 @@ impl Studio {
     fn mod_tree(&mut self, p: &egui::Painter, r: Rect) {
         let t = tokens();
         let Some(m) = self.open_mod() else {
-            p.text(r.left_top() + vec2(0.0, 8.0), Align2::LEFT_TOP, "No mod open", font("body", 15.0), rgb(t.dim));
+            p.text(r.left_top() + vec2(0.0, 8.0), Align2::LEFT_TOP, words::NO_MOD_TITLE, font("body", 15.0), rgb(t.dim));
             return;
         };
         let rows = [
@@ -2051,7 +2748,7 @@ impl Studio {
             RightTab::History => 1,
             RightTab::Help => 2,
         };
-        let rects = tabs(p, r, &["Inspector", "History", "Help"], sel, self.nav.area == Area::Right);
+        let rects = tabs(p, r, &[words::INSPECTOR, words::HISTORY, words::HELP], sel, self.nav.area == Area::Right);
         for (tab, tr) in [RightTab::Inspector, RightTab::History, RightTab::Help].into_iter().zip(rects) {
             self.spot(p, Area::Right, Spot::RightTab(tab), tr, false);
             let i = tab as usize;
@@ -2183,7 +2880,7 @@ impl Studio {
             None => self.open_mod().map(|m| m.saved.clone()),
         };
         let (mark, text) = match saved.as_ref() {
-            None => (Mark::Info, words::NO_MOD_STATUS.to_string()),
+            None => (Mark::Info, words::NO_MOD_TITLE.to_string()),
             Some(Saved::Saved) => (Mark::Ok, words::SAVED.to_string()),
             Some(Saved::Saving) => (Mark::Info, words::SAVING.to_string()),
             Some(Saved::Behind) => (Mark::Warn, words::SAVING_BEHIND.to_string()),
@@ -2238,6 +2935,33 @@ impl Studio {
             if right - 24.0 - w > x + 24.0 {
                 let left = p.text(pos2(right - 24.0, cy), Align2::RIGHT_CENTER, line, f.clone(), rgb(t.ink)).left();
                 draw::lamp(&p, pos2(left - 10.0, cy), 10.0, Mark::Busy, time);
+                right = left - 18.0;
+            }
+        }
+        // Weak-GPU mode of the world view (while the editor shows).
+        if editor.is_some()
+            && let Some(g) = crate::editor::weak::status_words()
+        {
+            let w = p.layout_no_wrap(g.clone(), f.clone(), Color32::WHITE).size().x + 18.0;
+            if right - 24.0 - w > x + 24.0 {
+                let left = p.text(pos2(right - 24.0, cy), Align2::RIGHT_CENTER, g, f.clone(), rgb(t.warn)).left();
+                right = left - 18.0;
+            }
+        }
+        // The test game's link: connected or not (while a test runs).
+        if let Some(g) = crate::editor::testplay::link_words(&self.ctx) {
+            let on = g == crate::editor::testplay::GAME_CONNECTED;
+            let w = p.layout_no_wrap(g.clone(), f.clone(), Color32::WHITE).size().x + 18.0;
+            if right - 24.0 - w > x + 24.0 {
+                let left = p
+                    .text(
+                        pos2(right - 24.0, cy),
+                        Align2::RIGHT_CENTER,
+                        g,
+                        f.clone(),
+                        if on { rgb(t.lime) } else { rgb(t.warn) },
+                    )
+                    .left();
                 right = left - 18.0;
             }
         }
@@ -2316,15 +3040,22 @@ impl Studio {
                 FindItem::Mod(i) => self.mods.get(*i).map_or(String::new(), |m| m.name.clone()),
                 FindItem::Run(c) => KEYS.iter().find(|k| k.command == *c).map_or("", |k| k.word).to_string(),
                 FindItem::Place(n) => self.places.back_list().nth(n - 1).map_or(String::new(), |a| self.place_name(a)),
+                FindItem::Hood(i) => self.hoods().get(*i).map_or(String::new(), |p| p.name.clone()),
             })
             .collect();
         let keys: Vec<String> = items
             .iter()
             .map(|i| match i {
                 FindItem::Go(ws) => format!("Ctrl+{}", ws.ctrl_key()),
-                FindItem::Mod(i) => if Some(*i) == self.open { "open".to_string() } else { String::new() },
+                FindItem::Mod(i) => {
+                    if Some(*i) == self.open {
+                        "open".to_string()
+                    } else {
+                        String::new()
+                    }
+                }
                 FindItem::Run(c) => KEYS.iter().find(|k| k.command == *c).map_or("", |k| k.keys).to_string(),
-                FindItem::Place(_) => String::new(),
+                FindItem::Place(_) | FindItem::Hood(_) => String::new(),
             })
             .collect();
         let mut run = None;
@@ -2342,6 +3073,7 @@ impl Studio {
                             FindItem::Mod(_) => words::FIND_MODS,
                             FindItem::Run(_) => words::FIND_COMMANDS,
                             FindItem::Place(_) => words::PLACES_YOU_WERE,
+                            FindItem::Hood(_) => words::FIND_PLACES,
                         };
                         if head != Some(h) {
                             head = Some(h);
@@ -2408,6 +3140,7 @@ impl Studio {
         };
         let mut pick = None;
         let mut pick_changes = None;
+        let mut pick_runs = None;
         egui::Area::new(egui::Id::unique("focus-menu"))
             .fixed_pos(at)
             .fade_in(false)
@@ -2415,10 +3148,10 @@ impl Studio {
             .show(ui.ctx(), |ui| {
                 egui::Frame::popup(ui.style()).show(ui, |ui| {
                     ui.set_min_width(240.0);
-                    let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::UNDO).shortcut_text("Ctrl+Z"));
-                    let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::REDO).shortcut_text("Ctrl+Y"));
+                    let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::UNDO).shortcut_text(words::CTRL_Z));
+                    let _ = ui.add_enabled(false, egui::Button::new(ob_look::words::REDO).shortcut_text(words::CTRL_Y));
                     ui.separator();
-                    let _ = ui.add_enabled(false, egui::Button::new(words::TEST_HERE).shortcut_text("Shift+F5"));
+                    let _ = ui.add_enabled(false, egui::Button::new(words::TEST_HERE).shortcut_text(words::SHIFT_F5));
                     if self.nav.workspace == Workspace::Changes && self.nav.area == Area::View {
                         ui.separator();
                         let can = !self.changes.reset_picks().is_empty();
@@ -2433,7 +3166,21 @@ impl Studio {
                             pick_changes = Some(false);
                         }
                     }
-                    if ui.add(egui::Button::new(words::COPY_ADDRESS).shortcut_text("Ctrl+Shift+C")).clicked() {
+                    if self.nav.workspace == Workspace::Runs && self.nav.area == Area::Left {
+                        ui.separator();
+                        let has = self.runs.cursor.is_some();
+                        for (word, key) in [
+                            (words::OPEN, egui::Key::Enter),
+                            (words::COMPARE_WITH_THE_RUN_SHOWN, egui::Key::C),
+                            (words::RENAME, egui::Key::F2),
+                            (words::DELETE, egui::Key::Delete),
+                        ] {
+                            if ui.add_enabled(has, egui::Button::new(word)).clicked() {
+                                pick_runs = Some(key);
+                            }
+                        }
+                    }
+                    if ui.add(egui::Button::new(words::COPY_ADDRESS).shortcut_text(words::CTRL_SHIFT_C)).clicked() {
                         pick = Some(Command::CopyAddress);
                     }
                     ui.label(RichText::new(self.address().to_string()).font(font("body", 12.0)).color(rgb(t.dim)));
@@ -2441,6 +3188,10 @@ impl Studio {
             });
         if let Some(c) = pick {
             self.command(c, None);
+            self.nav.level = Level::Row;
+        }
+        if pick_runs.is_some() {
+            self.runs.key = pick_runs;
             self.nav.level = Level::Row;
         }
         match pick_changes {
@@ -2461,7 +3212,7 @@ impl Studio {
 
     fn controls_window(&mut self, ui: &mut egui::Ui) {
         let mut open = true;
-        egui::Window::new("Controls").open(&mut open).collapsible(false).resizable(false).show(ui.ctx(), |ui| {
+        egui::Window::new(words::CONTROLS).open(&mut open).collapsible(false).resizable(false).show(ui.ctx(), |ui| {
             egui::Grid::new("controls").striped(true).show(ui, |ui| {
                 for k in KEYS {
                     ui.label(RichText::new(k.keys).font(font(SEMI, 13.0)));

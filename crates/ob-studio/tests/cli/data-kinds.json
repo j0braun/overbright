@@ -1,0 +1,80 @@
+{
+  "command": "data.kinds",
+  "exit": 0,
+  "format": 1,
+  "kinds": [
+    {
+      "columns": [
+        {
+          "editable": false,
+          "field": "solid",
+          "label": "Object",
+          "type": "text"
+        },
+        {
+          "editable": true,
+          "field": "position",
+          "label": "Position",
+          "type": "vec3"
+        },
+        {
+          "editable": true,
+          "field": "heading",
+          "label": "Rotation",
+          "type": "degrees"
+        },
+        {
+          "editable": true,
+          "field": "disabled",
+          "label": "Hidden",
+          "type": "bool"
+        }
+      ],
+      "kind": "placement",
+      "rows": 0
+    },
+    {
+      "columns": [
+        {
+          "editable": true,
+          "field": "name",
+          "label": "Name",
+          "type": "text"
+        },
+        {
+          "editable": true,
+          "field": "type",
+          "label": "Mode",
+          "type": "enum"
+        },
+        {
+          "editable": true,
+          "field": "track",
+          "label": "Base track",
+          "type": "int"
+        },
+        {
+          "editable": true,
+          "field": "laps",
+          "label": "Laps",
+          "type": "int"
+        },
+        {
+          "editable": true,
+          "field": "backward",
+          "label": "Backward",
+          "type": "bool"
+        },
+        {
+          "editable": false,
+          "field": "checkpoints",
+          "label": "Checkpoints",
+          "type": "count"
+        }
+      ],
+      "kind": "race",
+      "rows": 2
+    }
+  ],
+  "ok": true
+}

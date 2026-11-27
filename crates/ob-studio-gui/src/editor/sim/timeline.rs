@@ -19,6 +19,8 @@ use crate::editor::theme;
 
 /// The track's height (points).
 const TRACK_H: f32 = 22.0;
+/// The extra row under the track while a second run is compared: its events.
+const GHOST_ROW: f32 = 12.0;
 /// How near (points) the pointer must be to a marker to take it.
 const MARKER_REACH: f32 = 5.0;
 
@@ -94,10 +96,12 @@ impl Panel for Timeline {
 /// The track: the played part, the markers, the time shown; the mouse
 /// scrubs (to the nearest recorded frame), a marker's click jumps to it.
 fn track(ui: &mut egui::Ui, s: &mut EditorState, sim: &mut Sim, lo: f32, hi: f32) {
-    let (rect, r) = ui.allocate_exact_size(egui::vec2(ui.available_width(), TRACK_H), Sense::click_and_drag());
+    let extra = if sim.ghost.is_some() { GHOST_ROW } else { 0.0 };
+    let (full, r) = ui.allocate_exact_size(egui::vec2(ui.available_width(), TRACK_H + extra), Sense::click_and_drag());
+    let rect = Rect::from_min_size(full.min, egui::vec2(full.width(), TRACK_H));
     sim.track_rect = rect;
     let marks: Vec<Finding> = markers(&sim.batch, &sim.rec).into_iter().cloned().collect();
-    let p = ui.painter_at(rect.expand(2.0));
+    let p = ui.painter_at(full.expand(2.0));
     let bar = Rect::from_min_max(
         Pos2::new(rect.left(), rect.center().y - 3.0),
         Pos2::new(rect.right(), rect.center().y + 3.0),
@@ -135,6 +139,22 @@ fn track(ui: &mut egui::Ui, s: &mut EditorState, sim: &mut Sim, lo: f32, hi: f32
             Stroke::new(1.0, colour::SHADOW),
         ));
         p.line_segment([Pos2::new(x, top + 2.0 * h), Pos2::new(x, rect.bottom() - 2.0)], Stroke::new(1.5, c));
+    }
+    if let Some(g) = sim.ghost.as_ref() {
+        // The second run under the track: its events (not the checkpoints) as ticks in the info colour, and
+        // where it parts from the first.
+        let gc = super::panel::ghost_colour();
+        let row =
+            Rect::from_min_size(Pos2::new(rect.left(), rect.bottom() + 1.0), egui::vec2(rect.width(), GHOST_ROW - 2.0));
+        p.rect_filled(row, 2.0, theme::rgb(theme::tokens().rail).gamma_multiply(0.6));
+        for e in g.events.iter().filter(|e| e.kind != super::format::EventKind::Checkpoint) {
+            let x = x_of(rect, lo, hi, e.time);
+            p.line_segment([Pos2::new(x, row.top() + 1.0), Pos2::new(x, row.bottom() - 1.0)], Stroke::new(2.0, gc));
+        }
+        if let Some(t) = sim.parts_at {
+            let x = x_of(rect, lo, hi, t);
+            p.line_segment([Pos2::new(x, rect.top()), Pos2::new(x, row.bottom())], Stroke::new(1.0, gc));
+        }
     }
     p.line_segment([Pos2::new(now, rect.top()), Pos2::new(now, rect.bottom())], Stroke::new(2.0, colour::SELECT));
     let r = match near {
@@ -177,6 +197,15 @@ fn controls(ui: &mut egui::Ui, sim: &mut Sim, hi: f32) {
         .response
         .on_hover_text("Playback speed");
     ui.monospace(format!("{} / {}", clock(sim.play.time), clock(hi)));
+    if sim.ghost.is_some() {
+        let n = if sim.ghost_name.is_empty() { "run B".to_string() } else { format!("B: {}", sim.ghost_name) };
+        let text = match sim.parts_at {
+            Some(t) => format!("{n}, parts at {}", clock(t)),
+            None => format!("{n}, cars on the same course"),
+        };
+        ui.label(egui::RichText::new(text).color(super::panel::ghost_colour()))
+            .on_hover_text("The second run, drawn as ghosts in the view and as ticks under the track");
+    }
     ui.separator();
     // The camera: free (the editor's own) or riding with a car.
     let mode = match sim.play.follow {

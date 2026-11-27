@@ -8,10 +8,13 @@
 
 pub mod cams;
 pub mod cars;
+pub mod graphs;
+pub use ob_studio::runs::library;
 pub mod panel;
-pub mod record;
+pub use ob_studio::runs::record;
 pub mod run;
 pub mod summary;
+pub use ob_studio::runs::telemetry;
 pub mod timeline;
 
 // The stream's format and its detectors live in the library, which the

@@ -40,7 +40,7 @@ row of the table is this page's.
 | Events, stages, sponsors, brands, shops, milestones, cash pickups, car unlocks, messages, world challenges, tricks, track records, magazine setups, map calibration | **data**: the base set (this page) |
 | Where events, shops, photo spots, cash pickups and tips are; start grids; shop positions | **data**: route triggers and markers ([roads-ai.md](roads-ai.md)) |
 | Region 0's opponent pool (0x7F6DA4) and the Quick Race opponent names (0x7F6CD0); magazine, DVD and rating lines (`MAGAZINE_LINES`, `DVD_LINES`, `RATING_LINES`); World Map zooms | **engine tables** in the table holder (`opponent_cars`, `opponent_names`, `magazine_lines`, `dvd_lines`, `rating_lines`, `world_map_zooms`; `crates/ob-formats/src/exe_tables/constants/frontend.rs:9`, `:19`, `:43`, `:57`, `:194`, `:230`) |
-| The alternate and SUV opponent pools (0x7F6DC0, 0x7F6DDC); car-lot exclusions (0x7F7C50 / 0x7F7C48); Quick Race's always-offered cars (0x7F7C28 / 0x7F7C08); neighbourhood names (0x800C38); reputation by winning margin and reward class (0x7F7AC8); visual-rating steps (0x7FA230); minimap icons (0x7F4348); AI throttle caps (0x783A28) | **engine constants** written in the modules that use them (`src/frontend/career/events.rs:147`, `:151`; `lists.rs:7`–`14`; `triggers.rs:75`; `rewards.rs:53`; `src/frontend/screens/ingame_map.rs:142`; `src/ai/driver/mod.rs:104`) |
+| The alternate and SUV opponent pools (0x7F6DC0, 0x7F6DDC); car-lot exclusions (0x7F7C50 / 0x7F7C48); Quick Race's always-offered cars (0x7F7C28 / 0x7F7C08); neighbourhood names (0x800C38); reputation by winning margin and reward class (0x7F7AC8); visual-rating steps (0x7FA230); minimap icons (0x7F4348); AI throttle caps (0x783A28) | **engine constants** written in the modules that use them (`crates/ob-menus/src/frontend/career/events.rs:147`, `:151`; `lists.rs:7`–`14`; `triggers.rs:75`; `rewards.rs:53`; `crates/ob-menus/src/frontend/screens/ingame_map.rs:142`; `src/ai/driver/mod.rs:104`) |
 | Open-event picking (0x527D40), stage ends (0x532C70), sponsor offers (0x500610, 0x500670), race pay (0x532E60), car unlock checks (0x513C50), start cash (cheat bonuses) | **engine code**, not data |
 
 Engine tables are built in and overridden only through [engine-tables.md](engine-tables.md) (`tables/` of mod packs and
@@ -111,7 +111,7 @@ check shape only, so they require just the keys; a reader checks a base set's re
 | `event`, `stage`, `sponsor`, `brand`, `milestone`, `shop`, `cash_pickup`, `car_unlock`, `message`, `challenge`, `trick` | array<table> | – | no | `[]` | The tables, each in original order. |
 | `extras` | table | – | no | – | conventions §9. |
 
-**`event`** (0x88 bytes, `src/frontend/career/events.rs:60`):
+**`event`** (0x88 bytes, `crates/ob-menus/src/frontend/career/events.rs:60`):
 
 | Field | Type | Unit | M | Req. | Default | Meaning (offset) |
 |---|---|---|---|---|---|---|
@@ -137,7 +137,7 @@ Shadow bytes: `+0x06` (u16, **open**), `+0x0E`, `+0x14..+0x17` (`+0x14` is 100 o
 set in one event), `+0x80..+0x83`, the three bytes after each goal's kind, and every byte of the goal / opponent area
 (`+0x38..+0x7B`) past the counts, which holds old values in 135 events.
 
-**`stage`** (0x50 bytes, `src/frontend/career/data.rs:105`):
+**`stage`** (0x50 bytes, `crates/ob-menus/src/frontend/career/data.rs:105`):
 
 | Field | Type | Unit | M | Req. | Default | Meaning (offset) |
 |---|---|---|---|---|---|---|
@@ -168,7 +168,7 @@ Every byte of a stage record is a field, so its encoder rebuilds the chunk (§6)
 **`brand`** (0x44): `name` (text in `u8[32]` at `+0x00`, key; `+0x40` is its hash), `display` (text in `u8[32]` at
 `+0x20`, the name shown). Shadow: bytes after each string's NUL (old text in 33 and 31 records).
 
-**`milestone`** (0x40, `src/frontend/career/data.rs:216`):
+**`milestone`** (0x40, `crates/ob-menus/src/frontend/career/data.rs:216`):
 
 | Field | Type | Unit | M | Req. | Default | Meaning (offset) |
 |---|---|---|---|---|---|---|
@@ -186,7 +186,7 @@ Every byte of a stage record is a field, so its encoder rebuilds the chunk (§6)
 `+0x30..+0x33` and `+0x36..+0x37` are zero in every record and written as zero. Bytes after the name's NUL (old text
 in 16 records) are kept as patches (§5).
 
-**`shop`** (0xA0, `src/frontend/career/data.rs:160`): `name` (text in `u8[32]` at `+0x00`, key; `+0x38` is its hash),
+**`shop`** (0xA0, `crates/ob-menus/src/frontend/career/data.rs:160`): `name` (text in `u8[32]` at `+0x00`, key; `+0x38` is its hash),
 `movie` (text in `u8[24]` at `+0x20`), `trigger` (nameref `+0x3C`, the route trigger that stands for it), `scene_file`
 (text in `u8[16]` at `+0x40`), `kind` (u8 `+0x50`: 0 garage … 6 unique parts), `announced` (u8 `+0x51`),
 `requirement` (u8 `+0x9C`: 0 none, 1 an event won, 2 URL, 3 normal, 4 sponsor wins) with `requirement_value` (u32
@@ -194,18 +194,18 @@ in 16 records) are kept as patches (§5).
 zero bytes). `+0x52..+0x73` and `+0x9E..+0x9F` are zero in every record and written as zero; bytes after a text
 field's NUL (old text in 16 records) are kept as patches (§5).
 
-**`cash_pickup`** (0x0C, all bytes read, `src/frontend/career/data.rs:51`): `cash` (u16 `+0x00`, $, M), `condition` (u8
+**`cash_pickup`** (0x0C, all bytes read, `crates/ob-menus/src/frontend/career/data.rs:51`): `cash` (u16 `+0x00`, $, M), `condition` (u8
 `+0x02`), `flag` (u8 `+0x03`, key), `value` (u32 `+0x04`), `trigger` (nameref `+0x08`, its kind-19 route trigger).
 
 **`car_unlock`** (0x0C, every byte a field): `car` (nameref `+0x00`, key), `u_0x04` (nameref `+0x04`, default
 `"0x00000000"`: **inferred** the event for the other region setting; 0x513C50 reads `+0x08` because 0x570A40 is
 non-zero), `event` (nameref `+0x08`, the event whose win frees it; 0 from the start).
 
-**`message`** (0x14, `src/frontend/sms/table.rs:6`): `name` (pool `+0x00`, key; its labels `<name>_SUBJECT`,
+**`message`** (0x14, `crates/ob-menus/src/frontend/sms/table.rs:6`): `name` (pool `+0x00`, key; its labels `<name>_SUBJECT`,
 `<name>_BODY`), `condition` (u8 `+0x02`), `category` (u8 `+0x03`, the mailbox), `urgent` (u8 `+0x04`), `icon` (u8
 `+0x05`), `values` (u32[2] `+0x08`), `sender` (nameref `+0x10`, a label). Shadow: `+0x06` (0x88 everywhere), `+0x07`.
 
-**`challenge`** (0x18, all bytes read, `src/frontend/sms/triggers.rs:19`): `name` (pool `+0x00`, key), `marker` (pool
+**`challenge`** (0x18, all bytes read, `crates/ob-menus/src/frontend/sms/triggers.rs:19`): `name` (pool `+0x00`, key), `marker` (pool
 `+0x02`, a route trigger's name), `stage` (i16 `+0x04`), `condition` (u8 `+0x06`), `count` (u8 `+0x07`), `message`
 (nameref `+0x08`), `milestone` (nameref `+0x0C`), `time_s` (i32 `+0x10`, M), `kind` (u8 `+0x14`), `slots` (u8[3]
 `+0x15`).
@@ -355,7 +355,7 @@ duplicated number hold the same values).
 
 The HUD mod's six calibration names map to `left` (`TrackMapCalibrationOffsetX`), `top` (`…OffsetY`), `zoom`
 (`TrackMapCalibrationZoomIn`), `window_left` (`MenuMapZoomOffsetX`), `window_top` (`MenuMapZoomOffsetY`) and
-`window_size` (`MenuMapZoomWidth`), `src/frontend/enh/map_pack.rs:19`. The window is three scalars, not an array, so a
+`window_size` (`MenuMapZoomWidth`), `crates/ob-menus/src/frontend/enh/map_pack.rs:19`. The window is three scalars, not an array, so a
 pack can change one of them without restating the others (layering §3.2).
 
 ```toml
@@ -460,11 +460,11 @@ The HUD mod is mounted as the legacy pack `hud-mod` (layering §7). Its `map-ove
 
 - each row sets the field of §3.3's mapping; the file is refused as a whole on an unknown field, a duplicate
   `(track, field)`, a non-finite value, `zoom ≤ 0` or `window_size < 0` (today's all-or-nothing parse,
-  `src/frontend/enh/map_pack.rs:8`);
+  `crates/ob-menus/src/frontend/enh/map_pack.rs:8`);
 - a row is converted only when the pack holds the track's map picture (`TRACKMAP<n>` by hash or by name,
-  `src/frontend/enh/map_pack.rs:53`), as today; other rows are dropped with a note;
+  `crates/ob-menus/src/frontend/enh/map_pack.rs:53`), as today; other rows are dropped with a note;
 - switching the pack on or off at run time recomputes the merged view from the base set's values, which is what
-  `reapply` does today (`src/frontend/enh/map_pack.rs:87`).
+  `reapply` does today (`crates/ob-menus/src/frontend/enh/map_pack.rs:87`).
 
 ## 5. Import
 
@@ -488,7 +488,7 @@ The HUD mod is mounted as the legacy pack `hud-mod` (layering §7). Its `map-ove
    (1/16 of the node) falls back to `values`.
 
 The importer runs with no pack mounted: today's `CareerData::load` applies the HUD mod's calibration when its pack is
-active (`src/frontend/career/data.rs:350`); the Eq1 reference hash is taken before any pack.
+active (`crates/ob-menus/src/frontend/career/data.rs:350`); the Eq1 reference hash is taken before any pack.
 
 ## 6. Equality and verification
 
@@ -508,7 +508,7 @@ slots (2,258 non-zero bytes in 135 events; RES.6 allows 1,904), and the brands o
 offsets, so their encoders need the pool's layout, which only the pool's own bytes give. These six chunks keep a
 shadow (residual.md §3.2); §10, open point 7, says what would bring the pool-dependent ones to Eq2.
 
-**Eq1 model**: `CareerData` (`src/frontend/career/data.rs:5`) without the parts of other pages (`costs`, `packages`,
+**Eq1 model**: `CareerData` (`crates/ob-menus/src/frontend/career/data.rs:5`) without the parts of other pages (`costs`, `packages`,
 `stat_ranges`, `tuning`, `makes`, `suvs`), the track map (`HashMap<u16, Track>` and each record's `order`), the trick
 list, `Magazines` and `Showcase`. Order is data: events keep their index (`Event::index`), which the open-event
 picker and the World Map follow.
@@ -565,7 +565,7 @@ loads unchanged without the pack.
    tuning-unlock and cost chunks are [cars.md](cars.md)'s.
 4. `0x34202` (1,096 bytes, starting with a `0x11` fill, then `2`, a hash and `PARKLAND`): no reader found; kept.
 5. Track record: the open fields of §3.2; which of a duplicated number's records the original's lookup (0x5D3E90)
-   returns (Overbright keeps the last, `src/frontend/career/data.rs:348`; identical in known editions).
+   returns (Overbright keeps the last, `crates/ob-menus/src/frontend/career/data.rs:348`; identical in known editions).
 6. Trick `u_0x05`, `u_0x20`, `u_0x24`; showcase lights' `u_0x04`, `u_0x08`.
 7. The string pool's 218 unread strings: kept as data (a list of `{ at, text }` beside the names, as the part
    database does, [cars.md](cars.md) §3.4), they would let one encoder lay out the pool and bring the pool, events,

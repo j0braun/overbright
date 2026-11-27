@@ -14,7 +14,7 @@ use anyhow::{Context as _, Result, bail, ensure};
 use glam::Vec3;
 
 use super::menu;
-use super::state::{EditorState, Mode, Panel, View};
+use super::state::{EditorState, Mode, Panel};
 use super::theme;
 use super::undo;
 use crate::draw::camera::Camera;
@@ -110,6 +110,8 @@ pub struct ModView {
     pub region: Option<String>,
     pub camera: Option<(Vec3, f32, f32)>,
     pub panels: PanelSizes,
+    /// The saved views (View ▸ Views).
+    pub views: Vec<super::views::SavedView>,
 }
 
 impl ModView {
@@ -138,7 +140,36 @@ impl ModView {
             properties: f("properties_width").and_then(panel_size),
             bottom: f("bottom_height").and_then(panel_size),
         };
-        ModView { region, camera, panels }
+        let num = |v: &toml::Value| v.as_float().or_else(|| v.as_integer().map(|i| i as f64)).map(|v| v as f32);
+        let views = t
+            .get("views")
+            .and_then(|v| v.as_array())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| {
+                        let v = v.as_table()?;
+                        let name = v.get("name")?.as_str()?.trim().to_string();
+                        let c: Vec<f32> = v.get("camera")?.as_array()?.iter().filter_map(num).collect();
+                        let (yaw, pitch) = (num(v.get("yaw")?)?, num(v.get("pitch")?)?);
+                        let collision = match v.get("collision").and_then(|c| c.as_str()) {
+                            Some("invisible") => super::collision::Show::Invisible,
+                            Some("all") => super::collision::Show::All,
+                            _ => super::collision::Show::Off,
+                        };
+                        let flag = |k: &str| v.get(k).and_then(|b| b.as_bool()).unwrap_or(false);
+                        (!name.is_empty() && c.len() == 3 && c.iter().chain([&yaw, &pitch]).all(|f| f.is_finite()))
+                            .then(|| super::views::SavedView {
+                                name,
+                                camera: (Vec3::new(c[0], c[1], c[2]), yaw, pitch),
+                                collision,
+                                race_barriers: flag("race_barriers"),
+                                mod_only: flag("mod_only"),
+                            })
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        ModView { region, camera, panels, views }
     }
 
     pub fn write(&self, maps: &Path, folder: &str) -> Result<()> {
@@ -157,6 +188,18 @@ impl ModView {
             if let Some(v) = v.and_then(panel_size) {
                 s.push_str(&format!("{key} = {:?}\n", v.round()));
             }
+        }
+        for v in &self.views {
+            let (p, yaw, pitch) = v.camera;
+            let collision = match v.collision {
+                super::collision::Show::Off => "off",
+                super::collision::Show::Invisible => "invisible",
+                super::collision::Show::All => "all",
+            };
+            s.push_str(&format!(
+                "\n[[views]]\nname = {:?}\ncamera = [{:?}, {:?}, {:?}]\nyaw = {:?}\npitch = {:?}\ncollision = \"{collision}\"\nrace_barriers = {}\nmod_only = {}\n",
+                v.name, p.x, p.y, p.z, yaw, pitch, v.race_barriers, v.mod_only
+            ));
         }
         crate::qol::saves::write_atomic(&store::editor_dir(maps, folder).join(EDITOR_TOML), s.as_bytes(), false)?;
         Ok(())
@@ -207,7 +250,7 @@ fn note_recent(maps: &Path, folder: &str) {
 const HOVER: [(&str, &str); 3] = [("simulate", "Simulate"), ("drive-here", "Drive here"), ("test-race", "Test race")];
 
 /// `overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]
-/// [--shot out.png --size WxH [--scale F] [--mode props|races] [--view 3d|map|street|whole|top] [--light work|game] [--tab <name>]]`
+/// [--shot out.png --size WxH [--scale F] [--mode props|races] [--view 3d|street|whole|top] [--light work|game] [--tab <name>]]`
 #[derive(Clone, Debug, PartialEq)]
 pub struct Cli {
     pub folder: Option<String>,
@@ -222,7 +265,6 @@ pub struct Cli {
     pub mode: Option<Mode>,
     /// A toolbar tool picked (`--tool select|move|rotate|checkpoint|start|finish|grid`).
     pub tool: Option<menu::Tool>,
-    pub view: Option<View>,
     /// The 3D view's look (`--view street|whole|top`).
     pub look: Option<String>,
     /// Work light or Game look (`--light work|game`).
@@ -258,7 +300,6 @@ impl Default for Cli {
             scale: 1.0,
             mode: None,
             tool: None,
-            view: None,
             look: None,
             light: None,
             tab: None,
@@ -273,7 +314,7 @@ impl Default for Cli {
     }
 }
 
-pub const USAGE: &str = "usage: overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]\n       overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>] [--mode props|races] [--tool <name>] [--view 3d|map|street|whole|top] [--light work|game] [--tab browser|validation|simulate|log] [--select N,M] [--sim stream.txt[,more.txt…][@seconds[:car[:chase]]]] [--hover simulate|drive-here|test-race] [--dialog how-to-test|controls] [--run test-race|drive-here] [--collision off|invisible|all] [--camera x,y,z[,yaw,pitch]]";
+pub const USAGE: &str = "usage: overbright-editor [--mod <folder>] [--region <code>] [--maps <dir>]\n       overbright-editor --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--region <code>] [--mode props|races] [--tool <name>] [--view 3d|street|whole|top] [--light work|game] [--tab browser|validation|race|simulate|log] [--select N,M] [--sim stream.txt[,more.txt…][@seconds[:car[:chase]]]] [--hover simulate|drive-here|test-race] [--dialog how-to-test|controls] [--run test-race|drive-here] [--collision off|invisible|all] [--camera x,y,z[,yaw,pitch]]";
 
 impl Cli {
     pub fn parse<I: IntoIterator<Item = String>>(args: I) -> Result<Cli> {
@@ -315,23 +356,18 @@ impl Cli {
                 }
                 "--tool" => {
                     let v = val("--tool")?.to_ascii_lowercase();
-                    c.tool = Some(
-                        menu::Tool::ALL.into_iter().find(|t| t.name().eq_ignore_ascii_case(&v)).with_context(|| {
-                            format!("--tool: `{v}` (select, move, rotate, checkpoint, start, finish or grid)")
-                        })?,
-                    );
+                    c.tool =
+                        Some(menu::Tool::ALL.into_iter().find(|t| t.name().eq_ignore_ascii_case(&v)).with_context(
+                            || format!("--tool: `{v}` (select, move, rotate, checkpoint, start, finish or grid)"),
+                        )?);
                 }
                 "--view" => {
                     let v = val("--view")?;
-                    c.view = Some(match v.as_str() {
-                        "3d" => View::ThreeD,
-                        "map" => View::Map,
-                        "street" | "whole" | "top" => {
-                            c.look = Some(v.clone());
-                            View::ThreeD
-                        }
-                        v => bail!("--view: `{v}` (3d, map, street, whole or top)"),
-                    })
+                    match v.as_str() {
+                        "3d" => {}
+                        "street" | "whole" | "top" => c.look = Some(v.clone()),
+                        v => bail!("--view: `{v}` (3d, street, whole or top)"),
+                    }
                 }
                 "--light" => {
                     let v = val("--light")?;
@@ -355,7 +391,8 @@ impl Cli {
                     c.run = Some(match v.as_str() {
                         "test-race" => menu::Command::TestRace,
                         "drive-here" => menu::Command::DriveHere,
-                        _ => bail!("--run: `{v}` (test-race or drive-here)"),
+                        "record-drive" => menu::Command::RecordDrive,
+                        _ => bail!("--run: `{v}` (test-race, drive-here or record-drive)"),
                     });
                     // A shot never starts the real game (it would open a window).
                     ensure!(
@@ -366,7 +403,8 @@ impl Cli {
                 "--collision" => {
                     let v = val("--collision")?.to_ascii_lowercase();
                     c.collision = Some(
-                        super::collision::Show::parse(&v).with_context(|| format!("--collision: `{v}` (off, invisible or all)"))?,
+                        super::collision::Show::parse(&v)
+                            .with_context(|| format!("--collision: `{v}` (off, invisible or all)"))?,
                     );
                 }
                 "--camera" => {
@@ -377,7 +415,8 @@ impl Cli {
                         .collect::<Result<_, _>>()
                         .with_context(|| format!("--camera: `{v}` is not x,y,z[,yaw,pitch]"))?;
                     ensure!(n.len() == 3 || n.len() == 5, "--camera: `{v}` is not x,y,z[,yaw,pitch]");
-                    c.camera = Some([n[0], n[1], n[2], n.get(3).copied().unwrap_or(0.0), n.get(4).copied().unwrap_or(0.0)]);
+                    c.camera =
+                        Some([n[0], n[1], n[2], n.get(3).copied().unwrap_or(0.0), n.get(4).copied().unwrap_or(0.0)]);
                 }
                 "--select" => {
                     let v = val("--select")?;
@@ -458,6 +497,10 @@ pub struct Panels {
     pub under_view: Vec<Box<dyn Panel>>,
 }
 
+/// The overlays' layer order: below the view's look buttons (an egui layer that is no area draws after the areas of
+/// its order, so the same order would put the route over the buttons).
+pub const OVERLAY_ORDER: egui::Order = egui::Order::Background;
+
 /// Something drawn over the viewport `rect` with `painter` (a layer above
 /// the viewport's image). Returns true when it takes the pointer this
 /// frame (a handle under it or dragged): the viewport then does not pick
@@ -498,12 +541,13 @@ impl Panels {
             properties: vec![Box::new(parts::PropsPanel(props.clone())), Box::new(parts::RacesPanel(races.clone()))],
             tabs: vec![
                 ("browser", "Prop browser", Box::new(parts::BrowserTab(browser.clone()))),
+                (super::race_strip::TAB, "Race", Box::new(parts::RaceStripTab(races.clone()))),
                 ("validation", "Validation", Box::new(parts::RacesValidation(races.clone()))),
                 (super::sim::TAB, "Simulate", Box::new(super::sim::SimTab(sim.clone()))),
             ],
             run_tools: vec![Box::new(super::sim::SimTool(sim.clone()))],
             hooks: vec![
-                Box::new(super::testplay::TestPanel { test: None, races: Some(races.clone()) }),
+                Box::new(super::testplay::TestPanel { races: Some(races.clone()), ..Default::default() }),
                 Box::new(parts::RacesHook(races.clone())),
                 Box::new(super::sim::SimHook(sim.clone())),
             ],
@@ -511,6 +555,7 @@ impl Panels {
                 Box::new(parts::Follow(races.clone())),
                 // Under the props' and races' marks.
                 Box::new(super::collision::CollisionOverlay::default()),
+                Box::new(super::testplay::SpawnMarker),
                 Box::new(parts::PropsOverlay { props: props.clone(), browser: browser.clone() }),
                 Box::new(parts::RacesOverlay { races: races.clone(), dragging: false }),
                 Box::new(super::sim::SimOverlay(sim.clone())),
@@ -535,7 +580,7 @@ mod parts {
     use crate::editor::menu::{self, Command};
     use crate::editor::props::{self, Props};
     use crate::editor::races::Races;
-    use crate::editor::state::{Mode, View};
+    use crate::editor::state::{Focus, Mode};
     use crate::editor::{tree_props, tree_races};
 
     pub type Shared<T> = Rc<RefCell<T>>;
@@ -581,8 +626,31 @@ mod parts {
     pub struct Follow(pub Shared<Races>);
 
     impl Overlay for Follow {
-        fn overlay(&mut self, s: &mut EditorState, _: &egui::Context, _: &egui::Painter, _: egui::Rect) -> bool {
+        fn overlay(
+            &mut self,
+            s: &mut EditorState,
+            _: &egui::Context,
+            painter: &egui::Painter,
+            rect: egui::Rect,
+        ) -> bool {
             let mut r = self.0.borrow_mut();
+            match s.focus {
+                // World: the props' side only.
+                Focus::World => s.mode = Mode::Props,
+                // Races: the race's side only, the props layer dimmed under the route.
+                Focus::Races => {
+                    if s.mode == Mode::Props {
+                        s.mode = Mode::Races;
+                        s.selection.clear();
+                    }
+                    painter.rect_filled(
+                        rect,
+                        0.0,
+                        crate::editor::theme::rgb(crate::editor::theme::tokens().page).gamma_multiply(0.5),
+                    );
+                }
+                Focus::Both => {}
+            }
             if s.mode == Mode::Props && r.tool != crate::editor::races::Tool::Select {
                 r.tool = crate::editor::races::Tool::Select;
             }
@@ -634,15 +702,23 @@ mod parts {
             if menu::take(ctx, Command::FaceCamera) {
                 props::face_camera_selection(s);
             }
+            if menu::take(ctx, Command::SelectStreet) {
+                crate::editor::street::select_street(s);
+            }
             p.context_menu(s, ctx, rect);
             if menu::take(ctx, Command::SelectAllOfSolid)
-                && let Some(solid) = s.selection.first().and_then(|&i| s.session.world.placements.get(i)).map(|pl| pl.solid)
+                && let Some(solid) =
+                    s.selection.first().and_then(|&i| s.session.world.placements.get(i)).map(|pl| pl.solid)
             {
                 let hidden = crate::world::HIDDEN_FLAG;
                 s.selection = (0..s.session.world.placements.len())
-                    .filter(|&i| s.session.world.placements[i].solid == solid && s.session.world.placements[i].flags & hidden == 0)
+                    .filter(|&i| {
+                        s.session.world.placements[i].solid == solid
+                            && s.session.world.placements[i].flags & hidden == 0
+                    })
                     .collect();
-                s.status = format!("Selected {} of {}", s.selection.len(), props::name(&s.session.world, s.selection[0]));
+                s.status =
+                    format!("Selected {} of {}", s.selection.len(), props::name(&s.session.world, s.selection[0]));
             }
             taken
         }
@@ -678,6 +754,15 @@ mod parts {
         }
     }
 
+    /// The Race tab: the selected race as one strip.
+    pub struct RaceStripTab(pub Shared<Races>);
+
+    impl Panel for RaceStripTab {
+        fn ui(&mut self, s: &mut EditorState, ui: &mut egui::Ui) {
+            self.0.borrow_mut().strip(s, ui);
+        }
+    }
+
     /// Race ▸ New race, every frame.
     pub struct RacesHook(pub Shared<Races>);
 
@@ -708,21 +793,14 @@ mod parts {
         pub dragging: bool,
     }
 
-    /// The ground under screen point `at` for the race tools: in Map and
+    /// The ground under screen point `at` for the race tools: in
     /// Top the world x/y under it at the road's height there (the highest
     /// floor, as a snapped point gets it); in 3D where the mouse ray meets
     /// the ground.
     pub fn race_ground(s: &EditorState, ctx: &egui::Context, rect: egui::Rect, at: egui::Pos2) -> Option<glam::Vec3> {
-        let xy = match s.view {
-            View::Map => {
-                let (centre, scale, map) = crate::editor::sim::panel::map_transform(ctx)?;
-                let c = map.center();
-                centre + glam::Vec2::new(at.x - c.x, c.y - at.y) / scale
-            }
-            View::ThreeD => match crate::editor::viewport::top_view(ctx) {
-                Some((top, shown)) => top.to_world(shown, at),
-                None => return props::ground_under(s, rect, at),
-            },
+        let xy = match crate::editor::viewport::top_view(ctx) {
+            Some((top, shown)) => top.to_world(shown, at),
+            None => return props::ground_under(s, rect, at),
         };
         Some(xy.extend(crate::editor::validate::ground(s, xy)))
     }
@@ -735,20 +813,13 @@ mod parts {
             painter: &egui::Painter,
             rect: egui::Rect,
         ) -> bool {
+            // World: the race layers are hidden.
+            if s.focus == Focus::World {
+                return false;
+            }
             let mut r = self.races.borrow_mut();
             r.update(s);
-            match s.view {
-                View::ThreeD => r.paint_overlay(s, painter, rect, crate::editor::viewport::top_view(ctx).is_some()),
-                View::Map => {
-                    if let Some((centre, scale, map)) = crate::editor::sim::panel::map_transform(ctx) {
-                        let c = map.center();
-                        let to = |p: glam::Vec2| {
-                            egui::pos2(c.x + (p.x - centre.x) * scale, c.y - (p.y - centre.y) * scale)
-                        };
-                        r.paint_map(s, painter, &to);
-                    }
-                }
-            }
+            r.paint_overlay(s, painter, rect, crate::editor::viewport::top_view(ctx).is_some());
             if s.mode == Mode::Races {
                 if !flying(ctx) {
                     r.keys(s, ctx);
@@ -757,16 +828,15 @@ mod parts {
                     r.delete_selected(s);
                 }
             }
-            let (pointer, pressed, down, mods) = ctx.input(|i| {
-                (i.pointer.hover_pos(), i.pointer.primary_pressed(), i.pointer.primary_down(), i.modifiers)
-            });
+            let (pointer, pressed, down, mods) = ctx
+                .input(|i| (i.pointer.hover_pos(), i.pointer.primary_pressed(), i.pointer.primary_down(), i.modifiers));
             let over = pointer.filter(|p| {
                 rect.contains(*p) && ctx.layer_id_at(*p).is_none_or(|l| l.order == egui::Order::Background)
             });
             if self.dragging {
                 if down {
                     if let Some(at) = pointer.and_then(|p| race_ground(s, ctx, rect, p)) {
-                        r.drag(s, at, mods.alt);
+                        r.drag(s, at);
                     }
                     return true;
                 }
@@ -778,9 +848,11 @@ mod parts {
                 return false;
             }
             let Some(at) = over.and_then(|p| race_ground(s, ctx, rect, p)) else { return false };
+            let radius = crate::editor::races::pick_radius(crate::editor::viewport::top_view(ctx));
+            r.pick_m = Some(radius);
             let armed = s.mode == Mode::Races && r.tool != crate::editor::races::Tool::Select;
             if armed {
-                r.click(s, at, mods.shift, mods.alt);
+                r.click(s, at, mods.shift);
                 self.dragging = r.is_dragging();
                 return true;
             }
@@ -788,12 +860,19 @@ mod parts {
             // selected race's first.
             let order = s.race.into_iter().chain((0..s.session.map.races.len()).filter(|k| Some(*k) != s.race));
             let hit = order
-                .filter_map(|k| s.session.map.races.get(k).and_then(|race| crate::editor::races::pick(race, at.truncate(), crate::editor::races::PICK_M)).map(|p| (k, p)))
+                .filter_map(|k| {
+                    s.session
+                        .map
+                        .races
+                        .get(k)
+                        .and_then(|race| crate::editor::races::pick(race, at.truncate(), radius))
+                        .map(|p| (k, p))
+                })
                 .next();
             match hit {
                 Some((k, _)) => {
                     (s.race, s.mode) = (Some(k), Mode::Races);
-                    r.click(s, at, false, mods.alt);
+                    r.click(s, at, false);
                     self.dragging = r.is_dragging();
                     true
                 }
@@ -835,6 +914,11 @@ pub enum Dialog {
         path: String,
         derived: usize,
     },
+    /// Export as a mod pack file (`derived` as in [`Dialog::Export`]).
+    ExportPack {
+        path: String,
+        derived: usize,
+    },
     Import {
         path: String,
     },
@@ -855,6 +939,26 @@ pub enum Dialog {
     Controls,
     /// Help ▸ How to test your race.
     HowToTest,
+    /// View ▸ Go to…: `error` is what the last try said.
+    GoTo {
+        query: String,
+        error: String,
+    },
+    /// View ▸ Views ▸ Save view…
+    SaveView {
+        name: String,
+    },
+    /// Before sharing while a test run leaves `n` props out; Share goes on to the export (`pack`: the pack).
+    LeftOut {
+        n: usize,
+        pack: bool,
+    },
+    /// Race ▸ Test car and clock…: `car` empty is the game's own, `clock` empty the load's own.
+    TestFocus {
+        car: String,
+        clock: String,
+        error: String,
+    },
 }
 
 /// What waits on the unsaved-changes question.
@@ -888,6 +992,8 @@ pub struct App {
     pub save_note: String,
     /// The open mod's texture list (`looks.toml`) as its pack data (`textures/`) was last written from.
     looks_written: Option<String>,
+    /// The open mod's texture files, watched for another program's writes.
+    pack_watch: ob_studio::looks::work::PackWatch,
     /// The window should close.
     pub quit: bool,
     /// Last frame's time on the CPU (status bar).
@@ -999,6 +1105,7 @@ impl App {
             last_tick: Instant::now(),
             save_note: String::new(),
             looks_written: None,
+            pack_watch: Default::default(),
             quit: false,
             frame_ms: 0.0,
             untaken: Vec::new(),
@@ -1017,8 +1124,13 @@ impl App {
     pub fn title(&self) -> String {
         match &self.state {
             Some(s) => {
-                let name = if s.session.map.name.is_empty() { s.session.folder.as_str() } else { s.session.map.name.as_str() };
-                format!("Overbright Map Editor (preview) — {name} · {}{}", s.session.region, if s.session.dirty { " ●" } else { "" })
+                let name =
+                    if s.session.map.name.is_empty() { s.session.folder.as_str() } else { s.session.map.name.as_str() };
+                format!(
+                    "Overbright Map Editor (preview) — {name} · {}{}",
+                    s.session.region,
+                    if s.session.dirty { " ●" } else { "" }
+                )
             }
             None => "Overbright Map Editor (preview)".into(),
         }
@@ -1044,6 +1156,11 @@ impl App {
     /// loaded, the mod applied, its history opened (read-only when another
     /// program has the mod open), and the restore prompt when the history
     /// holds unsaved steps (or an older editor's autosave is newer).
+    /// The mod open now (its folder name).
+    pub fn open_folder(&self) -> Option<&str> {
+        self.state.as_ref().map(|s| s.session.folder.as_str())
+    }
+
     pub fn open(&mut self, folder: &str, region: Option<&str>) -> Result<()> {
         ensure!(valid_id(folder), "`{folder}` is not a map mod folder name (a-z, 0-9, - and _)");
         // The mod open until now keeps its view.
@@ -1072,6 +1189,7 @@ impl App {
         let mut h = History::open(&dir, &edir, ob_studio::MOD_DOCS, PROGRAM, Arc::new(history::disk::Real))
             .with_context(|| format!("opening the history of {folder}"))?;
         self.looks_written = std::fs::read_to_string(dir.join(ob_studio::looks::FILE)).ok();
+        self.pack_watch = ob_studio::looks::work::PackWatch::new(&dir);
         let pending = h.pending().map(|p| p.at);
         let read_only = !h.writable();
         if read_only || (pending.is_some() && saved.is_none()) {
@@ -1090,6 +1208,7 @@ impl App {
         self.layout.restore = view.panels;
         let mut s = EditorState::new(self.root.clone(), &region, self.maps.clone(), folder, map, world, camera);
         s.session.keep_in(h);
+        s.views = view.views.clone();
         s.status = format!("Opened {folder}");
         self.state = Some(s);
         self.last_tick = Instant::now();
@@ -1121,7 +1240,8 @@ impl App {
     pub fn new_mod(&mut self, folder: &str, name: &str, region: &str) -> Result<()> {
         ob_studio::create::create(&self.maps, folder, name, region)?;
         let region = region.trim().to_ascii_uppercase();
-        ModView { region: Some(region.clone()), camera: None, panels: self.layout.sizes }.write(&self.maps, folder)?;
+        ModView { region: Some(region.clone()), camera: None, panels: self.layout.sizes, views: Vec::new() }
+            .write(&self.maps, folder)?;
         self.open(folder, Some(&region))
     }
 
@@ -1156,9 +1276,25 @@ impl App {
         panels.tree = r.tree.or(panels.tree);
         panels.properties = r.properties.or(panels.properties);
         panels.bottom = r.bottom.or(panels.bottom);
-        let view = ModView { region: Some(s.session.region.clone()), camera: Some((c.position, c.yaw, c.pitch)), panels };
+        let view = ModView {
+            region: Some(s.session.region.clone()),
+            camera: Some((c.position, c.yaw, c.pitch)),
+            panels,
+            views: s.views.clone(),
+        };
         if let Err(e) = view.write(&s.maps, &s.session.folder) {
             log::warn!("editor: {EDITOR_TOML} not written: {e:#}");
+        }
+    }
+
+    /// Save the current camera and layers as the view `name` (View ▸ Views ▸ Save view…), kept in
+    /// `editor.toml` with the mod (never in the mod itself).
+    pub fn save_view(&mut self, name: &str) {
+        let Some(s) = self.state.as_mut() else { return };
+        let c = self.panels.viewport.kept_camera(s);
+        if super::views::save_view(s, name, &c) {
+            s.status = format!("Saved view {}", name.trim());
+            self.keep_view();
         }
     }
 
@@ -1229,18 +1365,40 @@ impl App {
         };
         let mut changed = std::mem::take(&mut self.save_note).len() > 0 || t.saved;
         s.session.dirty = h.writable() && h.unsaved();
-        if t.saved {
+        if t.saved || !t.outside.is_empty() {
             self.follow_looks();
         }
+        // Texture files another program wrote (while the pack data follows the list): one step each.
+        let mut outside: Vec<String> = t.outside.iter().filter_map(|q| self.outside_label(*q)).collect();
+        if let Some(s) = self.state.as_mut()
+            && let Some(h) = s.session.history.as_mut()
+            && h.doc(ob_studio::looks::FILE) == self.looks_written.as_deref()
+        {
+            let dir = s.maps.join(&s.session.folder);
+            let edir = h.editor_dir().to_path_buf();
+            match self.pack_watch.take(h, &dir, &edir) {
+                Ok(l) => outside.extend(l),
+                Err(e) => log::warn!("editor: texture files not taken in: {e}"),
+            }
+        }
         let Some(s) = self.state.as_mut() else { return changed };
-        if !t.outside.is_empty() || !t.answered.is_empty() || t.reloaded {
+        if !outside.is_empty() || !t.answered.is_empty() || t.reloaded {
             if s.session.sync() {
                 undo::follow(s);
                 s.status = "Changed by another program".into();
             }
+            if let Some(l) = outside.last() {
+                s.status = l.clone();
+            }
             changed = true;
         }
         changed
+    }
+
+    /// The label of the history step `seq`.
+    fn outside_label(&self, seq: u64) -> Option<String> {
+        let h = self.state.as_ref()?.session.history.as_ref()?;
+        h.steps().iter().find(|s| s.seq == seq).map(|s| s.label.clone())
     }
 
     /// After the mod's files were written: its pack data (`textures/`) follows the texture list when a step
@@ -1308,6 +1466,25 @@ impl App {
         }
     }
 
+    /// The Export (zip) or Export pack dialog for the open mod. What is shared is always the whole mod: the
+    /// left-out set of a running test never reaches the export.
+    pub fn open_export(&mut self, pack: bool) {
+        let Some(s) = &self.state else { return };
+        let derived = crate::tools::map::share::derived(&self.maps.join(&s.session.folder)).len();
+        if pack {
+            // The exports folder, the pack's own file name (`<id>-1.0.0.obpk`).
+            let path = crate::platform::dirs::exports().join(ob_studio::share::pack_file_name(
+                &s.session.folder,
+                &ob_studio::share::PackOpts::default(),
+            ));
+            self.dialog = Some(Dialog::ExportPack { path: path.display().to_string(), derived });
+        } else {
+            // Overbright's exports folder (made by the export), never the home folder itself.
+            let path = ob_studio::share::default_zip(&crate::platform::dirs::exports(), &s.session.folder);
+            self.dialog = Some(Dialog::Export { path: path.display().to_string(), derived });
+        }
+    }
+
     /// The window was asked to close: true when it may.
     pub fn close_requested(&mut self) -> bool {
         if !self.flush() {
@@ -1366,12 +1543,11 @@ impl App {
                     });
                 }
             }
-            A::Export => {
-                if let Some(s) = &self.state {
-                    // Overbright's exports folder (made by the export), never the home folder itself.
-                    let path = ob_studio::share::default_zip(&crate::platform::dirs::exports(), &s.session.folder);
-                    let derived = crate::tools::map::share::derived(&self.maps.join(&s.session.folder)).len();
-                    self.dialog = Some(Dialog::Export { path: path.display().to_string(), derived });
+            A::Export | A::ExportPack => {
+                let pack = matches!(a, A::ExportPack);
+                match self.state.as_ref().map(|s| s.left_out.len()) {
+                    Some(n) if n > 0 => self.dialog = Some(Dialog::LeftOut { n, pack }),
+                    _ => self.open_export(pack),
                 }
             }
             A::Import => self.dialog = Some(Dialog::Import { path: String::new() }),
@@ -1401,9 +1577,105 @@ impl App {
                 }
             }
             A::Hint(on) => self.layout.hint = on,
+            A::Snap(m) => {
+                if let Some(s) = self.state.as_mut() {
+                    s.snap_mode = m;
+                    s.status = format!("{}: {}", crate::studio::words::SNAP, m.label());
+                }
+            }
             A::Collision(c) => {
                 if let Some(s) = self.state.as_mut() {
                     s.collision = c;
+                }
+            }
+            A::CollisionColour(c) => {
+                if let Some(s) = self.state.as_mut() {
+                    s.collision_colour = c;
+                }
+            }
+            A::CollisionKind(c) => {
+                if let Some(s) = self.state.as_mut() {
+                    s.collision_look.toggle(c);
+                }
+            }
+            A::CollisionEveryKind => {
+                if let Some(s) = self.state.as_mut() {
+                    s.collision_look.show_every_kind();
+                }
+            }
+            A::CollisionOpacity(p) => {
+                if let Some(s) = self.state.as_mut() {
+                    s.collision_look.set_opacity(p);
+                }
+            }
+            A::CollisionWireframe => {
+                if let Some(s) = self.state.as_mut() {
+                    s.collision_look.wireframe = !s.collision_look.wireframe;
+                }
+            }
+            A::CollisionFullHeight => {
+                if let Some(s) = self.state.as_mut() {
+                    s.collision_look.full_height = !s.collision_look.full_height;
+                }
+            }
+            A::RaceBarriers => {
+                if let Some(s) = self.state.as_mut() {
+                    s.race_barriers = !s.race_barriers;
+                }
+            }
+            A::Goal(g) => {
+                if let Some(s) = self.state.as_mut() {
+                    s.goal = Some(g);
+                }
+            }
+            A::GoTo => self.dialog = Some(Dialog::GoTo { query: String::new(), error: String::new() }),
+            A::TestFocus => {
+                if let Some(s) = self.state.as_ref() {
+                    let f = &s.run_focus;
+                    self.dialog = Some(Dialog::TestFocus {
+                        car: f.car.clone().unwrap_or_default(),
+                        clock: f.clock.map(|c| c.to_string()).unwrap_or_default(),
+                        error: String::new(),
+                    });
+                }
+            }
+            A::HideSelected => {
+                if let Some(s) = self.state.as_mut() {
+                    super::views::hide_selected(s);
+                }
+            }
+            A::IsolateSelected => {
+                if let Some(s) = self.state.as_mut() {
+                    super::views::isolate_selected(s);
+                }
+            }
+            A::ShowAll => {
+                if let Some(s) = self.state.as_mut() {
+                    super::views::show_all(s);
+                }
+            }
+            A::ModOnly => {
+                if let Some(s) = self.state.as_mut() {
+                    let on = !s.filter.mod_only;
+                    s.filter.set_mod_only(on);
+                    s.status = if on { "Showing this mod's changes only".into() } else { "Showing every prop".into() };
+                }
+            }
+            A::SaveView => self.dialog = Some(Dialog::SaveView { name: String::new() }),
+            A::RecallView(i) => {
+                if let Some(s) = self.state.as_mut()
+                    && let Some(v) = s.views.get(i).cloned()
+                {
+                    v.recall(s);
+                }
+            }
+            A::DeleteView(i) => {
+                if let Some(s) = self.state.as_mut()
+                    && i < s.views.len()
+                {
+                    let v = s.views.remove(i);
+                    s.status = format!("Deleted view {}", v.name);
+                    self.keep_view();
                 }
             }
             A::Draw(d) => {
@@ -1414,13 +1686,17 @@ impl App {
                     }
                     s.selection.clear();
                     s.wall = None;
-                    s.view = View::ThreeD;
                     s.draw = Some(d);
                 }
             }
-            A::View(v) => {
+            A::Roads => {
                 if let Some(s) = self.state.as_mut() {
-                    s.view = v;
+                    s.roads = !s.roads;
+                }
+            }
+            A::ShowNearestRoad => {
+                if let Some(s) = self.state.as_mut() {
+                    super::roads::show_nearest(s);
                 }
             }
             A::Tab(t) => self.tab = t,
@@ -1518,7 +1794,9 @@ impl App {
             } else {
                 let mut open = false;
                 egui::Panel::right("properties-rail").exact_size(super::tree::RAIL).resizable(false).show(ui, |ui| {
-                    ui.vertical_centered(|ui| open = super::tree::rail(ui, &[title.to_string()], super::tree::Fold::Left));
+                    ui.vertical_centered(|ui| {
+                        open = super::tree::rail(ui, &[title.to_string()], super::tree::Fold::Left)
+                    });
                 });
                 if open {
                     self.layout.properties = true;
@@ -1742,7 +2020,7 @@ impl App {
         // whether one before it did.
         let rect = ui.max_rect();
         *view_rect = rect;
-        let layer = egui::LayerId::new(egui::Order::Middle, egui::Id::unique("editor.viewport.overlay"));
+        let layer = egui::LayerId::new(OVERLAY_ORDER, egui::Id::unique("editor.viewport.overlay"));
         let painter = ui.ctx().layer_painter(layer).with_clip_rect(rect);
         let mut taken = false;
         ui.ctx().data_mut(|d| d.insert_temp(pointer_taken_id(), false));
@@ -1763,6 +2041,13 @@ impl App {
             self.panels.viewport.render(s, &mut gfx);
             // The prop browser's pictures still to draw (a few a frame; the
             // browser asks for the next frame while any are left).
+            self.panels.browser.borrow_mut().thumbs.build(gpu, &s.session.region, &s.session.world);
+        }
+    }
+
+    /// Draw the prop pictures still queued (the Browser workspace, which has no editor view to render).
+    pub fn build_thumbs(&mut self, gpu: &Gpu) {
+        if let Some(s) = self.state.as_ref() {
             self.panels.browser.borrow_mut().thumbs.build(gpu, &s.session.region, &s.session.world);
         }
     }
@@ -1897,10 +2182,7 @@ impl App {
                             let (n, a, de) = (name.clone(), author.clone(), description.clone());
                             then = Some(Box::new(move |app: &mut App| {
                                 if let Some(s) = app.state.as_mut() {
-                                    s.session.map.name = n;
-                                    s.session.map.author = a;
-                                    s.session.map.description = de;
-                                    super::commit(s, "Mod details");
+                                    let _ = super::undo::run(s, crate::tools::map::ops::Op::Details { name: n, author: a, description: de });
                                 }
                             }));
                             keep = false;
@@ -1930,6 +2212,26 @@ impl App {
                         }
                     });
                 }
+                Dialog::ExportPack { path, derived } => {
+                    ui.label(theme::title("Export as mod pack"));
+                    ui.label("A .obpk file, or a folder: the placements, races and textures of the mod, as the mods page of the launcher takes them:");
+                    ui.text_edit_singleline(path);
+                    if *derived > 0 {
+                        ui.label(theme::title(words::DERIVED_TITLE));
+                        ui.label(crate::tools::map::share::derived_warning(*derived));
+                    }
+                    let (yes, ok) = if *derived > 0 { (words::EXPORT_ANYWAY, true) } else { ("Export", false) };
+                    ui.horizontal(|ui| {
+                        if ui.add(theme::main_action(yes)).clicked() {
+                            let p = PathBuf::from(path.trim());
+                            then = Some(Box::new(move |app: &mut App| app.export_pack(&p, ok)));
+                            keep = false;
+                        }
+                        if ui.button(words::CANCEL).clicked() {
+                            keep = false;
+                        }
+                    });
+                }
                 Dialog::Import { path } => {
                     ui.label(theme::title("Import map mod"));
                     ui.label("A .zip file or a folder holding map.obmap:");
@@ -1939,6 +2241,93 @@ impl App {
                             let p = PathBuf::from(path.trim());
                             then = Some(Box::new(move |app: &mut App| app.import(&p)));
                             keep = false;
+                        }
+                        if ui.button(words::CANCEL).clicked() {
+                            keep = false;
+                        }
+                    });
+                }
+                Dialog::GoTo { query, error } => {
+                    ui.label(theme::title("Go to"));
+                    ui.label("Coordinates (x, y), a prop's name, or a race point (start, finish, checkpoint 3):");
+                    let edit = ui.text_edit_singleline(query);
+                    edit.request_focus();
+                    if !error.is_empty() {
+                        ui.colored_label(theme::error(), error.as_str());
+                    }
+                    ui.horizontal(|ui| {
+                        let go = ui.add_enabled(!query.trim().is_empty(), theme::main_action("Go")).clicked()
+                            || ui.input(|i| i.key_pressed(egui::Key::Enter));
+                        if go && !query.trim().is_empty() {
+                            let r = self.state.as_mut().map(|s| super::views::go_to(s, query)).unwrap_or(Ok(()));
+                            match r {
+                                Ok(()) => keep = false,
+                                Err(e) => *error = e,
+                            }
+                        }
+                        if ui.button(words::CANCEL).clicked() {
+                            keep = false;
+                        }
+                    });
+                }
+                Dialog::SaveView { name } => {
+                    ui.label(theme::title("Save view"));
+                    ui.label("Name (the same name replaces that view):");
+                    ui.text_edit_singleline(name).request_focus();
+                    ui.horizontal(|ui| {
+                        let ok = !name.trim().is_empty();
+                        if (ui.add_enabled(ok, theme::main_action(words::SAVE)).clicked()
+                            || ui.input(|i| i.key_pressed(egui::Key::Enter)))
+                            && ok
+                        {
+                            let n = name.clone();
+                            then = Some(Box::new(move |app: &mut App| app.save_view(&n)));
+                            keep = false;
+                        }
+                        if ui.button(words::CANCEL).clicked() {
+                            keep = false;
+                        }
+                    });
+                }
+                Dialog::LeftOut { n, pack } => {
+                    ui.label(theme::title("Share"));
+                    ui.label(words::left_out_line(*n));
+                    ui.horizontal(|ui| {
+                        if ui.add(theme::main_action(words::SHARE)).clicked() || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                            let pack = *pack;
+                            then = Some(Box::new(move |app: &mut App| app.open_export(pack)));
+                            keep = false;
+                        }
+                        if ui.button(words::CANCEL).clicked() {
+                            keep = false;
+                        }
+                    });
+                }
+                Dialog::TestFocus { car, clock, error } => {
+                    ui.label(theme::title("Test car and clock"));
+                    ui.label("The car a test run drives (a car's name in the game, like 240SX; empty: the save's or the first Quick Race car):");
+                    ui.text_edit_singleline(car);
+                    ui.label("The world clock it starts at, in seconds (1 to 3600; sets the time of day and weather; empty: a new load's):");
+                    ui.text_edit_singleline(clock);
+                    if !error.is_empty() {
+                        ui.colored_label(theme::error(), error.as_str());
+                    }
+                    ui.horizontal(|ui| {
+                        if ui.add(theme::main_action(words::OK)).clicked() || ui.input(|i| i.key_pressed(egui::Key::Enter)) {
+                            match parse_focus(car, clock) {
+                                Ok(f) => {
+                                    if let Some(s) = self.state.as_mut() {
+                                        s.status = if f.is_empty() {
+                                            "Test runs start with the game's own car and clock".into()
+                                        } else {
+                                            format!("Test runs start with{}; an open game starts over with the next change", f.words())
+                                        };
+                                        s.run_focus = f;
+                                    }
+                                    keep = false;
+                                }
+                                Err(e) => *error = e,
+                            }
                         }
                         if ui.button(words::CANCEL).clicked() {
                             keep = false;
@@ -2063,6 +2452,22 @@ impl App {
         })();
         match r {
             Ok(()) => self.say(format!("Exported {folder} to {}", to.display())),
+            Err(e) => self.fail("Could not export", e),
+        }
+    }
+
+    /// Export the mod as a mod pack file (`ob_studio::share::export_pack`; `derived_ok` as for [`Self::export`]).
+    fn export_pack(&mut self, to: &Path, derived_ok: bool) {
+        let Some(folder) = self.state.as_ref().map(|s| s.session.folder.clone()) else { return };
+        let r = (|| -> Result<ob_studio::share::PackExported> {
+            if self.state.as_ref().is_some_and(|s| s.session.dirty) {
+                self.save()?;
+            }
+            let o = ob_studio::share::PackOpts { derived_ok, ..Default::default() };
+            Ok(ob_studio::share::export_pack(&self.maps.join(&folder), &folder, to, &o)?)
+        })();
+        match r {
+            Ok(e) => self.say(format!("Exported {folder} as a mod pack to {}", e.to.display())),
             Err(e) => self.fail("Could not export", e),
         }
     }
@@ -2256,9 +2661,9 @@ pub fn shot(app: &mut App, gpu: &Gpu, size: (u32, u32), scale: f32, out: &Path) 
             break;
         }
         // The pointer on the item named, once the toolbar has laid out.
-        let at = app.shot_hover.and_then(|name| {
-            menu::toolbar_fit(&app.ctx)?.items.iter().find(|i| i.0 == name).map(|i| i.1.center())
-        });
+        let at = app
+            .shot_hover
+            .and_then(|name| menu::toolbar_fit(&app.ctx)?.items.iter().find(|i| i.0 == name).map(|i| i.1.center()));
         let mut raw = egui::RawInput {
             screen_rect: Some(rect),
             time: Some(frame as f64 / 60.0),
@@ -2342,9 +2747,6 @@ pub fn apply_cli_view(app: &mut App, cli: &Cli) {
         if let Some(m) = cli.mode {
             s.mode = m;
         }
-        if let Some(v) = cli.view {
-            s.view = v;
-        }
         if let Some(look) = &cli.look {
             app.panels.viewport.set_look(s, look);
         }
@@ -2362,7 +2764,7 @@ pub fn apply_cli_view(app: &mut App, cli: &Cli) {
             s.selection = cli.select.iter().copied().filter(|&i| i < s.session.world.placements.len()).collect();
             // The 3D view (also Top) framed on it, as F does: the viewport
             // takes the command in the shot's first frame.
-            if !s.selection.is_empty() && s.view == View::ThreeD {
+            if !s.selection.is_empty() {
                 menu::post(&app.ctx, menu::Command::FrameSelection);
             }
         }
@@ -2435,7 +2837,7 @@ mod tests {
             "--mode",
             "races",
             "--view",
-            "map",
+            "top",
             "--tab",
             "Validation",
             "--scale",
@@ -2452,13 +2854,13 @@ mod tests {
         assert_eq!(c.tool, Some(menu::Tool::Checkpoint));
         assert_eq!(c.shot, Some(PathBuf::from("o.png")));
         assert_eq!(
-            (c.size, c.scale, c.mode, c.view, c.tab.as_deref()),
-            ((1280, 720), 1.5, Some(Mode::Races), Some(View::Map), Some("validation"))
+            (c.size, c.scale, c.mode, c.look.as_deref(), c.tab.as_deref()),
+            ((1280, 720), 1.5, Some(Mode::Races), Some("top"), Some("validation"))
         );
-        assert_eq!(c.look, None);
+        assert_eq!(p(&["--view", "3d"]).unwrap().look, None);
+        assert!(p(&["--view", "map"]).is_err(), "the Map is the top view now");
         for look in ["street", "whole", "top"] {
-            let c = p(&["--view", look]).unwrap();
-            assert_eq!((c.view, c.look.as_deref()), (Some(View::ThreeD), Some(look)));
+            assert_eq!(p(&["--view", look]).unwrap().look.as_deref(), Some(look));
         }
         assert_eq!(c.light, None);
         for light in ["work", "game"] {
@@ -2812,9 +3214,32 @@ mod tests {
         assert!(a.tick(Instant::now() + Duration::from_secs(10)));
         let st = a.state.as_ref().unwrap();
         assert_eq!(st.session.map.name, "By hand");
-        assert_eq!(st.status, "Changed by another program");
+        assert_eq!(st.status, "Outside change: map.obmap");
         a.act(menu::Action::Undo);
         assert!(a.state.as_ref().unwrap().session.map.name.is_empty());
+    }
+
+    /// Another program writing a texture file of the mod: one step named by the file, which Undo takes back.
+    #[test]
+    fn an_outside_texture_file_is_an_undoable_step() {
+        let s = Scratch::new("editor-outside-texture");
+        let maps = s.path().join("maps");
+        let mut a = app(&s);
+        a.new_mod("tex", "", "L4RA").unwrap();
+        let dir = maps.join("tex");
+        let file = dir.join("textures/world/0000000A.png");
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(&file, ob_studio::looks::encode_png(2, 2, &[9, 9, 9, 255].repeat(4)).unwrap()).unwrap();
+        assert!(a.tick(Instant::now() + Duration::from_secs(10)));
+        let st = a.state.as_ref().unwrap();
+        assert_eq!(st.status, "Outside change: textures/world/0000000A.png");
+        let h = st.session.history.as_ref().unwrap();
+        assert!(h.doc(ob_studio::looks::FILE).is_some_and(|t| t.contains("world:0x0000000A")));
+        assert_eq!(h.steps().last().unwrap().author, history::OUTSIDE);
+        a.save().unwrap();
+        a.act(menu::Action::Undo);
+        a.save().unwrap();
+        assert!(!file.exists(), "undo takes the texture away again");
     }
 
     #[test]
@@ -2826,11 +3251,17 @@ mod tests {
         let s = Scratch::new("editor-view");
         let maps = s.path().join("maps");
         let panels = PanelSizes { tree: Some(300.0), properties: None, bottom: Some(240.0) };
-        let v = ModView { region: Some("L4RA".into()), camera: Some((Vec3::new(1.5, -2.0, 30.25), 0.5, -0.25)), panels };
+        let v = ModView {
+            region: Some("L4RA".into()),
+            camera: Some((Vec3::new(1.5, -2.0, 30.25), 0.5, -0.25)),
+            panels,
+            views: Vec::new(),
+        };
         v.write(&maps, "v").unwrap();
         assert_eq!(ModView::read(&maps, "v"), v);
         assert!(store::editor_dir(&maps, "v").join(EDITOR_TOML).is_file());
-        std::fs::write(store::editor_dir(&maps, "v").join(EDITOR_TOML), "tree_width = 1e9\nbottom_height = -3\n").unwrap();
+        std::fs::write(store::editor_dir(&maps, "v").join(EDITOR_TOML), "tree_width = 1e9\nbottom_height = -3\n")
+            .unwrap();
         assert_eq!(ModView::read(&maps, "v").panels, PanelSizes::default(), "nonsense sizes are dropped");
         let m = MapMod {
             props: vec![PropEdit::Add {
@@ -2974,8 +3405,20 @@ mod tests {
             (3840.0, 2160.0),
         ];
         let order = [
-            "Select", "Move", "Rotate", "Snap", "Checkpoint", "Start", "Finish", "Grid", "Undo", "Redo", "Save",
-            "Simulate", "Drive here", "Test race",
+            "Select",
+            "Move",
+            "Rotate",
+            "Snap",
+            "Checkpoint",
+            "Start",
+            "Finish",
+            "Grid",
+            "Undo",
+            "Redo",
+            "Save",
+            "Simulate",
+            "Drive here",
+            "Test race",
         ];
         let mut race = crate::editor::validate::tests::sprint(&[(20.0, 0.0), (200.0, 0.0)]);
         race.name = "Casino sprint".into();
@@ -3039,4 +3482,79 @@ mod tests {
         a.export(&to, false);
         assert!(to.is_file(), "the folder is made and the file written");
     }
+
+    /// File ▸ Export as mod pack… proposes `<id>-1.0.0.obpk` in the exports folder and writes the pack there.
+    #[test]
+    fn export_as_mod_pack_writes_an_obpk() {
+        let s = Scratch::new("editor-export-pack");
+        let mut a = app(&s);
+        a.new_mod("docks", "", "L4RA").unwrap();
+        a.act(menu::Action::ExportPack);
+        let Some(Dialog::ExportPack { path, .. }) = &a.dialog else { panic!("{:?}", a.dialog) };
+        assert_eq!(PathBuf::from(path), crate::platform::dirs::exports().join("docks-1.0.0.obpk"));
+        a.dialog = None;
+        let to = s.path().join("exports").join("docks-1.0.0.obpk");
+        a.export_pack(&to, false);
+        assert!(to.is_file(), "the pack file is written");
+    }
+
+    /// Sharing while a test leaves props out asks first, only while the left-out set is non-empty; Share goes on
+    /// to the export, and what is exported is the whole mod.
+    #[test]
+    fn sharing_asks_while_props_are_left_out_and_exports_the_whole_mod() {
+        use crate::tools::map::ops::PropKey as Named;
+        let s = Scratch::new("editor-leftout-ask");
+        let mut a = app(&s);
+        a.new_mod("docks", "", "L4RA").unwrap();
+        let add = crate::tools::map::PropEdit::Add {
+            id: "a1".into(),
+            region: "L4RA".into(),
+            solid: "XO_CONE_01".into(),
+            position: glam::Vec3::ZERO,
+            rotation: glam::Mat3::IDENTITY,
+        };
+        a.state.as_mut().unwrap().session.map.props.push(add);
+        {
+            let st = a.state.as_ref().unwrap();
+            crate::tools::map::store::save(&st.maps, &st.session.folder, &st.session.map).unwrap();
+        }
+        for pack in [false, true] {
+            let act = if pack { menu::Action::ExportPack } else { menu::Action::Export };
+            a.act(act.clone());
+            assert!(matches!(a.dialog, Some(Dialog::Export { .. } | Dialog::ExportPack { .. })), "no question when nothing is left out");
+            a.dialog = None;
+            a.state.as_mut().unwrap().left_out = vec![Named::Added("a1".into())];
+            a.act(act);
+            assert!(matches!(a.dialog, Some(Dialog::LeftOut { n: 1, pack: p }) if p == pack), "{:?}", a.dialog);
+            assert_eq!(words::left_out_line(1), "1 prop is left out of the running test. They stay in what you share.");
+            a.open_export(pack);
+            assert!(matches!(a.dialog, Some(Dialog::Export { .. } | Dialog::ExportPack { .. })), "Share goes on");
+            a.dialog = None;
+            a.state.as_mut().unwrap().left_out.clear();
+        }
+        a.state.as_mut().unwrap().left_out = vec![Named::Added("a1".into())];
+        let to = s.path().join("exports").join("docks.zip");
+        a.export(&to, false);
+        assert!(to.is_file());
+        let imported = s.path().join("again");
+        crate::tools::map::store::import(&imported, &to).unwrap();
+        let m = crate::tools::map::store::read_file(&imported.join("docks").join(crate::tools::map::store::FILE)).unwrap();
+        assert_eq!(m.props.len(), 1, "the left-out prop is in what was shared");
+    }
+}
+
+/// The test focus the Race ▸ Test car and clock dialog's two fields name (each empty: the game's own).
+pub fn parse_focus(car: &str, clock: &str) -> Result<crate::tools::map::link::Focus, String> {
+    let (car, clock) = (car.trim(), clock.trim());
+    let f = crate::tools::map::link::Focus {
+        car: (!car.is_empty()).then(|| car.to_string()),
+        clock: if clock.is_empty() { None } else { Some(clock.parse::<f32>().map_err(|_| format!("`{clock}` is not a number of seconds"))?) },
+    };
+    if !f.car.as_deref().is_none_or(crate::tools::map::link::valid_car) {
+        return Err("A car name has letters, digits, - and _ only (like 240SX)".into());
+    }
+    if !f.valid() {
+        return Err(format!("The clock is 1 to {} seconds", crate::tools::map::link::MAX_CLOCK));
+    }
+    Ok(f)
 }

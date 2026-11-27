@@ -1,0 +1,28 @@
+{
+  "command": "props.solids",
+  "count": 3,
+  "exit": 0,
+  "format": 1,
+  "ok": true,
+  "region": "L4RA",
+  "solids": [
+    {
+      "categories": "Barriers",
+      "knock_over": false,
+      "name": "XB_BARRIER_03",
+      "placed": 1
+    },
+    {
+      "categories": "Barriers",
+      "knock_over": false,
+      "name": "XC_CONE_01",
+      "placed": 2
+    },
+    {
+      "categories": "Signs",
+      "knock_over": false,
+      "name": "XS_SIGN_STOP",
+      "placed": 1
+    }
+  ]
+}

@@ -13,7 +13,7 @@
 # keeps its recent list there):
 #   start      no map mod open: the editor's opening screen
 #   props_3d   the mod open on the city (L4RA), a prop's side in front, the 3D view, the prop browser
-#   races_map  the same mod, the races' side in front, the 2D road-network map, the validation list
+#   races_map  the same mod, the races' side in front, the top view with the road network (View ▸ Roads), the validation list
 # Each cell must: exit 0; have no panic / validation-error line in its log; write a PNG of exactly the asked pixel
 # size; not be one flat colour (its standard deviation, alpha off, at least $EDITOR_MIN_STD, default 0.02); and on the
 # two world screens show something in the centre of the window, where the view is (the middle 30 % of the image at
@@ -85,7 +85,7 @@ one_cell() {
   case $screen in
     start) ;;
     props_3d) args=(--mod shots --mode props --view 3d --tab browser) ;;
-    races_map) args=(--mod shots --mode races --view map --tab validation) ;;
+    races_map) args=(--mod shots --mode races --view top --tab validation) ;;
   esac
   env -u DISPLAY -u WAYLAND_DISPLAY -u XDG_SESSION_TYPE -u WAYLAND_SOCKET XDG_DATA_HOME="$d/data" XDG_CACHE_HOME="$d/xcache" \
     TMPDIR="$O/tmp" RADV_DEBUG=${RADV_DEBUG-nodcc} NFSU2_HEADLESS_ONLY=1 \

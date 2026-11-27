@@ -1,0 +1,10 @@
+{
+  "command": "data.export",
+  "count": 2,
+  "exit": 0,
+  "file": "<tmp>/docks/out/races.csv",
+  "format": 1,
+  "kind": "race",
+  "ok": true,
+  "total": 2
+}

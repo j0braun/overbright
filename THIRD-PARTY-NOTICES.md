@@ -4,7 +4,7 @@ Overbright is licensed under the GNU General Public License v3.0 or later (see L
 
 ## AMD FidelityFX Super Resolution 1.0 (FSR 1)
 
-Used in `src/render/fsr.wgsl` and `src/render/enh/post/fsr.rs` (EASU and RCAS passes,
+Used in `crates/ob-render/src/render/fsr.wgsl` and `crates/ob-render/src/render/enh/post/fsr.rs` (EASU and RCAS passes,
 ported to WGSL). Upstream: AMD GPUOpen, FidelityFX Super Resolution 1.0.
 
 Copyright (c) 2021 Advanced Micro Devices, Inc. All rights reserved.

@@ -41,6 +41,13 @@ slots' cars (only the garage's car select shows them); the rims' and body kits' 
 load reads only the pieces its parts use); the encounter racers' and rivals' cars (drawn when the drive
 starts; the menus predict them); a race's track (the player picks it).
 
+## With the asset layer
+
+A queued game file that the mounted base set holds (`game_fs::peek`, which counts no read) is read from its
+bundle's mapping instead of the game folder: pieces of 512 KB, a piece already in memory skipped (`mincore`), the
+others asked for in advance (`madvise` WILLNEED) and touched a page at a time, under the same giving way. A name the
+set knows is absent is counted as not there. Nothing is opened in the game folder, so it works with the folder gone.
+
 ## Giving way
 
 The reader never competes with a load the player waits for. Between two pieces it waits while

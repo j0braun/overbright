@@ -3366,7 +3366,7 @@ The music stream's failures are held off by its own back-off (
 
 The clone's front end against the binary answers of audit/binary
 of the front-end audit and the Wine answers. One row per fix in
-docs/native-fixes/N-FE-1.tsv; tests in `src/frontend/native_fe_tests.rs`.
+docs/native-fixes/N-FE-1.tsv; tests in `crates/ob-menus/src/frontend/native_fe_tests.rs`.
 
 * **List windows and scroll bars.** The generic text list (ctor 0x542CB0:
   +0x18 rows, +0x1C count, +0x20 the window top's index from 1, +0x24
@@ -3437,7 +3437,7 @@ docs/native-fixes/N-FE-1.tsv; tests in `src/frontend/native_fe_tests.rs`.
 
 What part 1 left plus the Wine answers. One row per fix in
 docs/native-fixes/N-FE-2.tsv; tests in `src/bin/game/tests/native_fe_part2.rs`,
-`native_dialogs.rs`, `src/frontend/native_fe_part2_tests.rs`, `hud/tests.rs`.
+`native_dialogs.rs`, `crates/ob-menus/src/frontend/native_fe_part2_tests.rs`, `hud/tests.rs`.
 
 * **Custom Gauges purchase** (UI_CustomHUDOverlay handler 0x563D10). The
   overlay's constructor 0x56C220 sets the step 0x838560 = 1; Accept on a

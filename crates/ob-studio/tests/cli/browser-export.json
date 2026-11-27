@@ -1,0 +1,16 @@
+{
+  "bin": "<tmp>/docks/.editor/reference/XC_CONE_01.bin",
+  "command": "browser.export",
+  "exit": 0,
+  "format": 1,
+  "gltf": "<tmp>/docks/.editor/reference/XC_CONE_01.gltf",
+  "model": "XC_CONE_01",
+  "note": "<tmp>/docks/.editor/reference/LOCAL-ONLY.txt",
+  "ok": true,
+  "origin": "from-game-files",
+  "region": "L4RA",
+  "share": "local-only",
+  "textures": [
+    "<tmp>/docks/.editor/reference/XC_CONE_01-ROAD.png"
+  ]
+}

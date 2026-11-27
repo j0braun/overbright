@@ -10,13 +10,13 @@ Success paths are unchanged (parity gate, `docs/developing/perf-gates.md`).
 
 Every `unwrap` / `expect` / `panic!` / `unreachable!` / slice index outside
 tests in the code that touches files, devices or user data: `crates/ob-core/src/cache/`,
-`src/audio/mixer/` (device open, watchdog), `src/audio/streams/`
-(decoder threads), `crates/ob-formats/src/formats/native_save.rs`, `src/frontend/profiles/`,
-`src/frontend/career/` (`Profile::from_native`: constant offsets, capped
-counts, map lookups only), `src/frontend/options/` (options.txt),
-`src/qol/` (saves, backups, crash reports, game-root file),
-`src/hd_ui_pack.rs`, `src/frontend/map_pack.rs`,
-`src/render/texture_pack.rs` + `src/upscale.rs` (`parse_dds`),
+`crates/ob-audio/src/audio/mixer/` (device open, watchdog), `crates/ob-audio/src/audio/streams/`
+(decoder threads), `crates/ob-formats/src/formats/native_save.rs`, `crates/ob-menus/src/frontend/profiles/`,
+`crates/ob-menus/src/frontend/career/` (`Profile::from_native`: constant offsets, capped
+counts, map lookups only), `crates/ob-menus/src/frontend/options/` (options.txt),
+`crates/ob-settings/src/qol/` (saves, backups, crash reports, game-root file),
+`src/hd_ui_pack.rs`, `crates/ob-menus/src/frontend/map_pack.rs`,
+`crates/ob-render/src/render/texture_pack.rs` + `src/upscale.rs` (`parse_dds`),
 `src/surface_maps.rs`, `src/bin/game/enh/photo/`. The headless check tools in
 `src/bin/game.rs` (shots, bench dumps, flows) are out of scope: they are
 meant to fail loudly. Missing game files keep their existing clear error.

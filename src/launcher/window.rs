@@ -55,6 +55,8 @@ struct Run<'e> {
     error: Option<String>,
     game: GameStart,
     running: Option<Running>,
+    /// The trial run in `running` ("Try it once"): its saves copy is dealt with when the game ends.
+    trial: Option<super::trial::Trial>,
     probe: Option<std::sync::mpsc::Receiver<Result<Probe, String>>>,
     /// The game folder the last probe was run with (a new folder: run
     /// again, so the probe's result belongs to the chosen folder).
@@ -145,8 +147,13 @@ pub struct GameStart {
 
 impl GameStart {
     pub fn start(&self) -> Result<Running, String> {
+        self.start_with(&[])
+    }
+
+    /// [`GameStart::start`] with more environment variables for the game (a trial run's).
+    pub fn start_with(&self, env: &[(String, String)]) -> Result<Running, String> {
         let logs = self.logs.then(super::dirs::logs);
-        super::run::start(&self.exe, &self.args, logs.as_deref(), self.root.as_deref())
+        super::run::start_env(&self.exe, &self.args, logs.as_deref(), self.root.as_deref(), env)
     }
 }
 
@@ -164,13 +171,57 @@ pub fn failure_of(e: &Ended) -> Failure {
         how: e.how(),
         tail: e.tail.clone(),
         log: e.log.clone(),
+        studio: None,
         report: Some(super::model::CrashReport {
+            program: "the game".into(),
             reason: e.reason(),
             pid: e.pid,
             secs: e.secs,
             errors: Vec::new(),
             asking: true,
             logs: crate::launcher::crash_report::run_logs(e.started_at),
+        }),
+    }
+}
+
+/// The failure screen's data for a Studio or map editor run that ended badly: what its note and log
+/// say, and how it ended when the launcher saw it (`code`, `signal`; None for both when it was found at
+/// the next start).
+pub fn studio_failure(bad: &ob_core::studio_run::BadExit, code: Option<i32>, signal: Option<i32>) -> Failure {
+    let panicked = bad.note.panic.is_some();
+    let program = if bad.note.program.contains("map editor") { "the map editor" } else { "Studio" };
+    let known = code.is_some() || signal.is_some();
+    let reason = if known || panicked {
+        super::crash_report::reason(code, signal, panicked)
+    } else {
+        "it ended without a clean quit (it crashed or was closed from outside; its end was not seen)".to_string()
+    };
+    let end = match (code, signal) {
+        (Some(c), _) => format!("exit code {c}"),
+        (None, Some(s)) => format!("signal {s}"),
+        (None, None) => "no end status (it was found at the next start)".into(),
+    };
+    let secs = bad.secs();
+    Failure {
+        kind: super::run::ErrorKind::Crash,
+        during_start: secs < super::run::START_SECS,
+        how: if panicked { format!("a crash (panic), {end}") } else { end },
+        tail: bad.log.as_deref().map(|l| ob_core::studio_run::tail_lines(l, 40)).unwrap_or_default(),
+        log: bad.log.clone(),
+        report: Some(super::model::CrashReport {
+            program: program.into(),
+            reason,
+            pid: bad.note.pid,
+            secs,
+            errors: Vec::new(),
+            asking: true,
+            logs: crate::launcher::crash_report::run_logs(bad.started_at()),
+        }),
+        studio: Some(super::model::StudioRun {
+            program: bad.note.program.clone(),
+            exe: bad.note.exe.clone(),
+            version: bad.note.version.clone(),
+            opened: bad.note.opened.clone(),
         }),
     }
 }
@@ -238,15 +289,41 @@ impl Run<'_> {
         // The language chosen on the Settings page, also kept in
         // language.txt for a start without the launcher.
         game.args.extend(language_args(&self.app.model.choices.language));
-        match game.start() {
+        // Try it once: the pack on for this run, the saves in a copy.
+        let trial = match self.app.model.mods.try_pack.take() {
+            Some(id) => {
+                match super::trial::begin(&id, &super::trial::tries_dir(), &super::dirs::profiles()) {
+                    Ok(t) => Some(t),
+                    Err(e) => {
+                        self.app.model.starting = false;
+                        self.app.model.mods.results = vec![(super::ui::Mark::Error, e)];
+                        self.app.refresh_mods();
+                        self.app.rebuild(&self.fonts);
+                        if let Some(w) = &self.window {
+                            w.request_redraw();
+                        }
+                        return;
+                    }
+                }
+            }
+            None => None,
+        };
+        let env = trial.as_ref().map(|t| t.env()).unwrap_or_default();
+        match game.start_with(&env) {
             Ok(r) => {
+                self.trial = trial;
                 log::info!("game started (pid {})", r.id());
                 if let Some(w) = &self.window {
                     w.set_visible(false);
                 }
                 self.running = Some(r);
             }
-            Err(e) => self.show_failure(Failure::not_started(e)),
+            Err(e) => {
+                if let Some(t) = trial {
+                    let _ = t.discard(&super::trial::tries_dir());
+                }
+                self.show_failure(Failure::not_started(e))
+            }
         }
     }
 
@@ -269,12 +346,30 @@ impl Run<'_> {
         let Some(r) = self.running.as_mut() else { return };
         let Some(e) = r.poll() else { return };
         self.running = None;
+        if let Some(t) = self.trial.take() {
+            log::info!("trial run of {} ended; its saves copy is {}", t.pack, t.dir.display());
+            let name = self.app.model.mods.packs.iter().find(|r| r.id == t.pack).map_or(t.pack.clone(), |r| r.name.clone());
+            self.app.model.mods.tried = Some((name, t));
+            if !e.failed() {
+                self.app.model.starting = false;
+                self.app.motion.play_reset();
+                self.app.go(Screen::Mods);
+                self.app.refresh_mods();
+                self.app.rebuild(&self.fonts);
+                if let Some(w) = &self.window {
+                    w.set_visible(true);
+                    w.focus_window();
+                    w.request_redraw();
+                }
+                return;
+            }
+        }
         if e.failed() {
             log::warn!("the game ended with {} after {:.1} s", e.how(), e.secs);
             eprintln!("overbright: showing the failure screen ({})", e.how());
             let f = failure_of(&e);
             self.show_failure(f);
-            self.app.ask_system_errors(e.pid);
+            self.app.ask_system_errors(e.pid, "game");
         } else {
             self.outcome = Outcome::Quit;
         }
@@ -896,6 +991,8 @@ impl Run<'_> {
                         gilrs::Button::East => Key::Escape,
                         gilrs::Button::LeftTrigger => Key::PagePrev,
                         gilrs::Button::RightTrigger => Key::PageNext,
+                        gilrs::Button::LeftTrigger2 => Key::MoveUp,
+                        gilrs::Button::RightTrigger2 => Key::MoveDown,
                         gilrs::Button::West => Key::ActionX,
                         gilrs::Button::North => Key::ActionY,
                         _ => continue,
@@ -1093,6 +1190,8 @@ impl ApplicationHandler for Run<'_> {
                 let shift = self.mods.shift_key();
                 let key = match &event.logical_key {
                     WKey::Named(n) => match n {
+                        NamedKey::ArrowUp if self.mods.alt_key() => Some(Key::MoveUp),
+                        NamedKey::ArrowDown if self.mods.alt_key() => Some(Key::MoveDown),
                         NamedKey::ArrowUp => Some(Key::Up),
                         NamedKey::ArrowDown => Some(Key::Down),
                         NamedKey::ArrowLeft => Some(Key::Left),
@@ -1343,6 +1442,14 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
     if start.screen == Screen::Main && app.model.failure.is_none() && !env.game_data_later() && app.offer_game_data() {
         app.rebuild(&fonts);
     }
+    // A failure shown at the start (a bad end the launcher found, or the skip rule's): the system's record asked for.
+    if let Some(f) = app.model.failure.as_ref()
+        && let Some(r) = f.report.as_ref().filter(|r| r.asking)
+    {
+        let exe = f.studio.as_ref().map_or("game".to_string(), |s| s.exe.clone());
+        let pid = r.pid;
+        app.ask_system_errors(pid, &exe);
+    }
     app.apply_prefs();
     app.st.input = deck::default_input();
     let el = EventLoop::new().map_err(|e| format!("no display for the launcher window: {e}"))?;
@@ -1379,6 +1486,7 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
         error: None,
         game: start.game,
         running: None,
+        trial: None,
         probe,
         probed_root,
         probing: start.probe,

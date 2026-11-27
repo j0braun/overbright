@@ -15,7 +15,7 @@ Keep All Loaded on); Original and every tier below Ultra are untouched.
 
 Two instruments, both measuring aids (off unless the variable is set):
 
-* **Pop meter** (`NFSU2_POP_STATS=1`, `src/render/pop_meter.rs`; report at
+* **Pop meter** (`NFSU2_POP_STATS=1`, `crates/ob-render/src/render/pop_meter.rs`; report at
   the end of `--bench`, per-frame TSV with `NFSU2_POP_METER_LOG=file`,
   per-event lines with `NFSU2_POP_VERBOSE=1`). Every element entering or
   leaving the main view's picture while in the view frustum, by source:

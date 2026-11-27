@@ -147,11 +147,16 @@ pub fn frame_started() {
 /// Whether the reader is to give way now: a hold, or a frame that has run
 /// for longer than [`BUSY_FRAME`].
 fn give_way() -> bool {
+    give_way_at(epoch().elapsed().as_nanos())
+}
+
+/// [`give_way`] at `now` (ns since [`epoch`]).
+fn give_way_at(now: u128) -> bool {
     if HOLDS.load(Ordering::Acquire) > 0 {
         return true;
     }
     let started = FRAME.load(Ordering::Acquire);
-    started != 0 && epoch().elapsed().as_nanos().saturating_sub(u128::from(started)) > BUSY_FRAME.as_nanos()
+    started != 0 && now.saturating_sub(u128::from(started)) > BUSY_FRAME.as_nanos()
 }
 
 /// The reader thread: the queue's files, one after another.
@@ -208,6 +213,13 @@ fn wait_turn() -> Duration {
 /// the bytes read (None: not opened), the bytes skipped, the time waited.
 fn read_file(path: &Path, buf: &mut [u8]) -> (Option<u64>, u64, Duration) {
     let mut held = wait_turn();
+    // A game file the asset layer holds lives in a bundle of the player's own copy: read it there, never the game
+    // folder (which may be gone, and which the layer answers for).
+    match crate::game_fs::peek(path) {
+        crate::game_fs::Lookup::Held(m) => return read_mapped(&m, held),
+        crate::game_fs::Lookup::Absent => return (None, 0, held),
+        crate::game_fs::Lookup::Folder => {}
+    }
     let Ok(file) = std::fs::File::open(path) else { return (None, 0, held) };
     let Ok(len) = file.metadata().map(|m| m.len()) else { return (None, 0, held) };
     let in_memory = Residency::of(&file, len);
@@ -237,6 +249,85 @@ fn read_file(path: &Path, buf: &mut [u8]) -> (Option<u64>, u64, Duration) {
     }
     (Some(read), resident, held)
 }
+
+/// A bundle's mapped bytes brought into memory piece by piece, as [`read_file`] does a file: the pieces
+/// already in memory skipped (Linux: `mincore`), each other piece asked for in advance (`madvise`) and then
+/// touched, a byte a page, so that the time it took is the disk's.
+fn read_mapped(m: &[u8], mut held: Duration) -> (Option<u64>, u64, Duration) {
+    let (mut at, mut read, mut resident) = (0usize, 0u64, 0u64);
+    while at < m.len() {
+        let n = (m.len() - at).min(PIECE);
+        let piece = &m[at..at + n];
+        if mapped_resident(piece) {
+            resident += n as u64;
+            at += n;
+            continue;
+        }
+        held += wait_turn();
+        let t = Instant::now();
+        mapped_advise(piece);
+        let mut sum = 0u8;
+        for p in piece.iter().step_by(4096) {
+            sum = sum.wrapping_add(*p);
+        }
+        std::hint::black_box(sum);
+        read += n as u64;
+        at += n;
+        let took = t.elapsed();
+        if took > SLOW_PIECE {
+            let pause = took.min(SLOW_PAUSE);
+            std::thread::sleep(pause);
+            held += pause;
+        }
+    }
+    (Some(read), resident, held)
+}
+
+/// The page range (aligned start, length) of a mapped piece.
+#[cfg(target_os = "linux")]
+fn page_span(piece: &[u8]) -> Option<(*mut libc::c_void, usize)> {
+    // SAFETY: plain sysconf.
+    let page = usize::try_from(unsafe { libc::sysconf(libc::_SC_PAGESIZE) }).ok().filter(|&p| p > 0)?;
+    let start = piece.as_ptr() as usize;
+    let a = start & !(page - 1);
+    Some((a as *mut libc::c_void, start + piece.len() - a))
+}
+
+/// Whether every page of a mapped piece is in memory.
+#[cfg(target_os = "linux")]
+fn mapped_resident(piece: &[u8]) -> bool {
+    let Some((a, len)) = page_span(piece) else { return false };
+    // SAFETY: `a..a+len` lies inside the bundle's mapping (the piece's pages) and the vector holds a byte
+    // per page (sized for 4 KiB pages, enough for any larger one); mincore only reports.
+    let mut pages = vec![0u8; len.div_ceil(4096) + 1];
+    let ok = unsafe { libc::mincore(a, len, pages.as_mut_ptr().cast()) } == 0;
+    ok && pages[..len.div_ceil(page_size()).min(pages.len())].iter().all(|&v| v & 1 == 1)
+}
+
+#[cfg(target_os = "linux")]
+fn page_size() -> usize {
+    // SAFETY: plain sysconf.
+    usize::try_from(unsafe { libc::sysconf(libc::_SC_PAGESIZE) }).ok().filter(|&p| p > 0).unwrap_or(4096)
+}
+
+/// Ask the system to read a mapped piece in advance.
+#[cfg(target_os = "linux")]
+fn mapped_advise(piece: &[u8]) {
+    if let Some((a, len)) = page_span(piece) {
+        // SAFETY: the pages of a live mapping; WILLNEED only starts reading them.
+        unsafe {
+            libc::madvise(a, len, libc::MADV_WILLNEED);
+        }
+    }
+}
+
+#[cfg(not(target_os = "linux"))]
+fn mapped_resident(_piece: &[u8]) -> bool {
+    false
+}
+
+#[cfg(not(target_os = "linux"))]
+fn mapped_advise(_piece: &[u8]) {}
 
 #[cfg(unix)]
 fn read_at(file: &std::fs::File, buf: &mut [u8], at: u64) -> std::io::Result<usize> {
@@ -320,6 +411,38 @@ mod tests {
         d
     }
 
+    /// A game file the asset layer holds is read ahead from its bundle (the game folder has no such file), a name
+    /// the layer knows is absent is counted missing, and nothing is counted as a game read.
+    #[test]
+    fn a_layered_file_is_read_ahead_from_its_bundle() {
+        use crate::game_fs;
+        let _mount = game_fs::TEST_MOUNT.lock().unwrap_or_else(std::sync::PoisonError::into_inner);
+        struct One(std::sync::Arc<memmap2::Mmap>);
+        impl game_fs::Layer for One {
+            fn get(&self, key: &str) -> Option<game_fs::Mapped> {
+                (key == "TRACKS/A.BIN").then(|| game_fs::Mapped::new(self.0.clone(), 100..PIECE * 2 + 5000).unwrap())
+            }
+            fn absent(&self, key: &str) -> bool {
+                key == "TRACKS/GONE.BIN"
+            }
+            fn name(&self) -> &str {
+                "unit-layer"
+            }
+        }
+        let mut m = memmap2::MmapMut::map_anon(PIECE * 3).unwrap();
+        m.fill(3);
+        let root = temp("layered");
+        game_fs::mount(&root, std::sync::Arc::new(One(std::sync::Arc::new(m.make_read_only().unwrap()))));
+        let before = game_fs::counts();
+        let mut buf = vec![0u8; PIECE];
+        let (read, resident, _) = read_file(&root.join("TRACKS").join("A.BIN"), &mut buf);
+        assert_eq!(read.unwrap() + resident, (PIECE * 2 + 4900) as u64);
+        assert_eq!(read_file(&root.join("TRACKS").join("GONE.BIN"), &mut buf).0, None);
+        assert_eq!(game_fs::counts(), before, "read-ahead is not a game read");
+        game_fs::unmount();
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
     /// A file is read from start to end, whatever its size against the
     /// piece; a missing one is counted and skipped.
     #[test]
@@ -372,21 +495,33 @@ mod tests {
         drop(h);
         assert!(give_way(), "one hold is still held");
         drop(h2);
+        // A frame's age is judged against a given time, not the clock
+        // (a loaded machine can stall a test thread for longer than a
+        // frame between two calls).
+        let started = 1_000_000_000u64;
+        FRAME.store(started, Ordering::Release);
+        let at = |after: Duration| u128::from(started) + after.as_nanos();
+        assert!(!give_way_at(at(Duration::ZERO)), "a frame that just started");
+        assert!(!give_way_at(at(BUSY_FRAME)), "a frame of just the busy length");
+        assert!(give_way_at(at(BUSY_FRAME + Duration::from_millis(1))), "a frame that runs long");
         frame_started();
-        assert!(!give_way(), "a frame that just started");
-        std::thread::sleep(BUSY_FRAME + Duration::from_millis(20));
-        assert!(give_way(), "a frame that runs long");
-        frame_started();
-        assert!(!give_way());
-        // A held reader waits for the hold to go.
-        let h = hold();
-        let waited = std::thread::spawn(wait_turn);
-        std::thread::sleep(Duration::from_millis(60));
-        frame_started();
-        drop(h);
-        let waited = waited.join().unwrap();
+        assert!(!give_way_at(u128::from(FRAME.load(Ordering::Acquire))), "the next frame started");
         FRAME.store(0, Ordering::Release);
-        assert!(waited >= Duration::from_millis(50), "{waited:?}");
+        assert!(!give_way_at(u128::MAX), "no frame yet");
+        // A held reader waits for the hold to go: it is still waiting
+        // after it has been seen to enter the wait, and ends once the
+        // hold is dropped (no frame is running then).
+        let h = hold();
+        let (entered, seen) = std::sync::mpsc::channel();
+        let waiter = std::thread::spawn(move || {
+            entered.send(()).unwrap();
+            wait_turn()
+        });
+        seen.recv().unwrap();
+        std::thread::sleep(Duration::from_millis(60));
+        assert!(!waiter.is_finished(), "the reader waits while the hold lives");
+        drop(h);
+        waiter.join().unwrap();
     }
 
     /// Queued files are read in the order queued, each once a run, by one

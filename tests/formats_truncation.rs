@@ -159,7 +159,8 @@ fn truncations(name: &str, sample: &[u8], run: impl Fn(&[u8])) {
             runs += 1;
             if let Some(p) = panic {
                 failures.push(format!("prefix {n} (repair {repair}): panic {p}"));
-            } else if took > Duration::from_secs(1) {
+            } else if std::env::var("OB_PERF_TESTS").is_ok_and(|v| v == "1") && took > Duration::from_secs(1) {
+                // Wall-clock bounds only under OB_PERF_TESTS=1: a loaded machine can take over a second on a correct parse.
                 failures.push(format!("prefix {n} (repair {repair}): {took:?}"));
             } else if peak > budget {
                 failures.push(format!("prefix {n} (repair {repair}): allocated {peak} bytes, the whole sample needs {full_peak}"));

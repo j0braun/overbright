@@ -295,3 +295,58 @@ fn textures_layer_in_their_enabled_order() {
     assert_eq!(back.entries.len(), 1);
     assert!(reset(&mine, &["world:0x000000FF"]).is_none());
 }
+
+#[test]
+fn an_object_goes_back_whole_and_only_edited_leaves_out_what_is_restated() {
+    let m = mapmod(
+        vec![mv(1.0, 5.0), mv(2.0, 2.0), PropEdit::Delete { target: target(3.0) }],
+        vec![CustomRace::new("sprint", 1, RaceKind::Sprint)],
+    );
+    let k1 = map::placement_key(&target(1.0));
+    let k2 = map::placement_key(&target(2.0));
+    // Return to original, per object: the whole edit goes, heading too.
+    let gone = map::reset_object(&m, "harbour", map::PLACEMENT, &k1).unwrap();
+    assert_eq!(gone.props.len(), 2);
+    assert!(Game::new(&[("harbour".into(), gone)]).this_mod("harbour").iter().all(|r| r.key != k1));
+    assert!(map::reset_object(&m, "harbour", map::PLACEMENT, "nope").is_none());
+    assert!(map::reset_object(&m, "harbour", map::RACE, "harbour:sprint").unwrap().races.is_empty());
+    assert_eq!(m.props.len(), 3, "the mod it was asked about is not changed");
+    // Show only edited: the prop moved to where it already was changes nothing but its (unknown) heading.
+    let rows = Game::new(&[("harbour".into(), m)]).this_mod("harbour");
+    assert!(rows.iter().find(|r| r.key == k1).unwrap().edited());
+    let edited = filter(&rows, Show::Edited);
+    assert!(edited.iter().any(|r| r.key == k1));
+    let r2 = edited.iter().find(|r| r.key == k2);
+    assert!(r2.is_none_or(|r| r.values.iter().all(|v| v.field != "position")), "an unmoved position is not an edit");
+    assert!(edited.iter().all(|r| r.edited()));
+}
+
+#[test]
+fn touches_names_regions_sections_and_the_neighbours_that_draw_them() {
+    use ob_formats::formats::visibility::{VisibleSections, Visibility};
+    use super::touches::touches;
+    let m = mapmod(vec![mv(1.0, 5.0)], vec![CustomRace::new("sprint", 1, RaceKind::Sprint)]);
+    let rows = Game::new(&[("harbour".into(), m)]).this_mod("harbour");
+    let place = rows.iter().find(|r| r.kind == map::PLACEMENT).unwrap();
+    let vis = Visibility {
+        lists: vec![
+            VisibleSections { section: 1406, visible: vec![1406, 1407] },
+            VisibleSections { section: 1407, visible: vec![1407] },
+            VisibleSections { section: 1500, visible: vec![1500] },
+        ],
+        ..Default::default()
+    };
+    let t = touches(place, Some(&vis));
+    assert_eq!((t.regions.as_slice(), t.sections.as_slice()), (["L4RA".to_string()].as_slice(), [1407].as_slice()));
+    assert_eq!(t.seen_from, [1406], "the section that lists it, not itself or an unrelated one");
+    assert!(t.affects_play);
+    assert!(t.line().contains("region L4RA") && t.line().contains("section 1407") && t.line().contains("affects play"), "{}", t.line());
+    // Without the city's lists: the sections it is in, no neighbours.
+    assert!(touches(place, None).seen_from.is_empty());
+    let race = rows.iter().find(|r| r.kind == map::RACE).unwrap();
+    assert!(touches(race, Some(&vis)).affects_play && touches(race, Some(&vis)).sections.is_empty());
+    // A texture alone does not affect play.
+    let tex = Row { kind: super::looks::TEXTURE, key: "world:0x0000001A".into(), added: false, values: vec![] };
+    let t = touches(&tex, Some(&vis));
+    assert!(!t.affects_play && t.line().ends_with("looks only"));
+}

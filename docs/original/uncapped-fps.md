@@ -161,7 +161,7 @@ it never runs at all. So the clone's world no longer follows the display:
   1/60 s (16.7 ms) more than stepping on every frame, and a key press waits
   up to 1/60 s for the next update, as on the original at 60 fps. A tap
   shorter than one update between two updates is not seen by the held-key
-  read (the same as the original's once-a-frame polling at 60 fps).
+  read (the same as the original (choice: the design decision of this page)'s once-a-frame polling at 60 fps).
 * **The harness on the tick cadence** (2026-11-12;
   `src/bin/game/dev/ticks.rs`): `--shot`, `--selftest`, `--flow`,
   `--playthrough` and the game's tests step the world only by ticks, as the
@@ -390,7 +390,7 @@ device, which plays real time).
 A track's end (`track_playing`) still follows the mixer's playback: offline
 the capture renders each tick's frames after its sounds (`dev_hooks::audio_tick_end`,
 and the pump waits for the decoders), so it is a function of the ticks; on a
-device it follows the device as the original's stream state does. Real-time
+device it follows the device as the original (choice: the design decision of this page)'s stream state does. Real-time
 onset bound (plan §1.5): a sound posted at tick n plays at most one drawn
 frame after the tick's time.
 
@@ -797,7 +797,7 @@ reads what it read.
 ## Enhancement effects on ticks (2026-11-13)
 
 Clone-only (opt-in enhancements; the Original preset reads none of it).
-Library half `src/render/enh/tick_views.rs`, game half
+Library half `crates/ob-render/src/render/enh/tick_views.rs`, game half
 `src/bin/game/render/enh/tick_views.rs`.
 
 * **Tick views.** Each tick's end records (tick index `GameClock::tick`,
@@ -1065,7 +1065,7 @@ The light-streak buffer C (decay by (120, 90, 170)/255, the glow sprites,
 then the overbright pass's A × the level's add factor, 0x5CBB10 /
 0x5CCB9A) commits once per **tick**, not once per drawn frame
 (`src/bin/game/render/streak.rs`; the commit-only chain
-`PostFx::commit_tick` in `src/render/native/post/mod.rs`). The original runs
+`PostFx::commit_tick` in `crates/ob-render/src/render/native/post/mod.rs`). The original runs
 the streak pass once per loop iteration, the scene loop's 1/30 s
 iterations included, so at 60 fps commit n is a function of tick n's frame
 alone: its glows (drawn with its camera, depth-tested against its scene),

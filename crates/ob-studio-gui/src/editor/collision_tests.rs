@@ -115,14 +115,14 @@ fn draw() -> image::RgbaImage {
             let right = Rect::from_min_max(Pos2::new(W as f32 / 2.0, 0.0), Pos2::new(W as f32, H as f32));
             let painter = ui.painter_at(left);
             painter.rect_filled(left, 0.0, colour::PAGE);
-            paint_map(&layer, Show::All, &painter, Vec2::new(30.0, 40.0), 1.2, left);
-            legend(&layer, Show::All, false, &painter, left);
+            paint_map(&layer, Show::All, &Scope::ALL, &painter, Vec2::new(30.0, 40.0), 1.2, left);
+            legend(&layer, Show::All, &Scope::ALL, false, &painter, left);
             let painter = ui.painter_at(right);
             painter.rect_filled(right, 0.0, Color32::from_rgb(40, 44, 48));
             // From the south-west, 25 m up, looking north-east and down.
             let cam = Camera::looking_at(Vec3::new(-70.0, -60.0, 25.0), Vec3::new(30.0, 40.0, 0.0));
-            paint_3d(&layer, Show::Invisible, &Overlay::new(&painter, &cam, right));
-            legend(&layer, Show::Invisible, true, &painter, right);
+            paint_3d(&layer, Show::Invisible, &Scope::ALL, &Overlay::new(&painter, &cam, right));
+            legend(&layer, Show::Invisible, &Scope::ALL, true, &painter, right);
         });
         deltas.push(frame.textures_delta);
         shapes = frame.shapes;
@@ -397,8 +397,7 @@ fn walls_are_drawn_picked_and_removed_with_the_mouse() {
 /// wall's end snaps to it (Alt: not).
 #[test]
 #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
-fn walls_are_drawn_and_picked_on_the_map_and_in_top() {
-    use crate::editor::state::View;
+fn walls_are_drawn_and_picked_in_top() {
     let root = crate::testkit::game_root();
     let spot = Vec3::new(-327.0, -535.0, 21.269472);
     let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(1600.0, 960.0));
@@ -416,19 +415,14 @@ fn walls_are_drawn_and_picked_on_the_map_and_in_top() {
     let (r, _) = new_state();
     let original = listed_of(&r);
 
-    for view in ["map", "top"] {
+    for view in ["top"] {
         let (mut s, z) = new_state();
         let ctx = egui::Context::default();
         // 4 points per metre: 10 points are 2.5 m.
         let top = super::super::camera::TopView { centre: spot.truncate(), half_height: 960.0 / 2.0 / 4.0 };
         let publish = |ctx: &egui::Context| {
-            if view == "map" {
-                crate::editor::sim::panel::publish_map(ctx, spot.truncate(), 4.0, rect);
-            } else {
-                super::super::viewport::publish_top(ctx, Some((top, rect)));
-            }
+            super::super::viewport::publish_top(ctx, Some((top, rect)));
         };
-        s.view = if view == "map" { View::Map } else { View::ThreeD };
         let at = |p: Vec3| Pos2::new(800.0 + (p.x - spot.x) * 4.0, 480.0 - (p.y - spot.y) * 4.0);
         let mut o = CollisionOverlay::default();
         let click_at = |o: &mut CollisionOverlay, s: &mut EditorState, p: Pos2, alt: bool| {
@@ -483,11 +477,13 @@ fn walls_are_drawn_and_picked_on_the_map_and_in_top() {
             .collect();
         assert_eq!(walls.len(), 2, "{view}");
         assert!(walls[1].0.truncate().distance(to.truncate()) < 1e-3, "{view}: snapped {}", walls[1].0);
-        click_at(&mut o, &mut s, at(near), true);
-        click_at(&mut o, &mut s, at(near + Vec3::new(10.0, 10.0, 0.0)), true);
+        s.snap_mode = super::super::state::SnapMode::Free;
+        click_at(&mut o, &mut s, at(near), false);
+        click_at(&mut o, &mut s, at(near + Vec3::new(10.0, 10.0, 0.0)), false);
+        s.snap_mode = super::super::state::SnapMode::default();
         let c = s.session.map.collision.last().cloned();
         let Some(CollisionEdit::Wall { from: f3, .. }) = c else { panic!("{view}: {c:?}") };
-        assert!(f3.truncate().distance(near.truncate()) < 0.3, "{view}: Alt: {f3}");
+        assert!(f3.truncate().distance(near.truncate()) < 0.3, "{view}: Free: {f3}");
 
         // Pick the first wall (on its foot), Del, undo, redo.
         s.draw = None;
@@ -511,4 +507,232 @@ fn walls_are_drawn_and_picked_on_the_map_and_in_top() {
         }
         assert_eq!(listed_of(&s), original, "{view}: undo all");
     }
+}
+
+#[test]
+fn the_key_steps_round_and_floors_are_coloured_by_kind() {
+    assert_eq!(Show::Off.next(), Show::Invisible);
+    assert_eq!(Show::Invisible.next(), Show::All);
+    assert_eq!(Show::All.next(), Show::Off);
+    let f = |not_ground| collision::Floor { corners: [Vec3::ZERO; 4], n: 3, not_ground, surface: 0, mine: collision::Mine::Original };
+    assert_eq!(floor_colour(&f(false)), key::FLOOR);
+    assert_eq!(floor_colour(&f(true)), key::FLOOR_OFF);
+    assert_ne!(key::FLOOR, key::FLOOR_OFF);
+}
+
+#[test]
+fn collision_layers_follow_the_workspace() {
+    use crate::editor::state::Focus;
+    let names = ["NONE", "BARRIERS_4000", "BARRIERS_4126", "PLAYER_BARRIERS_4126", "BARRIERS_CAREER1"];
+    let groups = names.map(|n| BarrierGroup { hash: 0, name: n.to_string() });
+    let wall_at = |g: u8, x: f32| {
+        let v = [Vec3::new(x, 0.0, 0.0), Vec3::new(x, 10.0, 0.0), Vec3::new(x, 10.0, 4.0), Vec3::new(x, 0.0, 4.0)];
+        face(FLAG_WALL | FLAG_QUAD, g, v)
+    };
+    let faces: Vec<_> = (0..5u8).map(|g| wall_at(g, g as f32 * 20.0)).collect();
+    let layer = collision::build(&faces, &groups, &[]);
+    let drawn = |scope: Scope| -> Vec<(String, Weight)> {
+        layer.walls.iter().map(|w| (layer.group_name(w.group).to_string(), scope.weight(&layer, w))).collect()
+    };
+    let w = |scope: Scope, name: &str| drawn(scope).into_iter().find(|(n, _)| n == name).map_or(Weight::Hidden, |x| x.1);
+    assert_eq!(group_track("PLAYER_BARRIERS_4126"), Some(4126));
+    assert_eq!(group_track("BARRIERS_CAREER1"), None);
+    // World: permanent walls, free roam's own and the career stages'; a race's barriers only on request.
+    let world = Scope { focus: Focus::World, track: None, race_barriers: false, colour: Colour::Kind, look: Look::DEFAULT };
+    assert_eq!(w(world, "NONE"), Weight::Full);
+    assert_eq!(w(world, "BARRIERS_4000"), Weight::Full);
+    assert_eq!(w(world, "BARRIERS_CAREER1"), Weight::Full);
+    assert_eq!(w(world, "BARRIERS_4126"), Weight::Hidden);
+    assert_eq!(w(Scope { race_barriers: true, ..world }, "BARRIERS_4126"), Weight::Full);
+    // Races: the selected race's barriers, the permanent walls dimmed, nothing else.
+    let races = Scope { focus: Focus::Races, track: Some(4126), race_barriers: false, colour: Colour::Kind, look: Look::DEFAULT };
+    assert_eq!(w(races, "NONE"), Weight::Dim);
+    assert_eq!(w(races, "BARRIERS_4126"), Weight::Full);
+    assert_eq!(w(races, "PLAYER_BARRIERS_4126"), Weight::Full);
+    assert_eq!(w(races, "BARRIERS_4000"), Weight::Hidden);
+    assert_eq!(w(races, "BARRIERS_CAREER1"), Weight::Hidden);
+    assert_eq!(w(Scope { track: None, ..races }, "BARRIERS_4126"), Weight::Hidden);
+    // The editor's own window draws everything.
+    assert_eq!(w(Scope::ALL, "BARRIERS_4126"), Weight::Full);
+}
+
+/// The made-up region with a surface id on every face (the walls 1..; the floor 7).
+fn surfaced() -> Layer {
+    let mut l = region();
+    for (i, w) in l.walls.iter_mut().enumerate() {
+        w.surface = 1 + (i % 2) as u8;
+    }
+    l.floors[0].surface = 7;
+    l
+}
+
+#[test]
+fn surfaces_have_stable_far_apart_colours_and_are_counted() {
+    assert_eq!(key::surface(3), key::surface(3));
+    assert_ne!(key::surface(1), key::surface(2));
+    let l = surfaced();
+    let s = l.surfaces();
+    assert_eq!(s.iter().map(|x| x.1).sum::<usize>(), l.walls.len() + l.floors.len());
+    assert!(s.iter().any(|&(id, n)| id == 7 && n == 1));
+}
+
+#[test]
+fn colouring_by_surface_paints_each_part_in_its_surface_colour() {
+    let l = surfaced();
+    let by = |colour| Scope { colour, ..Scope::ALL };
+    let bare = l.walls.iter().find(|w| w.group == 0 && !w.bare.is_empty()).unwrap();
+    let kind = parts(&l, bare, Show::All, &by(Colour::Kind));
+    assert!(kind.iter().any(|p| p.2 == key::INVISIBLE) && kind.iter().all(|p| p.2 != key::surface(bare.surface)));
+    let surf = parts(&l, bare, Show::All, &by(Colour::Surface));
+    assert!(surf.iter().any(|p| p.2 == key::surface(bare.surface)));
+    // A barrier takes its surface colour too, not the amber.
+    let barrier = l.walls.iter().find(|w| w.group != 0).unwrap();
+    assert_eq!(parts(&l, barrier, Show::Invisible, &by(Colour::Kind))[0].2, key::BARRIER);
+    assert_eq!(parts(&l, barrier, Show::Invisible, &by(Colour::Surface))[0].2, key::surface(barrier.surface));
+    // Floors likewise.
+    assert_eq!(floor_shown(&l.floors[0], &by(Colour::Surface)), key::surface(7));
+    assert_eq!(floor_shown(&l.floors[0], &by(Colour::Kind)), key::FLOOR);
+}
+
+#[test]
+fn the_mods_own_collision_is_set_apart_in_every_mode() {
+    use collision::Mine;
+    let mut l = surfaced();
+    assert_eq!(l.mine(), (0, 0, 0));
+    // Mark by the corners: the south wall added, the floor drawn, the east wall moved.
+    let south = l.walls.iter().find(|w| w.a.y == 0.0 && w.b.y == 0.0 && w.group == 0).unwrap().corners.clone();
+    let east = l.walls.iter().find(|w| w.a.x == 60.0 && w.b.x == 60.0).unwrap().corners.clone();
+    let floor = l.floors[0].points().to_vec();
+    l.mark(&|c| if c == south.as_slice() { Mine::Added } else if c == east.as_slice() { Mine::Moved } else if c == floor.as_slice() { Mine::Drawn } else { Mine::Original });
+    assert_eq!(l.mine(), (1, 1, 1));
+    let (added, moved, drawn) = (key::mine(Mine::Added).unwrap(), key::mine(Mine::Moved).unwrap(), key::mine(Mine::Drawn).unwrap());
+    assert!(added != moved && moved != drawn && added != drawn);
+    assert_eq!(key::mine(Mine::Original), None);
+    for colour in Colour::ALL {
+        let scope = Scope { colour, ..Scope::ALL };
+        for show in [Show::Invisible, Show::All] {
+            let w = l.walls.iter().find(|w| w.mine == Mine::Added).unwrap();
+            assert_eq!(parts(&l, w, show, &scope), vec![(0.0, 1.0, added)], "{colour:?} {show:?}");
+            let w = l.walls.iter().find(|w| w.mine == Mine::Moved).unwrap();
+            assert_eq!(parts(&l, w, show, &scope), vec![(0.0, 1.0, moved)]);
+        }
+        assert_eq!(floor_shown(&l.floors[0], &scope), drawn);
+    }
+}
+
+#[test]
+fn the_colouring_is_a_view_setting_kept_out_of_the_mod() {
+    let names: Vec<&str> = Colour::ALL.iter().map(|c| c.label()).collect();
+    assert_eq!(names, ["By kind", "By surface"]);
+    assert_eq!(Colour::default(), Colour::Kind);
+}
+
+#[test]
+fn classes_switch_off_in_the_key_and_in_the_drawing() {
+    let l = surfaced();
+    let none = |c: Class| {
+        let mut look = Look::default();
+        look.toggle(c);
+        Scope { look, ..Scope::ALL }
+    };
+    let bare = l.walls.iter().find(|w| w.group == 0 && !w.bare.is_empty()).unwrap();
+    let barrier = l.walls.iter().find(|w| w.group != 0).unwrap();
+    assert!(!parts(&l, bare, Show::All, &Scope::ALL).is_empty());
+    assert!(parts(&l, bare, Show::All, &none(Class::Invisible)).iter().all(|p| p.2 != key::INVISIBLE));
+    assert!(parts(&l, barrier, Show::All, &none(Class::Barrier)).is_empty());
+    assert!(parts(&l, barrier, Show::All, &none(Class::Invisible)).len() == 1);
+    // Behind scenery: the covered parts go, the bare stay.
+    let covered = l.walls.iter().find(|w| w.group == 0 && !w.covered().is_empty()).unwrap();
+    assert!(parts(&l, covered, Show::All, &none(Class::Behind)).iter().all(|p| p.2 != key::VISIBLE));
+    assert!(!floor_shown_in(&l.floors[0], &none(Class::Road)));
+    assert!(floor_shown_in(&l.floors[0], &none(Class::NotGround)));
+    // By surface a surface switches off on its own.
+    let mut look = Look::default();
+    look.toggle_surface(bare.surface);
+    let scope = Scope { look, colour: Colour::Surface, ..Scope::ALL };
+    assert!(parts(&l, bare, Show::All, &scope).is_empty());
+    assert!(!parts(&l, bare, Show::All, &Scope { colour: Colour::Kind, ..scope }).is_empty());
+    // Every kind comes back at once.
+    let mut look = look;
+    look.toggle(Class::Barrier);
+    look.show_every_kind();
+    assert_eq!(look, Look::default());
+}
+
+#[test]
+fn a_click_on_a_key_row_names_its_toggle_and_flips_it() {
+    let l = surfaced();
+    let ctx = egui::Context::default();
+    let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(800.0, 500.0));
+    let _ = crate::editor::run_headless(&ctx, egui::RawInput { screen_rect: Some(rect), ..Default::default() }, |ui| {
+        let key = legend_layout(&l, Show::All, &Scope::ALL, true, ui.painter(), rect);
+        assert!(key.panel.max.x <= rect.max.x && key.panel.max.y <= rect.max.y && key.panel.min.x >= 0.0);
+        let first = key.rows[0].rect.center();
+        assert_eq!(key.hit(first), Some(Toggle::Class(Class::Invisible)));
+        assert_eq!(key.hit(Pos2::new(1.0, 1.0)), None);
+        let mut look = Look::default();
+        toggle(&mut look, Toggle::Class(Class::Invisible));
+        assert!(!look.shows(Class::Invisible));
+        toggle(&mut look, Toggle::Class(Class::Invisible));
+        assert_eq!(look, Look::default());
+    });
+}
+
+#[test]
+fn full_height_draws_the_tall_walls_to_their_real_height_and_opacity_scales_alpha() {
+    let l = region();
+    let tall = l.walls.iter().find(|w| w.tall).unwrap();
+    let low = Look::default();
+    let mut full = Look::default();
+    full.full_height = true;
+    assert!(wall_quad(tall, 0.0, 1.0, &low)[2].z < 100.0);
+    let q = wall_quad(tall, 0.0, 1.0, &full);
+    assert_eq!((q[0].z, q[2].z), (-2048.0, 2048.0));
+    // A wall that is not tall is unchanged.
+    let plain = l.walls.iter().find(|w| !w.tall).unwrap();
+    assert_eq!(wall_quad(plain, 0.0, 1.0, &full), plain.quad(0.0, 1.0));
+    let mut look = Look::default();
+    look.set_opacity(50);
+    assert_eq!(look.alpha(70), 35);
+    look.set_opacity(0);
+    assert_eq!(look.opacity, 10);
+    assert_eq!(opacity_label(25), "25 %");
+}
+
+#[test]
+fn picking_words_name_the_surface_and_the_owner() {
+    assert_eq!(pick_words(Some(16), "Barrier group BARRIERS_4126"), "Surface 16 · Barrier group BARRIERS_4126");
+    assert_eq!(pick_words(None, "Drawn by this mod"), "Drawn by this mod");
+}
+
+/// The layer's look is the window's own: a mod saved before and after switching classes, opacity, wireframe and
+/// full height (through the overlay, a click on the key included) is byte-identical, with no undo step.
+#[test]
+fn switching_the_look_leaves_the_saved_mod_byte_identical() {
+    use crate::tools::map::{MapMod, store};
+    let cam = Camera::looking_at(Vec3::new(0.0, -30.0, 20.0), Vec3::ZERO);
+    let dir = std::env::temp_dir().join(format!("ob-look-{}", std::process::id()));
+    let mut s = EditorState::new(dir.clone(), "L4RA", dir.clone(), "fixture", MapMod::default(), crate::world::World::default(), cam);
+    s.collision = Show::All;
+    let read = |s: &EditorState, tag: &str| {
+        let p = store::save(&dir, tag, &s.session.map).unwrap();
+        std::fs::read(p).unwrap()
+    };
+    let before = read(&s, "before");
+    let ctx = egui::Context::default();
+    let mut o = CollisionOverlay::default();
+    frame(&mut o, &mut s, &ctx, vec![]);
+    for c in Class::ALL {
+        s.collision_look.toggle(c);
+    }
+    s.collision_look.toggle_surface(3);
+    s.collision_look.set_opacity(25);
+    s.collision_look.wireframe = true;
+    s.collision_look.full_height = true;
+    click(&mut o, &mut s, &ctx, Pos2::new(1500.0, 900.0));
+    frame(&mut o, &mut s, &ctx, vec![]);
+    assert_ne!(s.collision_look, Look::default());
+    assert_eq!(read(&s, "after"), before);
+    assert_eq!(s.session.undo.undo_label(), None);
+    let _ = std::fs::remove_dir_all(&dir);
 }

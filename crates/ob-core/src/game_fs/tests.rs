@@ -153,3 +153,41 @@ fn a_file_added_after_the_listing_is_found() {
     assert_eq!(find(&d, "GLOBAL/GlobalB.lzc"), Some(d.join("global").join("globalb.LZC")));
     std::fs::remove_dir_all(&d).unwrap();
 }
+
+/// With a layer mounted, existence checks and listings come from its index: the game folder (here empty, as if
+/// gone) is not asked, and a layer without a listing leaves the folder's own.
+#[test]
+fn the_layer_answers_listings_and_existence() {
+    let _mount = TEST_MOUNT.lock().unwrap_or_else(PoisonError::into_inner);
+    struct One;
+    impl Layer for One {
+        fn get(&self, key: &str) -> Option<Mapped> {
+            let mut m = memmap2::MmapMut::map_anon(4).unwrap();
+            m[..].copy_from_slice(b"data");
+            (key == "SOUND/FX/A.FX").then(|| Mapped::new(Arc::new(m.make_read_only().unwrap()), 0..4)).flatten()
+        }
+        fn list(&self, dir: &str) -> Option<Vec<(String, bool)>> {
+            match dir {
+                "SOUND" => Some(vec![("FX".into(), true)]),
+                "SOUND/FX" => Some(vec![("A.FX".into(), false)]),
+                _ => None,
+            }
+        }
+        fn absent(&self, key: &str) -> bool {
+            key == "SOUND/NONE"
+        }
+        fn name(&self) -> &str {
+            "unit-layer"
+        }
+    }
+    let r = root(&[]);
+    mount(&r.0, Arc::new(One));
+    assert!(is_dir(&r.0, "sound/fx") && is_file(&r.0, "Sound/Fx/a.fx") && exists(&r.0, "SOUND"));
+    assert!(!is_file(&r.0, "SOUND/FX") && !exists(&r.0, "sound/none"));
+    assert_eq!(list(&r.0, "sound").unwrap(), vec!["FX".to_string()]);
+    let p = find_in(&r.0, "SOUND/fx", "a.fx").unwrap();
+    assert_eq!(read_file(&p).unwrap(), b"data");
+    assert!(find_file(&r.0, "SOUND/FX/a.FX").is_some() && find_file(&r.0, "SOUND/FX").is_none());
+    unmount();
+    assert!(list(&r.0, "SOUND").is_none(), "the folder has no SOUND now");
+}

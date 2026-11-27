@@ -1,0 +1,7 @@
+{
+  "command": "runs.delete",
+  "exit": 0,
+  "format": 1,
+  "ok": true,
+  "run": "other"
+}

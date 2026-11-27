@@ -1,0 +1,34 @@
+[package]
+name = "ob-audio"
+version.workspace = true
+edition.workspace = true
+description = "Overbright's audio layer: the game's sound banks, engine recordings, music and the software mixer."
+license.workspace = true
+publish = false
+build = "build.rs"
+# Hands its build id to the crates above it (build_support/build_id.rs).
+links = "ob_audio"
+
+# The sound banks and their event graphs, the engine and the car's voices, the music and the speech, the mix map
+# and the mixer (cpal). On the layers below it only (ob-core, ob-formats, ob-assets and
+# ob-sim); no window crate, checked by scripts/checks/crate_layers.sh.
+[dependencies]
+ob-core = { path = "../ob-core" }
+ob-formats = { path = "../ob-formats" }
+ob-assets = { path = "../ob-assets" }
+ob-sim = { path = "../ob-sim" }
+glam.workspace = true
+log.workspace = true
+cpal = "0.18"
+
+# On Linux the PulseAudio host (a pure-Rust client) is tried first, ALSA after it (`audio::mixer`).
+[target.'cfg(target_os = "linux")'.dependencies]
+cpal = { version = "0.18", features = ["pulseaudio"] }
+
+[dev-dependencies]
+# The test kit (crates/ob-testkit, docs/developing/testing.md).
+ob-testkit = { path = "../ob-testkit" }
+
+[features]
+# The developer harness's hooks (the root package's `dev-harness` turns it on).
+dev-harness = ["ob-core/dev-harness", "ob-formats/dev-harness", "ob-assets/dev-harness", "ob-sim/dev-harness"]

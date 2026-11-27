@@ -1871,6 +1871,59 @@ fn bumper_view_leaves_out_the_players_shadow_and_neon_hood_view_keeps_them() {
     }
 }
 
+/// #321: under a cover zone the original keeps the road as wet as in the
+/// open: 0x61F130 steps the amount (+0x1F0, the rain map at the camera)
+/// and the wetness (+0x5098 / +0x509C, which sizes the road reflection's
+/// flares) with no cover test, and 0x61E710's cover flags (+0x1E4 /
+/// +0x1E8) only hide the falling drops near the car and the lens drops.
+/// Read from the original at a fixed 1/60 s frame, eight seconds after
+/// the clock was set (free roam, the finished career): the Observatory
+/// tunnel (inside and at its mouth), the covered lot under the elevated
+/// line in Coal Harbor and an open street. The clone gives the same
+/// amount, wetness and flags at the same places and clocks, and Wet
+/// Roads' road wetness and film stay those of the open road.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn the_road_stays_wet_under_cover_as_in_the_original() {
+    testkit::game();
+    // (place, x, y, z, heading°, clock) → (amount, wetness, +0x1E4, +0x1E8) as read back.
+    let spots = [
+        ("tunnel", Vec3::new(-1701.3, 2205.0, 211.2), 90.0f32, 210.15f32, (0.80f32, 1.0f32, true, true)),
+        ("tunnel mouth", Vec3::new(-1701.3, 2130.0, 203.8), 90.0, 208.88, (0.80, 1.0, false, false)),
+        ("covered lot", Vec3::new(136.7, -839.0, 18.1), 90.0, 211.95, (0.70, 1.0, true, true)),
+        ("street", Vec3::new(-237.3, 79.8, 8.0), 90.0, 216.61, (0.70, 1.0, false, false)),
+    ];
+    let mut game = Game::new().unwrap();
+    let save = nfsu2::formats::native_save::NativeSave::parse(&testkit::private("tests/fixtures/native_saves/career_complete.sav")).unwrap();
+    game.profile = Some(Profile::from_native(&save, career::NativeContext::get().unwrap()));
+    let mut films = Vec::new();
+    for (name, at, heading, clock, (amount, wet, cover, ahead)) in spots {
+        game.explore(Some((at, heading.to_radians()))).unwrap();
+        let d = game.sim.drive.as_mut().unwrap();
+        d.clock = clock - 8.0;
+        nfsu2::weather::set_clock(&d.world, d.clock);
+        for _ in 0..8 * 60 {
+            game.step_for(1.0 / 60.0).unwrap();
+        }
+        let w = &game.sim.drive.as_ref().unwrap().weather;
+        let got = (w.amount, w.wet, w.under_cover, w.cover_ahead);
+        eprintln!("{name}: {got:?}, road wetness {}", w.road_wet);
+        assert!((w.amount - amount).abs() < 0.002 && (w.wet - wet).abs() < 0.002, "{name}: amount, wetness {got:?}");
+        assert_eq!((w.under_cover, w.cover_ahead), (cover, ahead), "{name}: the cover flags");
+        assert!(w.road_wet > 0.99, "{name}: Wet Roads' road wetness {}", w.road_wet);
+        let film = nfsu2::render::enh::materials::world::wetness::Wetness::of(w.amount, w.road_wet).film;
+        films.push((name, w.amount, film));
+    }
+    // The same rain gives the same film, covered or not.
+    for &(name, amount, film) in &films {
+        for &(other, a, f) in &films {
+            if (a - amount).abs() < 0.002 {
+                assert!((f - film).abs() < 0.01, "{name} {film} vs {other} {f}");
+            }
+        }
+    }
+}
+
 /// #239: a race on another region's track keeps the rain out under that
 /// track's own cover zones (the Stadium's covered drift lots, L4RC kind 5;
 /// the speedways' garages, L4RG kind 6), which the track loader reads

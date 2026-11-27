@@ -1,0 +1,13 @@
+{
+  "bank": "SOUND/IG_GLOBAL/FX_MAIN_MEM_MB.abk",
+  "command": "browser.wav",
+  "exit": 0,
+  "format": 1,
+  "ok": true,
+  "origin": "from-game-files",
+  "rate": 22050,
+  "seconds": 0.00018140589236281812,
+  "share": "local-only",
+  "sound": "FX_TURBO_01",
+  "wav": "<tmp>/docks/.editor/reference/FX_MAIN_MEM_MB-FX_TURBO_01.wav"
+}

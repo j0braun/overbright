@@ -433,9 +433,24 @@ fn thread_data_home() -> Option<PathBuf> {
     None
 }
 
+/// The environment variable of a trial run (the launcher's "Try it once"): the folder that holds the profiles'
+/// copy. Set, the game's saves and backups are written there and the player's own are not touched.
+pub const TRIAL_SAVES_VAR: &str = "NFSU2_TRY_SAVES";
+
+/// The trial run's save folder, when this process is one.
+pub fn trial_saves() -> Option<PathBuf> {
+    std::env::var_os(TRIAL_SAVES_VAR).filter(|d| !d.is_empty()).map(PathBuf::from)
+}
+
+/// The profiles' folder name (0x7F66A0 → 0x78E8F4; `frontend::profiles::FOLDER`).
+pub const PROFILES_FOLDER: &str = "NFS Underground 2";
+
 /// The profiles' parent ([`Layout::data_home`], or where the player put
 /// the saves: [`Location::Saves`]).
 pub fn data_home() -> PathBuf {
+    if let Some(d) = trial_saves() {
+        return d;
+    }
     override_of(Location::Saves).unwrap_or_else(|| thread_data_home().unwrap_or_else(|| layout().data_home))
 }
 

@@ -154,7 +154,6 @@ fn chase_camera_rides_with_the_chosen_car() {
 #[test]
 fn the_timeline_steps_scrubs_and_jumps_to_markers() {
     use crate::editor::app::App;
-    use crate::editor::state::View;
     use egui::{Event, Modifiers, PointerButton};
 
     let dir = crate::testkit::Scratch::new("sim-timeline");
@@ -162,7 +161,6 @@ fn the_timeline_steps_scrubs_and_jumps_to_markers() {
     std::fs::write(&p, lines(1, true, false).iter().map(|l| l.write() + "\n").collect::<String>()).unwrap();
     let mut a = App::new(dir.path().join("game"), dir.path().join("maps"), Box::new(|_, _| Ok(Default::default())));
     a.new_mod("r", "Races", "L4RA").unwrap();
-    a.state.as_mut().unwrap().view = View::Map;
     let frame = |a: &mut App, events: Vec<Event>, modifiers: Modifiers| {
         let events = [Event::ModifiersChanged(modifiers)].into_iter().chain(events).collect();
         let _ = a.frame(egui::RawInput {
@@ -238,7 +236,6 @@ fn the_timeline_steps_scrubs_and_jumps_to_markers() {
         s.play.follow = Some(2);
         s.cam = CamMode::Follow;
     }
-    a.state.as_mut().unwrap().view = View::ThreeD;
     frame(&mut a, vec![], Modifiers::NONE);
     let t = sim.borrow().play.time;
     let want = cams::follow(&sim.borrow().rec.cars_at(t).into_iter().find(|c| c.id == 2).unwrap());

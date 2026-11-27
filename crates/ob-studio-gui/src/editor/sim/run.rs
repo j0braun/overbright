@@ -51,6 +51,11 @@ pub struct SimChild {
     /// When `quit` was sent (the game is killed if it has not ended a
     /// couple of seconds later).
     quit_at: Option<std::time::Instant>,
+    /// The run's place among the few (`link::Slot`), when Studio started it.
+    slot: Option<crate::tools::map::link::Slot>,
+    /// The link folder (`--studio-link`): asked to stop there too, and read
+    /// for the game's health.
+    link: Option<std::path::PathBuf>,
 }
 
 impl SimChild {
@@ -58,6 +63,28 @@ impl SimChild {
     /// no sound: the simulate mode opens neither, and the environment says
     /// so too (a game that did not know the flags stops at its usage).
     pub fn start(exe: &Path, args: &[String], root: &Path) -> Result<SimChild, String> {
+        SimChild::start_in(exe, args, root, None, None)
+    }
+
+    /// [`SimChild::start`] as Studio does: in one of the few places for a
+    /// run (refused when they are all taken) and linked
+    /// (`--studio-link <link>`, `tools::map::link`).
+    pub fn launch(exe: &Path, args: &[String], root: &Path, link: &Path, maps: &Path) -> Result<SimChild, String> {
+        let slot = crate::tools::map::link::Slot::take(maps)?;
+        crate::tools::map::link::clear(link);
+        let mut a = args.to_vec();
+        a.extend(["--studio-link".to_string(), link.display().to_string()]);
+        a.extend(crate::tools::map::link::mem_cap_args());
+        SimChild::start_in(exe, &a, root, Some(slot), Some(link.to_path_buf()))
+    }
+
+    fn start_in(
+        exe: &Path,
+        args: &[String],
+        root: &Path,
+        slot: Option<crate::tools::map::link::Slot>,
+        link: Option<std::path::PathBuf>,
+    ) -> Result<SimChild, String> {
         let mut child = Command::new(exe)
             .args(args)
             .env("NFSU2_ROOT", root)
@@ -81,12 +108,15 @@ impl SimChild {
                 }
             })
             .map_err(|e| e.to_string())?;
-        Ok(SimChild { stdin: child.stdin.take(), child, lines: rx, quit_at: None })
+        Ok(SimChild { stdin: child.stdin.take(), child, lines: rx, quit_at: None, slot, link })
     }
 
     /// The lines that arrived (at most `max`, so a frame stays short) and
     /// whether the game still runs.
     pub fn take(&mut self, max: usize) -> (Vec<String>, bool) {
+        if let Some(s) = &self.slot {
+            s.touch();
+        }
         let mut v = Vec::new();
         let mut open = true;
         while v.len() < max {
@@ -111,8 +141,22 @@ impl SimChild {
         (v, running && open)
     }
 
+    /// What the game says of itself over the link (None: not linked, or
+    /// nothing said yet).
+    pub fn health(&self) -> Option<crate::tools::map::link::GameState> {
+        crate::tools::map::link::read_state(self.link.as_ref()?)
+    }
+
     /// Ask the game to stop (`quit`); killed if it has not a few seconds later.
     pub fn stop(&mut self) {
+        if let Some(l) = self.link.as_ref().filter(|_| self.quit_at.is_none()) {
+            // The link's stop too (the game answers either).
+            let seq = crate::tools::map::link::read_state(l).map_or(0, |g| g.seq) + 1;
+            let _ = crate::tools::map::link::write_command(
+                l,
+                &crate::tools::map::link::Command { seq, op: crate::tools::map::link::Op::Stop, aim: None, focus: None },
+            );
+        }
         if let Some(mut i) = self.stdin.take() {
             let _ = writeln!(i, "quit");
             let _ = i.flush();
@@ -164,26 +208,11 @@ mod tests {
     fn a_child_stream_is_read_without_waiting() {
         let s = crate::testkit::Scratch::new("sim-child");
         let exe = s.path().join("fake-game");
-        std::fs::write(
+        crate::testkit::write_script(
             &exe,
             "#!/bin/sh\necho 'OBSIM 1 mode=race seed=1 race=r track=1 laps=1 checkpoints=2'\necho 'F 0 -1.000'\necho 'END finish'\n",
-        )
-        .unwrap();
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
-        // Tried again while the script is "busy": a test on another thread
-        // may fork while it is still open for writing (ETXTBSY until that
-        // child execs).
-        let mut tries = 0;
-        let mut c = loop {
-            match SimChild::start(&exe, &[], s.path()) {
-                Err(e) if e.contains("os error 26") && tries < 100 => {
-                    tries += 1;
-                    std::thread::sleep(std::time::Duration::from_millis(20));
-                }
-                r => break r.unwrap(),
-            }
-        };
+        );
+        let mut c = SimChild::start(&exe, &[], s.path()).unwrap();
         let mut rec = super::super::record::Recording::default();
         let t = std::time::Instant::now();
         loop {

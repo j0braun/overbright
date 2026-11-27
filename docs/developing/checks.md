@@ -21,6 +21,10 @@ scripts/checks/selfcheck.sh <outdir>             # the gates' self-test: broken 
 scripts/checks/devprobes.sh                      # the developer probes (devprobes/) still compile: cargo check -p devprobes
 scripts/checks/crate_layers.sh [repo]            # the crate layers: no new upward reference, package edges only down, no dev-harness in the shipped tree, Studio's crates through `nfsu2::studio_api` only (ARCHITECTURE.md "Layers"; in fast and full)
 scripts/checks/layering.sh [repo]               # the render layers (core/native: no enhancement layer, QoL read or global state beyond layering-allow.txt; render code: no settings read beyond layering-settings-allow.txt), the game names the harness only behind its feature; in fast and full
+scripts/checks/stray_opens.sh [repo]            # the stray-open lint: no direct `std::fs` open of a path in production code beyond the counts of stray-opens.txt (a game file is read through `game_fs`, which the asset layer answers); in fast and full
+scripts/checks/studio_checks.sh [repo] [part]    # Studio's dependency budget, lint and registry coverage ("Studio checks"; in fast and full)
+scripts/checks/wasm32.sh [repo]                  # the packages on crate-layers.txt's `wasm` line build for wasm32 (part of crate_layers.sh; WASM32_REQUIRED=1 fails where the target is missing)
+scripts/checks/crate_tests.sh [repo]                 # every crate's own unit tests, one crate at a time (`cargo test -p <crate> --lib`; catches tests that only pass with another crate's dev-harness unified in; run by hand and in the nightly set, not in fast)
 scripts/checks/soak_images.sh <game> <outdir> [runs]   # the gate's image dumps N times with one binary (run-to-run flakes; "Image soak")
 scripts/checks/fuzz.sh                           # the fuzz smoke: every parser target on mutated inputs (docs/developing/fuzzing.md; FUZZ_SECS, FUZZ_ITERS, FUZZ_ONLY)
 scripts/checks/release_check.sh [outdir]          # the shipping binary (no dev-harness): no harness strings, harness flags give the usage error
@@ -37,7 +41,7 @@ scripts/perf/perf.sh rate <outdir> <game>        # the rate gate v2 alone: hash 
 
 | set | what |
 |---|---|
-| fast | build (`--features dev-harness`; then `game --dev-harness` must answer `dev-harness: on`, else the set stops: a binary without the harness is never tested), `cargo test --profile gate --no-fail-fast --features dev-harness` (run through `home_mask.sh`: the player's data and cache folders are hidden behind empty ones in a user + mount namespace, and the step fails when the tests wrote anything there, an entry made and removed again included; `home-mask.txt`), `--selftest`, `prepare.sh` (`game --prepare` on empty folders of its own: ends with `ok=1` and its stamp, a second run changes no cache file, a first load after it finds every pipeline in the pipeline cache, a killed run leaves no stamp and the next one passes; docs/developing/prepare.md), the targets of `fast-shots.txt` (31 on 2026-11-11; the count is whatever the file lists, checks.txt prints it), the four flows side by side (`firstrace`, `firstdrag`, `postrace`, `--playthrough`) |
+| fast | build (`--features dev-harness`; then `game --dev-harness` must answer `dev-harness: on`, else the set stops: a binary without the harness is never tested), `cargo test --profile gate --no-fail-fast --features dev-harness` (run through `home_mask.sh`: the player's data and cache folders are hidden behind empty ones in a user + mount namespace, and the step fails when the tests wrote anything there, an entry made and removed again included; `home-mask.txt`), `--selftest`, `evidence.sh` (about a second: every claim row of the coverage maps and the deviation table carries an evidence tag; docs/developing/evidence.md), `prepare.sh` (`game --prepare` on empty folders of its own: ends with `ok=1` and its stamp, a second run changes no cache file, a first load after it finds every pipeline in the pipeline cache, a killed run leaves no stamp and the next one passes; docs/developing/prepare.md), the targets of `fast-shots.txt` (31 on 2026-11-11; the count is whatever the file lists, checks.txt prints it), the four flows side by side (`firstrace`, `firstdrag`, `postrace`, `--playthrough`) |
 | full | fast + every target of `shot_targets.py` (274), each run twice and pixdiffed (determinism), intro GPS (offline audio), `--flow rain`, `--selftest-showcase`, explore at 1080p, `--bench drive`, the combination matrix (`scripts/checks/matrix.sh`, the settings model: every Graphics tier on Original and on max, every Customize Display value under max, every pair of rows, every settings-model rule, four scenes, live switches; ~70 s; docs/developing/settings-model.md), `devprobes.sh` (the ~160 developer probes in `devprobes/` type-check; a failure fails the set; `DEVPROBES=1` adds it to fast), `fuzz.sh` (the fuzz smoke, docs/developing/fuzzing.md: 38 targets, 2 s each on mutated inputs over seeds from the player's files; a panic, a call over 3 s or an allocation over 256 MiB fails the set; `FUZZ=1` adds it to fast), `release_check.sh` (the shipping build without `dev-harness`, in `$CARGO_TARGET_DIR/ship`: none of the maintainer's save names, harness flags or harness variables in `strings`, the only `NFSU2_SHOT_*` left those of Mark Spot's report and the renderer's enhancement override, `--selftest` and `--dev-harness` exit 2 with the usage error; prints its size; `RELEASE=1` adds it to fast) , `resolutions.sh` (the resolution-matrix work / the resolution fixes, **a failing step**: `RES_SET=family`, one size per aspect family plus the minimum 640×480 and the portrait 1080×1920, 8 sizes; a FAIL cell fails the set (XFAIL = a case listed in `KNOWN`, the option's own rule), and so does its self-test when a check does not fail on deliberately broken input; prints its `RESOLUTIONS:` and `RESOLUTIONS SELFTEST:` lines into checks.txt; `RES_SET=off` leaves it out; docs/notes/graphics/resolutions.md), `wine_smoke.sh` (the platform work, **report-only** except for the build: the Windows build under Wine, its `WINE_SMOKE:` line and seconds in checks.txt / `steps_s`; a Windows game that does not compile, `WINE_SMOKE: FAIL (build)`, fails the set as `wine_build`; `WINE_SMOKE=off` leaves it out, no wine/Xvfb/podman = skipped; "Wine smoke" below) |
 
 Environment: `CARGO_TARGET_DIR` (default `<repo>/target`), `JOBS` (shots
@@ -101,6 +105,31 @@ private set (OB_PRIVATE), B both; ...` counts the three reasons apart
 G must be 0; with the private set here (`ck_private_here`) or
 `OB_REQUIRE=private`, P and B must be 0 too, else the step fails. A public
 checkout without the set passes with P and B stated.
+
+## A shot never draws a substitute screen
+
+`game --shot <name> <out.png>` draws the screen it names or fails. A name that is not in the shot table (after
+the `finished_career_`, `_kit`, `_audio`, `_spin`, `_cust` and `_dday` variants and the `crib_parts` and
+`explore_rain` aliases are read) stops before any setup with `no such screen`, a page of a family (`settings_<page>`,
+`options_graphics_<page>`) must be one the family lists, and a target that cannot reach its screen (`vinyl_ask` on a
+locked vinyl group) fails with the reason instead of drawing another list. The shot table's unit test
+(`shot_table_names`) checks that every listed name is accepted and that unknown names and unlisted pages are
+refused. A check that needs a different path than the player's says so (docs/developing/evidence.md, test rule 1).
+
+## Studio checks
+
+`studio_checks.sh` (fast and full; settings in `scripts/checks/studio-checks.txt`) checks three things about the
+Studio crates, and `selfcheck.sh` plants a failure for each:
+
+- **budget**: a Studio package's dependency tree stays within the crate count of its `budget` line (a new
+  dependency is a decision; a line more than 25 % above the real count is lowered).
+- **lint**: production code has no `dbg!`, `todo!` or `unimplemented!`, and prints (`println!`) only in the files a
+  `print-ok` line names, with its reason.
+- **registry**: every command of the Studio registry is documented in `docs/modding/studio-cli.md` and named by
+  a test, so a new command does not land without both.
+
+The web build is part of `crate_layers.sh`: the packages on the `wasm` line must build for
+`wasm32-unknown-unknown`.
 
 ## Shot targets added
 
@@ -222,7 +251,7 @@ in-order queue, the main thread's writes after the scene's hand-off, the
 bench's synchronous loads, the fixed clock, the post self-check verdict).
 
 Fixed with it (of the base): `assign_textures`
-(`src/render/native/world/build/textures.rs`) numbered the flip-books'
+(`crates/ob-render/src/render/native/world/build/textures.rs`) numbered the flip-books'
 frames (the world's first texture slots) in `World::texture_animations`'
 `HashMap` order, a new order every process, so two cache builds of one
 binary gave different texture slots, texture-array layouts and track cache
@@ -375,7 +404,7 @@ changes a frame) re-records the baselines **in the same change**, and every chan
 
 1. `baselines.sh check` against `current` lists what moved.
 2. A reasons file names the cause for every changed item, one `<glob><TAB><why>` per line (the first matching glob
-   counts), for example `sim/*<TAB>rivals brake for the corner as the original does` or
+   counts), for example `sim/*<TAB>rivals brake for the corner as the original (choice: example text for a reason file) does` or
    `image/img-race-*<TAB>…`.
 3. `baselines.sh rebless <outdir> <game> <reasons> "<change>"` runs the set again and refuses (`BASELINES: FAIL: N
    of M changed items have no reason`) while a single item is unmapped; with all mapped it records the new
@@ -632,8 +661,8 @@ The map editor (`overbright-editor`, docs/modding/map-editor.md) draws its whole
 step runs it on three screens at the sizes of the resolution matrix (`resolutions.py`'s `MATRIX`; `EDITOR_SET=family`:
 its `FAMILY_SET`) plus `2560x1440@1.5` and `3840x2160@2` (display scales; `EDITOR_SCALES`):
 `start` (no map mod open), `props_3d` (a map mod made by the script, with no edits, open on the city with the
-props' side in front and the 3D view, the prop browser below) and `races_map` (the races' side in front on the 2D
-road-network map, the validation list). Every run starts with no display variable at all (`DISPLAY`, `WAYLAND_DISPLAY` unset), so an editor that
+props' side in front and the 3D view, the prop browser below) and `races_map` (the races' side in front in the top
+view with the road network, the validation list). Every run starts with no display variable at all (`DISPLAY`, `WAYLAND_DISPLAY` unset), so an editor that
 tried to open a window would fail; each cell has its own data, cache and maps folders under the output dir.
 A cell passes when the run exits 0, its log has no panic / validation-error line, the PNG has exactly the asked
 pixel size, the image is not one flat colour (grey standard deviation ≥ `EDITOR_MIN_STD`, 0.02) and, on the two
@@ -711,6 +740,12 @@ and our Xvfb (by PID) are stopped.
   to 64 KiB.
 - `w_window`: the game in its window on the Xvfb (no flags, Vulkan through Mesa's software present), reading the
   monitor and its modes and reaching the title screen (Enter skips the boot movies).
+- `w_link`: Studio's link under Wine. `game.exe --simulate-world --studio-link <folder>` runs headless on a map mod made
+  by the step; the step writes `command.txt` as Studio does (through a temporary file and a rename) and reads `game.txt`
+  and `loaded.txt`: a probe is answered, the opt-in "what did the game load" question (`op=loaded`) is answered with the
+  mod's name, and a stop ends the run, with no panic line. The link is plain files (no pipe, no socket), so what Wine
+  can break is the rename and the file times. Where Wine's GPU path fails on the host (the Vulkan submission error), the
+  step reports that as its failure like the other Wine steps: report-only in the gate.
 - Drive-letter paths: `winepath -w` cuts its answer at MAX_PATH (Wine 11: a 282-character folder came back as its
   first 257 characters, a folder that does not exist); a path outside the prefix's `drive_c` is built as `Z:` plus
   the path with backslashes instead whenever winepath's answer is a cut-off start of it.

@@ -1,0 +1,25 @@
+{
+  "command": "browser.import",
+  "dir": "<tmp>/docks/models",
+  "exit": 0,
+  "format": 1,
+  "gltf": "<tmp>/docks/models/XC_CONE_01.gltf",
+  "model": "XC_CONE_01",
+  "ok": true,
+  "origin": "own",
+  "parts": [
+    {
+      "name": "ROAD",
+      "triangles": 1
+    },
+    {
+      "name": "slot1",
+      "triangles": 1
+    }
+  ],
+  "record": "<tmp>/docks/models/XC_CONE_01.model.toml",
+  "region": "L4RA",
+  "shared": true,
+  "triangles": 2,
+  "vertices": 4
+}

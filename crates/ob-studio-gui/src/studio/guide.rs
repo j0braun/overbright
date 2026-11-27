@@ -86,17 +86,17 @@ pub enum Act {
 impl Step {
     pub fn title(self, t: Tutorial) -> &'static str {
         match self {
-            Step::MakeMod => "Make a mod",
-            Step::GoToStreet => "Go to a street",
-            Step::PlaceProp => "Place a prop",
-            Step::DriveIt => "Drive it",
-            Step::BaseTrack => "Choose a base track",
-            Step::PlaceStart => "Place the start",
-            Step::RacePoints => "Add race points",
-            Step::TestRace => "Test the race",
-            Step::ShareIt => "Share it",
-            Step::Done if t == Tutorial::FirstRace => "Your first race is done",
-            Step::Done => "Your first mod is done",
+            Step::MakeMod => words::MAKE_A_MOD,
+            Step::GoToStreet => words::GO_TO_A_STREET,
+            Step::PlaceProp => words::PLACE_A_PROP,
+            Step::DriveIt => words::DRIVE_IT,
+            Step::BaseTrack => words::CHOOSE_A_BASE_TRACK,
+            Step::PlaceStart => words::PLACE_THE_START,
+            Step::RacePoints => words::ADD_RACE_POINTS,
+            Step::TestRace => words::TEST_THE_RACE,
+            Step::ShareIt => words::SHARE_IT,
+            Step::Done if t == Tutorial::FirstRace => words::YOUR_FIRST_RACE_IS_DONE,
+            Step::Done => words::YOUR_FIRST_MOD_IS_DONE,
         }
     }
 
@@ -158,15 +158,15 @@ impl Step {
     pub fn act(self) -> (Act, &'static str) {
         match self {
             Step::MakeMod => (Act::NewMod, words::NEW_MOD),
-            Step::GoToStreet => (Act::TakeMeThere, "Take me there"),
-            Step::PlaceProp => (Act::PlaceCone, "Place a cone"),
-            Step::DriveIt => (Act::DriveHere, "Drive here"),
-            Step::BaseTrack => (Act::NewRace, "Go to the docks"),
-            Step::PlaceStart => (Act::PlaceStart, "Place the start"),
-            Step::RacePoints => (Act::AddPoints, "Add them ahead"),
-            Step::TestRace => (Act::TestRace, "Test race"),
-            Step::ShareIt => (Act::GoToMod, "Go to Mod"),
-            Step::Done => (Act::End, "Close"),
+            Step::GoToStreet => (Act::TakeMeThere, words::TAKE_ME_THERE),
+            Step::PlaceProp => (Act::PlaceCone, words::PLACE_A_CONE),
+            Step::DriveIt => (Act::DriveHere, words::DRIVE_HERE),
+            Step::BaseTrack => (Act::NewRace, words::GO_TO_THE_DOCKS),
+            Step::PlaceStart => (Act::PlaceStart, words::PLACE_THE_START),
+            Step::RacePoints => (Act::AddPoints, words::ADD_THEM_AHEAD),
+            Step::TestRace => (Act::TestRace, words::TEST_RACE),
+            Step::ShareIt => (Act::GoToMod, words::GO_TO_MOD),
+            Step::Done => (Act::End, words::CLOSE),
         }
     }
 }
@@ -208,8 +208,8 @@ pub struct Guide {
 }
 
 /// The tutorials' mods' names, typed into the New mod dialog.
-pub const MOD_NAME: &str = "My first mod";
-pub const RACE_MOD_NAME: &str = "My first race";
+pub const MOD_NAME: &str = words::MY_FIRST_MOD;
+pub const RACE_MOD_NAME: &str = words::MY_FIRST_RACE;
 
 /// The spot Take me there goes to: an open street in the default region (L4RA), and the camera's place
 /// over it (behind and above, looking at it; well within the editor's ground reach).
@@ -417,16 +417,14 @@ impl Studio {
                 match a {
                     Act::TakeMeThere => {
                         let spot = Vec3::from(SPOT);
-                        s.view = crate::editor::state::View::ThreeD;
                         s.camera = crate::draw::camera::Camera::looking_at(spot + Vec3::from(EYE_BACK), spot);
                         app.panels.viewport.set_look(s, "street");
-                        s.status = "Here: street level, a place to start".into();
+                        s.status = words::HERE_STREET_LEVEL_A_PLACE_TO.into();
                     }
                     Act::PlaceCone => place_cone(s),
                     Act::NewRace => {
                         let spot = Vec3::from(RACE_SPOT);
                         let look = spot + Vec3::from((Vec2::from(RACE_LOOK) * 30.0, 0.0));
-                        s.view = crate::editor::state::View::ThreeD;
                         s.camera = crate::draw::camera::Camera::looking_at(spot + Vec3::from(RACE_EYE_BACK), look);
                         app.panels.viewport.set_look(s, "street");
                         let mut races = app.panels.races.borrow_mut();
@@ -513,14 +511,14 @@ impl Studio {
 /// track's road, facing down it, its height the road's).
 fn place_start(s: &mut crate::editor::state::EditorState, races: &mut crate::editor::races::Races) {
     if s.race.is_none_or(|k| k >= s.session.map.races.len()) {
-        s.status = "Make a race first: Go to the docks, or Test › New race".into();
+        s.status = words::MAKE_A_RACE_FIRST_GO_TO.into();
         return;
     }
     s.mode = crate::editor::state::Mode::Races;
     races.tool = crate::editor::races::Tool::Start;
-    races.click(s, Vec3::from(RACE_SPOT), false, false);
+    races.click(s, Vec3::from(RACE_SPOT), false);
     if s.race.and_then(|k| s.session.map.races.get(k)).is_some_and(|r| r.start.is_some()) {
-        s.status = "Start line placed: the cars line up behind it, facing down the road".into();
+        s.status = words::START_LINE_PLACED_THE_CARS_LINE.into();
     }
 }
 
@@ -530,11 +528,11 @@ fn add_points(s: &mut crate::editor::state::EditorState, races: &mut crate::edit
     use crate::editor::races::{Tool, ahead};
     use crate::editor::validate::ground;
     let Some((track, start)) = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| (r.track, r.start)) else {
-        s.status = "Make a race first: Go to the docks, or Test › New race".into();
+        s.status = words::MAKE_A_RACE_FIRST_GO_TO.into();
         return;
     };
     let Some(start) = start else {
-        s.status = "Place the start line first".into();
+        s.status = words::PLACE_THE_START_LINE_FIRST.into();
         return;
     };
     let h = start.heading.to_radians();
@@ -551,11 +549,11 @@ fn add_points(s: &mut crate::editor::state::EditorState, races: &mut crate::edit
     let (cps, finish) = pts.split_at(pts.len().min(CHECKPOINTS_AT.len()));
     for p in cps {
         races.tool = Tool::Checkpoint;
-        races.click(s, p.extend(ground(s, *p)), false, false);
+        races.click(s, p.extend(ground(s, *p)), false);
     }
     if let Some(f) = finish.first() {
         races.tool = Tool::Finish;
-        races.click(s, f.extend(ground(s, *f)), false, false);
+        races.click(s, f.extend(ground(s, *f)), false);
     }
     races.tool = Tool::Select;
     races.update(s);
@@ -566,12 +564,12 @@ fn add_points(s: &mut crate::editor::state::EditorState, races: &mut crate::edit
 fn place_cone(s: &mut crate::editor::state::EditorState) {
     let (eye, f) = (s.camera.position, s.camera.forward());
     let Some(at) = ray_ground(&s.session.world, eye, f, 300.0) else {
-        s.status = "No ground in view: press Take me there, or fly down to a street".into();
+        s.status = words::NO_GROUND_IN_VIEW_PRESS_TAKE.into();
         return;
     };
     let Some(solid) = CONES.into_iter().find(|c| s.session.world.solids.iter().any(|x| x.name.eq_ignore_ascii_case(c)))
     else {
-        s.status = "No cone in this city: drag a prop from the Prop browser".into();
+        s.status = words::NO_CONE_IN_THIS_CITY_DRAG.into();
         return;
     };
     let heading = f.y.atan2(f.x).to_degrees() + 180.0;

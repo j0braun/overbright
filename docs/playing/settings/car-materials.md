@@ -7,7 +7,7 @@ own drawing, not an option: it applies at every setting.
   took the paint's material and looked light grey and flat.
 - **Chrome trim** (for example the FUSION hood chevrons) already matched the original in the same shop scene.
 - In the shops, choosing **Carbon Fiber** for the trunk or the body kit asks first whether to convert (or, in a
-  career, to buy the right to convert), as in the original.
+  career, to buy the right to convert), as in the original (traced: docs/notes/graphics/car-materials.md, Carbon Fiber convert question).
 - A **carbon hood** warns first when it would remove hood vinyls or decals, as in the original.
 
 ## How it works

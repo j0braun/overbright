@@ -51,7 +51,7 @@ pub fn named_app<'e>(env: &'e FakeEnv, fonts: &Fonts, name: &str, w: u32, h: u32
 
 /// The named states: (name, the screen it is shown on). The fake data of
 /// each comes from [`state_model`].
-pub const STATES: [(&str, Screen); 89] = [
+pub const STATES: [(&str, Screen); 96] = [
     ("no-game", Screen::FirstRun),
     ("check-ok", Screen::Check),
     ("check-movies", Screen::Check),
@@ -78,6 +78,8 @@ pub const STATES: [(&str, Screen); 89] = [
     ("crash-panic", Screen::Failure),
     ("crash-signal", Screen::Failure),
     ("crash-windows", Screen::Failure),
+    ("crash-studio-panic", Screen::Failure),
+    ("crash-studio-killed", Screen::Failure),
     ("unreadable-folder", Screen::Browse),
     ("saves-empty", Screen::Saves),
     ("saves-found", Screen::Saves),
@@ -141,6 +143,11 @@ pub const STATES: [(&str, Screen); 89] = [
     ("settings-suggested", Screen::Settings),
     ("mods-conflict", Screen::Mods),
     ("mods-order", Screen::Mods),
+    ("mods-inside", Screen::Mods),
+    ("mods-try-ended", Screen::Mods),
+    ("mods-studio-open", Screen::Mods),
+    ("mods-repair", Screen::Mods),
+    ("mods-applied", Screen::Mods),
 ];
 
 /// A checked fake install: the key files `missing` and `different`, the
@@ -378,6 +385,7 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             }
             .how();
             f.report = Some(crate::launcher::model::CrashReport {
+                program: "the game".into(),
                 reason: crate::launcher::crash_report::reason(code, signal, name == "crash-panic"),
                 pid: 41872,
                 secs: 95.0,
@@ -389,6 +397,51 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
                     PathBuf::from("/data/player/.local/share/overbright/crashes/crash-20261125-140211.txt"),
                 ],
             });
+        }
+        // Studio's bad end: the same window (a panic that left its line; a run found at the next start
+        // with nothing known of its end).
+        "crash-studio-panic" | "crash-studio-killed" => {
+            use ob_core::studio_run::{BadExit, Note};
+            let logs = "/data/player/.local/share/overbright/logs";
+            let panic = name == "crash-studio-panic";
+            let epoch = std::time::SystemTime::UNIX_EPOCH;
+            let bad = BadExit {
+                note: Note {
+                    program: "Overbright Studio".into(),
+                    exe: "overbright-studio".into(),
+                    pid: 41872,
+                    since: 1_000_000,
+                    version: "Overbright 0.6.0 (build 1a2b3c4)".into(),
+                    opened: Some("drift-park".into()),
+                    log: Some("studio-20261125-140010.log".into()),
+                    panic: panic.then(|| "index out of bounds: the len is 3 but the index is 7 at crates/ob-studio-gui/src/studio/races.rs:212".into()),
+                },
+                log: Some(PathBuf::from(format!("{logs}/studio-20261125-140010.log"))),
+                last_seen: epoch + std::time::Duration::from_secs(1000 + 840),
+            };
+            let mut f = crate::launcher::window::studio_failure(&bad, None, None);
+            f.tail = if panic {
+                vec![
+                    "  842.113 [INFO ob_studio] saved the steps of drift-park".into(),
+                    "  843.902 [PANIC main] at crates/ob-studio-gui/src/studio/races.rs:212: index out of bounds: the len is 3 but the index is 7".into(),
+                ]
+            } else {
+                vec![
+                    "  838.440 [INFO ob_studio] opened drift-park".into(),
+                    "  840.012 [INFO ob_studio] saved the steps of drift-park".into(),
+                ]
+            };
+            if let Some(r) = f.report.as_mut() {
+                r.asking = false;
+                r.logs = vec![PathBuf::from(format!("{logs}/studio-20261125-140010.log"))];
+                if !panic {
+                    r.errors = vec![
+                        "TIME PID UID GID SIG COREFILE EXE SIZE".into(),
+                        "Wed 2026-11-25 14:02:11 UTC 41872 1000 1000 SIGKILL missing /opt/overbright/overbright-studio -".into(),
+                    ];
+                }
+            }
+            m.failure = Some(f);
         }
         "first-several" => {}
         "main-gone" => {
@@ -499,6 +552,52 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
                 same_list: false,
             });
         }
+        "mods-inside" => {
+            m.mods.pack_sel = Some("docks-remix".into());
+            m.mods.inside = Some(("Docks remix".into(), Env::pack_inside(&FakeEnv, "docks-remix")));
+        }
+        "mods-try-ended" => {
+            m.mods.pack_sel = Some("docks-remix".into());
+            m.mods.tried = Some((
+                "Docks remix".into(),
+                super::trial::Trial {
+                    pack: "docks-remix".into(),
+                    dir: "/data/player/.local/share/overbright/tries/docks-remix-2026-11-25-18-04-12".into(),
+                },
+            ));
+        }
+        // A map mod open in Studio (started from the row): the auto-save note and the greyed button.
+        "mods-studio-open" => {
+            m.mods.cur = Some("mp0");
+            m.mods.map_sel = Some("drift-park".into());
+            m.studio = super::model::EditorRun::Open(Some("drift-park".into()));
+            m.studio_seen.held = vec![fake_held("drift-park", super::studio_seen::STUDIO)];
+        }
+        // A refused pack that was made from a map mod: the repair message, Open in Studio ready.
+        "mods-repair" => {
+            let i = m.mods.packs.iter().position(|r| r.id == "docks-remix").unwrap_or(0);
+            m.mods.packs[i].on = true;
+            m.mods.packs[i].refused = Some("3 street objects were made for a different game version".into());
+            m.mods.maps.push(super::model::MapRow {
+                folder: "docks-remix".into(),
+                name: "Docks remix".into(),
+                on: false,
+                races: 1,
+                props: 3,
+                textures: 0,
+                new_from_studio: false,
+            });
+            m.mods.cur = Some(super::screens::MODPACK_IDS[i]);
+            m.mods.pack_sel = Some("docks-remix".into());
+        }
+        "mods-applied" => {
+            m.mods.results = vec![(
+                Mark::Ok,
+                "Applied: Mod packs (strongest first): Docks remix, Cone pack · Map mods: Drift park. The game was \
+                 not started; it uses these at its next start."
+                    .into(),
+            )];
+        }
         "mods-order" => {
             m.mods.list.iter_mut().for_each(|(e, _)| e.on = true);
             m.mods.conflict = Some(super::model::Conflict {
@@ -590,6 +689,7 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
             m.mods.list.clear();
             m.mods.own.clear();
             m.mods.maps.clear();
+            m.mods.packs.clear();
         }
         "prepare-running" => {
             m.prepare.state = super::prepare::State::Running { n: 2, of: 5, what: "shader programs".into() }

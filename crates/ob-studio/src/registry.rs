@@ -216,6 +216,7 @@ const AT: Field = f("position", VEC3, Req::Yes, "Position");
 const HEADING: Field = f("heading", F32, Req::No, "Heading");
 const POINT_PART: Field = f("part", PART, Req::Yes, "Part");
 const POINT_INDEX: Field = f("index", U32, Req::No, "Number");
+const RUN_NAME: Field = f("run", TEXT, Req::Yes, "The run's name (`runs list`)");
 const FILE: Field = f("file", TEXT, Req::Yes, "File");
 /// A game texture (`world:0x1A2B3C4D`, Studio Looks).
 const TEXTURE: Field = f("texture", TEXT, Req::Yes, "Texture");
@@ -387,6 +388,39 @@ pub const COMMANDS: &[Command] = &[
         ],
     },
     Command {
+        name: "modpack.export",
+        kind: CommandKind::Run,
+        summary: "Export the mod as a mod pack file (.obpk): its placements, races and textures as the asset format's own files",
+        args: &[
+            f("to", TEXT, Req::Yes, "Export to: a .obpk file, or a folder"),
+            f("version", TEXT, Req::No, "Pack version (default 1.0.0)"),
+            f("licence", TEXT, Req::No, "SPDX licence; without one the pack stays on this computer"),
+            f("derived-ok", Ty::Bool, Req::No, "Share textures made from the original game's pixels"),
+        ],
+    },
+    Command {
+        name: "modpack.convert",
+        kind: CommandKind::Run,
+        summary: "Convert a plain map mod or a texture pack (a folder or .zip) to a mod pack file (.obpk)",
+        args: &[
+            f("from", TEXT, Req::Yes, "The map mod or texture pack: a folder or .zip"),
+            f("to", TEXT, Req::Yes, "Write to: a .obpk file, or a folder"),
+            f("id", TEXT, Req::No, "Pack id (default: made from the name)"),
+            f("version", TEXT, Req::No, "Pack version (default 1.0.0)"),
+            f("licence", TEXT, Req::No, "SPDX licence; without one the pack stays on this computer"),
+            f("derived-ok", Ty::Bool, Req::No, "Convert textures made from the original game's pixels"),
+        ],
+    },
+    Command {
+        name: "modpack.report",
+        kind: CommandKind::Read,
+        summary: "What a mod pack changes compared with the game, in words: its props, races, textures, credits and clashes",
+        args: &[
+            f("pack", TEXT, Req::Yes, "A .obpk file or pack folder, or the id of an installed pack"),
+            f("to", TEXT, Req::No, "Also write the report to this text file"),
+        ],
+    },
+    Command {
         name: "pack.repair",
         kind: CommandKind::Edit,
         summary: "Repair a map file that no longer reads, where a safe repair exists (as one undo step)",
@@ -427,6 +461,207 @@ pub const COMMANDS: &[Command] = &[
         kind: CommandKind::Read,
         summary: "The mod's textures and work files, with where their pixels started",
         args: &[],
+    },
+    Command {
+        name: "props.solids",
+        kind: CommandKind::Read,
+        summary: "List the region's placeable solids (the prop browser's list), by name, with where they are placed",
+        args: &[
+            f("filter", TEXT, Req::No, "Words the name has (all of them, any case)"),
+            f(
+                "category",
+                TEXT,
+                Req::No,
+                "Only one category: knock-over, barriers, signs, street, trees or all (default all)",
+            ),
+        ],
+    },
+    Command {
+        name: "race.tracks",
+        kind: CommandKind::Read,
+        summary: "List the region's base tracks a race can be on (number and name)",
+        args: &[],
+    },
+    Command {
+        name: "looks.find",
+        kind: CommandKind::Read,
+        summary: "Find the region's world textures by name or hash, with where each is used (words after the command or --text)",
+        args: &[f("text", TEXT, Req::Yes, "Words of the name, or the hash (0x1A2B3C4D)")],
+    },
+    Command {
+        name: "game.find",
+        kind: CommandKind::Read,
+        summary: "Show which game folder the tool uses and why (--game, NFSU2_ROOT or the launcher)",
+        args: &[],
+    },
+    Command {
+        name: "collision.show",
+        kind: CommandKind::Read,
+        summary: "What the collision layer shows in a mode (off, invisible barriers or all collision), counted as the World view draws it; with --mod the mod's removed and drawn collision applies",
+        args: &[f("mode", TEXT, Req::No, "off, invisible or all (default all)")],
+    },
+    Command {
+        name: "runs.list",
+        kind: CommandKind::Read,
+        summary: "The mod's kept runs (simulations and recordings), newest first, as the Runs workspace lists them",
+        args: &[],
+    },
+    Command {
+        name: "runs.show",
+        kind: CommandKind::Read,
+        summary: "Open a run: its race, seed, how it ended, the results and the problems it found",
+        args: &[RUN_NAME],
+    },
+    Command {
+        name: "runs.telemetry",
+        kind: CommandKind::Read,
+        summary: "One car's telemetry in a run: speed over time, distance from the racing line, its events, and the gear, rpm and pedals of a run recorded with the drive channels",
+        args: &[RUN_NAME, f("car", U32, Req::No, "Car number (default: the player's slot, 0)")],
+    },
+    Command {
+        name: "runs.compare",
+        kind: CommandKind::Read,
+        summary: "Compare two runs: where they part and when a car is over a metre from where the first has it",
+        args: &[RUN_NAME, f("with", TEXT, Req::Yes, "The run to compare it with"), f("car", U32, Req::No, "Car number (default 0)")],
+    },
+    Command {
+        name: "runs.rename",
+        kind: CommandKind::Run,
+        summary: "Rename a run (never over another run)",
+        args: &[RUN_NAME, f("to", TEXT, Req::Yes, "The new name")],
+    },
+    Command {
+        name: "runs.delete",
+        kind: CommandKind::Destructive,
+        summary: "Delete a run file",
+        args: &[RUN_NAME],
+    },
+    Command {
+        name: "data.kinds",
+        kind: CommandKind::Read,
+        summary: "The kinds of records the Data grid shows, with their columns and how many rows the mod's view has",
+        args: &[],
+    },
+    Command {
+        name: "data.show",
+        kind: CommandKind::Read,
+        summary: "One kind's table as the Data grid shows it, with where each value comes from",
+        args: &[
+            f("kind", TEXT, Req::Yes, "The kind: placement or race"),
+            f("search", TEXT, Req::No, "Keep rows where any cell has all these words"),
+            f("filter", TEXT, Req::No, "Keep rows whose column has the text: `column=text`"),
+            f("sort", TEXT, Req::No, "Sort by this column (smallest first)"),
+            f("desc", Ty::Bool, Req::No, "Largest first"),
+        ],
+    },
+    Command {
+        name: "data.set",
+        kind: CommandKind::Edit,
+        summary: "Write one cell of the Data grid as one undo step (the cell as the grid takes it typed)",
+        args: &[
+            f("kind", TEXT, Req::Yes, "The kind: placement or race"),
+            f("row", TEXT, Req::Yes, "The row's key, as `data show` gives it"),
+            f("field", TEXT, Req::Yes, "The column's field"),
+            f("value", TEXT, Req::Yes, "The value, as typed into the cell"),
+        ],
+    },
+    Command {
+        name: "data.export",
+        kind: CommandKind::Run,
+        summary: "Write one kind's table as a CSV file, as `data show` narrows it: a `row` column with each row's key, then the columns by field",
+        args: &[
+            f("kind", TEXT, Req::Yes, "The kind: placement or race"),
+            f("to", TEXT, Req::Yes, "The CSV file to write (never inside the game's folder)"),
+            f("search", TEXT, Req::No, "Keep rows where any cell has all these words"),
+            f("filter", TEXT, Req::No, "Keep rows whose column has the text: `column=text`"),
+            f("sort", TEXT, Req::No, "Sort by this column (smallest first)"),
+            f("desc", Ty::Bool, Req::No, "Largest first"),
+        ],
+    },
+    Command {
+        name: "data.import",
+        kind: CommandKind::Edit,
+        summary: "Bring a CSV file (as `data export` writes it) back as cell edits, each checked like `data set`, as one undo step; refuses the whole file when a cell is refused",
+        args: &[
+            f("kind", TEXT, Req::Yes, "The kind: placement or race"),
+            f("from", TEXT, Req::Yes, "The CSV file to read"),
+        ],
+    },
+    Command {
+        name: "browser.search",
+        kind: CommandKind::Read,
+        summary: "Search the region's models and textures by name, hash or `section:N`, as the Browser workspace does",
+        args: &[
+            f("text", TEXT, Req::No, "Words of the name, a hash (0x1A2B3C4D) or section:N"),
+            f("kind", TEXT, Req::No, "all, models, textures, sounds or strings (default all)"),
+            f("category", TEXT, Req::No, "Models only: knock-over, barriers, signs, street, trees or all"),
+            f("textures", TEXT, Req::No, "Textures only: any, in-use, unused, animated or large"),
+        ],
+    },
+    Command {
+        name: "browser.sounds",
+        kind: CommandKind::Read,
+        summary: "List and search the game's sounds (sound bank events) by bank or name, as the Browser's Sounds chip does",
+        args: &[f("text", TEXT, Req::No, "Words of the bank's path or the sound's name (all must be in it)")],
+    },
+    Command {
+        name: "browser.strings",
+        kind: CommandKind::Read,
+        summary: "List and search a language file's lines by words, 0x hash or label, as the Browser's Strings chip does",
+        args: &[
+            f("text", TEXT, Req::No, "Words of the text, a hash (0x1A2B3C4D) or a label (IND_GRAPHICS_BODY)"),
+            f("language", TEXT, Req::No, "The language file (default English)"),
+        ],
+    },
+    Command {
+        name: "browser.wav",
+        kind: CommandKind::Run,
+        summary: "Write a sound as a WAV file (marked as from the game files, local-only)",
+        args: &[
+            f("text", TEXT, Req::Yes, "The sound's name (all words, any case), with words of its bank when two share a name"),
+            f("to", TEXT, Req::No, "The folder to write (default the mod's .editor/reference; never inside the game's folder)"),
+        ],
+    },
+    Command {
+        name: "browser.mesh",
+        kind: CommandKind::Read,
+        summary: "A model's geometry in numbers (vertices, triangles, size, parts), as the Browser's model viewer shows it",
+        args: &[f("text", TEXT, Req::Yes, "The model's name (all words, any case) or hash")],
+    },
+    Command {
+        name: "browser.area",
+        kind: CommandKind::Run,
+        summary: "Write the area around a point (the camera) as one glTF reference (marked as from the game files, local-only)",
+        args: &[
+            f("at", TEXT, Req::Yes, "The centre as x,y,z in the game's metres (Z up), as the camera's place shows"),
+            f("radius", F32, Req::No, "Metres around it, 1 to 300 (default 60)"),
+            f("to", TEXT, Req::No, "The folder to write (default the mod's .editor/reference; never inside the game's folder)"),
+        ],
+    },
+    Command {
+        name: "browser.used",
+        kind: CommandKind::Read,
+        summary: "Where a model or texture is used: its placements, sections, textures or models (the Browser's used by)",
+        args: &[f("text", TEXT, Req::Yes, "Its name (all words, any case) or hash")],
+    },
+    Command {
+        name: "browser.export",
+        kind: CommandKind::Run,
+        summary: "Write a model as a glTF reference for an outside 3D program (marked as from the game files, local-only)",
+        args: &[
+            f("text", TEXT, Req::Yes, "The model's name (all words, any case) or hash"),
+            f("to", TEXT, Req::No, "The folder to write (default the mod's .editor/reference; never inside the game's folder)"),
+        ],
+    },
+    Command {
+        name: "browser.import",
+        kind: CommandKind::Run,
+        summary: "Bring an edited glTF back as a mod model, mapped onto the original model's parts; refuses what cannot be mapped",
+        args: &[
+            f("file", TEXT, Req::Yes, "The edited .gltf (with its .bin beside it)"),
+            f("model", TEXT, Req::No, "The model it is for (default the one the file says it was exported from)"),
+            f("own", Ty::Bool, Req::No, "The model is entirely your own work: shared with the mod, without the game's pictures"),
+        ],
     },
     Command { name: "checks.run", kind: CommandKind::Read, summary: "Run the map checks on the pack", args: &[] },
     Command {

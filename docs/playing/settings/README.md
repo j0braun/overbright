@@ -1,9 +1,9 @@
 # Optional graphics settings
 
-Every setting here is off until you turn it on; with all of them off the game looks exactly like the original.
+Every setting here is off until you turn it on; with all of them off the game looks exactly like the original (choice: the rule of the Enhancements page, see docs/playing/native-deviations.md).
 You find them under **Options → Display → Enhancements**: the main page sets the graphics mode, the quality
 level, upscaling, anti-aliasing and ray tracing; **Advanced** opens one page per group below. The groups and
-the rows in them follow the settings model (`src/frontend/enh/settings_model/model.rs`).
+the rows in them follow the settings model (`crates/ob-menus/src/frontend/enh/settings_model/model.rs`).
 
 Each page names its rows and what they do, then how the feature works and what it costs. Costs on the pages
 are measured on a desktop GPU unless the page says otherwise; the settings page shows the cost for your screen

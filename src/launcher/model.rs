@@ -661,8 +661,55 @@ pub struct Mods {
     pub conflict: Option<Conflict>,
     /// The map mod chosen for Export and Open in map editor (its folder).
     pub map_sel: Option<String>,
+    /// Mod packs (`<app>/mods`), in `order.txt`'s order: the strongest first.
+    pub packs: Vec<PackRow>,
+    /// The mod pack chosen for Move up / Move down (its id).
+    pub pack_sel: Option<String>,
+    /// The next Export writes a mod pack file instead of a `.zip`.
+    pub export_pack: bool,
+    /// "Look inside" is open on this pack: its name and the lines about it.
+    pub inside: Option<(String, Vec<String>)>,
+    /// Play starts the game with this pack on for the run only ("Try it once").
+    pub try_pack: Option<String>,
+    /// A trial run ended and its saves copy waits for Keep or Discard.
+    pub tried: Option<(String, super::trial::Trial)>,
     /// The map editor started from this page.
     pub editor: EditorRun,
+    /// The list shows only this kind of mod (None: all).
+    pub filter: Option<ListKind>,
+    /// The row last chosen in the list (its widget id): the actions under
+    /// the list act on it.
+    pub cur: Option<&'static str>,
+}
+
+/// The kinds of mod in the Mods list.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ListKind {
+    Texture,
+    Pack,
+    Hud,
+    Map,
+}
+
+impl ListKind {
+    pub const ALL: [ListKind; 4] = [ListKind::Texture, ListKind::Pack, ListKind::Hud, ListKind::Map];
+    /// The name of one of the kind, and of the kind's filter.
+    pub fn one(self) -> &'static str {
+        match self {
+            ListKind::Texture => "Texture pack",
+            ListKind::Pack => "Mod pack",
+            ListKind::Hud => "HUD mod",
+            ListKind::Map => "Map mod",
+        }
+    }
+    pub fn many(self) -> &'static str {
+        match self {
+            ListKind::Texture => "Texture packs",
+            ListKind::Pack => "Mod packs",
+            ListKind::Hud => "HUD",
+            ListKind::Map => "Map mods",
+        }
+    }
 }
 
 /// One of Overbright's own packs as the Mods page shows it.
@@ -684,6 +731,23 @@ pub fn share_build() -> String {
     format!("Overbright {} (build {:016x})", env!("CARGO_PKG_VERSION"), crate::studio_api::build::BUILD_ID.0)
 }
 
+/// A mod pack as the Mods page shows it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct PackRow {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub on: bool,
+    /// In the mods folder but not in `order.txt` yet.
+    pub new: bool,
+    /// Why it cannot be used.
+    pub refused: Option<String>,
+    /// What it overrules or is overruled by among the packs that are on: "2 values with docks".
+    pub clash: Option<String>,
+    /// The "affects play" tag: it changes something a saved game depends on.
+    pub affects_play: bool,
+}
+
 /// A map mod as the Mods page shows it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MapRow {
@@ -695,6 +759,8 @@ pub struct MapRow {
     pub props: usize,
     /// The game's textures it changes (its `textures/` folder, Studio Looks).
     pub textures: usize,
+    /// Made in Studio and not turned on yet (`store::new_from_studio`): the row's "new from Studio" mark.
+    pub new_from_studio: bool,
 }
 
 /// The map editor as the Mods page shows it.
@@ -712,6 +778,18 @@ pub enum EditorRun {
 pub trait EditorJob {
     /// None while it runs; then Ok, or the words for how it ended.
     fn poll(&mut self) -> Option<Result<(), String>>;
+    /// The program's process and how it ended, once it has (what is not known is None).
+    fn exit(&self) -> EditorExit {
+        EditorExit::default()
+    }
+}
+
+/// How a started program ended.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct EditorExit {
+    pub pid: Option<u32>,
+    pub code: Option<i32>,
+    pub signal: Option<i32>,
 }
 
 thread_local! {
@@ -721,7 +799,7 @@ thread_local! {
 
 /// The real editor process: a started program (the map editor or Studio) and its name for the
 /// words of a bad end.
-struct EditorProcess(std::process::Child, &'static str);
+struct EditorProcess(std::process::Child, &'static str, EditorExit);
 
 impl EditorJob for EditorProcess {
     fn poll(&mut self) -> Option<Result<(), String>> {
@@ -733,10 +811,15 @@ impl EditorJob for EditorProcess {
                 let signal = std::os::unix::process::ExitStatusExt::signal(&st);
                 #[cfg(not(unix))]
                 let signal = None;
+                self.2 = EditorExit { pid: Some(self.0.id()), code: st.code(), signal };
                 Some(Err(format!("{} stopped: {}.", self.1, crate::launcher::crash_report::reason(st.code(), signal, false))))
             }
             Err(e) => Some(Err(e.to_string())),
         }
+    }
+
+    fn exit(&self) -> EditorExit {
+        EditorExit { pid: Some(self.0.id()), ..self.2 }
     }
 }
 
@@ -748,6 +831,12 @@ impl EditorJob for FakeEditor {
     fn poll(&mut self) -> Option<Result<(), String>> {
         self.0.take()
     }
+}
+
+thread_local! {
+    /// The bad ends of Studio the fake data's start finds (tests).
+    pub static STUDIO_EXITS: std::cell::RefCell<Vec<ob_core::studio_run::BadExit>> =
+        const { std::cell::RefCell::new(Vec::new()) };
 }
 
 /// Two packs that change the same textures: the first wins.
@@ -885,6 +974,8 @@ pub struct Paused {
     pub own: Vec<(String, bool)>,
     pub packages: Vec<(String, bool)>,
     pub maps: Vec<String>,
+    /// Mod packs that were on.
+    pub packs: Vec<String>,
     pub hud: bool,
 }
 
@@ -900,6 +991,9 @@ impl Paused {
         for f in &self.maps {
             s += &format!("map on {f}\n");
         }
+        for f in &self.packs {
+            s += &format!("pack on {f}\n");
+        }
         s += &format!("hud {}\n", if self.hud { "on" } else { "off" });
         s
     }
@@ -912,6 +1006,7 @@ impl Paused {
                 (Some("own"), Some(s), Some(id)) => p.own.push((id.into(), s == "on")),
                 (Some("package"), Some(s), Some(id)) => p.packages.push((id.into(), s == "on")),
                 (Some("map"), Some("on"), Some(f)) => p.maps.push(f.into()),
+                (Some("pack"), Some("on"), Some(f)) => p.packs.push(f.into()),
                 (Some("hud"), Some(s), None) => p.hud = s == "on",
                 _ => {}
             }
@@ -997,6 +1092,21 @@ pub struct Failure {
     /// The crash report window's part: set when the game ran and ended
     /// badly (None: it could not be started).
     pub report: Option<CrashReport>,
+    /// Set when it was Studio or the map editor that ended badly (None: the game).
+    pub studio: Option<StudioRun>,
+}
+
+/// What the report window says of a Studio (or map editor) run that ended badly.
+#[derive(Clone, Debug, PartialEq)]
+pub struct StudioRun {
+    /// "Overbright Studio" or "Overbright map editor".
+    pub program: String,
+    /// Its program's file name without the extension (the system's records are asked for by it).
+    pub exe: String,
+    /// The build it was (`build_info::version_line`).
+    pub version: String,
+    /// The mod that was open: its name only.
+    pub opened: Option<String>,
 }
 
 /// What the failure screen adds for a game that ran and ended badly
@@ -1004,6 +1114,8 @@ pub struct Failure {
 /// that process, the logs written during the run.
 #[derive(Clone, Debug, PartialEq)]
 pub struct CrashReport {
+    /// Who ended: "the game", "Studio", "the map editor".
+    pub program: String,
     /// "it tried to use memory it must not (a segmentation fault, signal 11)".
     pub reason: String,
     pub pid: u32,
@@ -1019,7 +1131,15 @@ pub struct CrashReport {
 impl Failure {
     /// The game program could not be started at all (`how`: why).
     pub fn not_started(how: String) -> Failure {
-        Failure { kind: super::run::ErrorKind::NoProgram, during_start: true, how, tail: Vec::new(), log: None, report: None }
+        Failure {
+            kind: super::run::ErrorKind::NoProgram,
+            during_start: true,
+            how,
+            tail: Vec::new(),
+            log: None,
+            report: None,
+            studio: None,
+        }
     }
 }
 
@@ -1268,6 +1388,30 @@ pub trait Env {
     /// The map mods with their on / off.
     fn maps(&self) -> Vec<MapRow>;
     fn set_map(&self, folder: &str, on: bool) -> Result<(), String>;
+    /// The mod packs in `order.txt`'s order, strongest first.
+    fn packs(&self) -> Vec<PackRow> {
+        Vec::new()
+    }
+    /// What a mod pack changes ("Look inside"): the lines to show.
+    fn pack_inside(&self, _id: &str) -> Vec<String> {
+        Vec::new()
+    }
+    /// Switches a mod pack on or off; the packs it needed that were turned on with it.
+    fn set_mod_pack(&self, _id: &str, _on: bool) -> Result<Vec<String>, String> {
+        Err("mod packs are not available here".into())
+    }
+    /// Moves a mod pack `by` places (negative: stronger).
+    fn move_pack(&self, _id: &str, _by: isize) -> Result<(), String> {
+        Err("mod packs are not available here".into())
+    }
+    /// Adds a mod pack file (`.obpk`); its id.
+    fn import_pack(&self, _from: &Path) -> Result<String, String> {
+        Err("mod packs are not available here".into())
+    }
+    /// Exports a map mod as a mod pack file into `to`; the file written.
+    fn export_pack(&self, _folder: &str, _to: &Path, _derived_ok: bool) -> Result<PathBuf, String> {
+        Err("mod packs are not available here".into())
+    }
     /// Imports a map mod (folder, `map.obmap` or `.zip`); its folder name.
     fn import_map(&self, from: &Path) -> Result<String, String>;
     /// Exports a map mod as a `.zip` into `to`, with its textures; the file
@@ -1323,8 +1467,9 @@ pub trait Env {
         super::dirs::studio_cli_exe().is_file()
     }
     /// Starts Studio (`overbright-studio`, [`super::dirs::studio_exe`]) on
-    /// its Home; `root`: the game folder shown, given as `NFSU2_ROOT`.
-    fn start_studio(&self, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
+    /// its Home, or with the mod in `folder` open (`--mod`); `root`: the
+    /// game folder shown, given as `NFSU2_ROOT`.
+    fn start_studio(&self, _folder: Option<&str>, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
         Err("no Studio here".into())
     }
     /// Overbright's own copy of the game ([`super::game_data`]): where it is kept (`<app>/base`).
@@ -1356,6 +1501,11 @@ pub trait Env {
         false
     }
     fn set_game_data_later(&self) {}
+    /// Studio and map editor runs that ended without a clean end, taken (each is told once):
+    /// the notes they left ([`ob_core::studio_run`]). The fake data's are the tests' own.
+    fn studio_bad_exits(&self) -> Vec<ob_core::studio_run::BadExit> {
+        Vec::new()
+    }
     /// What is seen of Studio for the map mods `folders`: their write locks
     /// held by a live program and the last mod opened, read only
     /// ([`super::studio_seen`]); the fake data sees nothing.
@@ -1470,7 +1620,7 @@ pub fn convert_hud(parts: &crate::hud_mod::Parts, progress: &(dyn Fn(String) + S
     HudOutcome { lines, dir: r.ok().map(|s| s.dir) }
 }
 
-/// The ZIP, 7-Zip and RAR files in `dir`, sorted by name, with their kind
+/// The ZIP, 7-Zip, RAR and mod pack (.obpk) files in `dir`, sorted by name, with their kind
 /// and size as the note.
 pub fn read_archives(dir: &Path) -> Vec<DirEntry> {
     let Ok(rd) = std::fs::read_dir(dir) else { return Vec::new() };
@@ -1482,6 +1632,7 @@ pub fn read_archives(dir: &Path) -> Vec<DirEntry> {
             let ext = e.path().extension()?.to_str()?.to_ascii_lowercase();
             let kind = match ext.as_str() {
                 "zip" => "ZIP archive",
+                "obpk" => "Mod pack archive",
                 "7z" => "7-Zip archive (extract it first)",
                 "rar" => "RAR archive (extract it first)",
                 _ => return None,
@@ -1966,7 +2117,7 @@ impl Env for RealEnv {
                 let list = self.mods();
                 let own = self.own_packs();
                 let conflict = self.conflict(&own, &list.iter().map(|(e, _)| e.clone()).collect::<Vec<_>>());
-                Mods { list, own, maps: self.maps(), paused: self.paused().is_some(), conflict, ..Default::default() }
+                Mods { list, own, maps: self.maps(), packs: self.packs(), paused: self.paused().is_some(), conflict, ..Default::default() }
             },
             hud: self.hud(&pack),
             prepare: Prepare::default(),
@@ -2236,7 +2387,8 @@ impl Env for RealEnv {
                 let (races, props) = m.as_ref().map_or((0, 0), |m| (m.races.len(), m.props.len()));
                 let name = m.map(|m| m.name).filter(|n| !n.trim().is_empty()).unwrap_or_else(|| f.clone());
                 let textures = crate::tools::map::share::textures(&dir.join(&f)).len();
-                MapRow { on: on.contains(&f), name, folder: f, races, props, textures }
+                let new_from_studio = crate::tools::map::store::new_from_studio(&dir, &f);
+                MapRow { on: on.contains(&f), name, folder: f, races, props, textures, new_from_studio }
             })
             .collect()
     }
@@ -2244,6 +2396,67 @@ impl Env for RealEnv {
     fn set_map(&self, folder: &str, on: bool) -> Result<(), String> {
         crate::tools::map::store::set_enabled(&crate::tools::map::store::maps_dir(), folder, on)
             .map_err(|e| format!("{e:#}"))
+    }
+
+    fn packs(&self) -> Vec<PackRow> {
+        use crate::mod_packs as mp;
+        let base = mp::base_in_use();
+        let pairs = mp::clash_pairs(base.as_ref());
+        let installed = ob_asset_format::modpack::scan(&mp::mods_dir()).packs;
+        ob_asset_format::modpack::rows(&mp::mods_dir(), base.as_ref(), &mp::engine())
+            .into_iter()
+            .map(|r| {
+                let affects_play = installed.iter().find(|p| p.id == r.id).is_some_and(mp::pack_affects_play);
+                let clash = pairs
+                    .iter()
+                    .filter(|(a, b, _)| *a == r.id || *b == r.id)
+                    .map(|(a, b, n)| {
+                        let (other, verb) = if *a == r.id { (b, "overruled by") } else { (a, "overrules") };
+                        format!("{verb} {other} ({})", count(*n, "value", "values"))
+                    })
+                    .collect::<Vec<_>>()
+                    .join("; ");
+                PackRow {
+                    id: r.id,
+                    name: r.name,
+                    version: r.version,
+                    on: r.on,
+                    new: r.new,
+                    refused: r.refused,
+                    clash: (!clash.is_empty()).then_some(clash),
+                    affects_play,
+                }
+            })
+            .collect()
+    }
+
+    fn pack_inside(&self, id: &str) -> Vec<String> {
+        let base = crate::mod_packs::base_in_use();
+        crate::mod_packs::inside(id, base.as_ref()).map(|i| i.lines()).unwrap_or_else(|| vec!["Not installed".into()])
+    }
+
+    fn set_mod_pack(&self, id: &str, on: bool) -> Result<Vec<String>, String> {
+        ob_asset_format::modpack::set_enabled(&crate::mod_packs::mods_dir(), id, on)
+    }
+
+    fn move_pack(&self, id: &str, by: isize) -> Result<(), String> {
+        ob_asset_format::modpack::move_pack(&crate::mod_packs::mods_dir(), id, by)
+    }
+
+    fn import_pack(&self, from: &Path) -> Result<String, String> {
+        ob_asset_format::modpack::import(&crate::mod_packs::mods_dir(), from, &crate::mod_packs::engine())
+    }
+
+    fn export_pack(&self, folder: &str, to: &Path, derived_ok: bool) -> Result<PathBuf, String> {
+        let opts = crate::mod_packs::ExportOpts {
+            version: semver::Version::new(1, 0, 0),
+            licence: None,
+            derived_ok,
+            build: share_build(),
+        };
+        let base = crate::mod_packs::base_in_use();
+        crate::mod_packs::export_map_mod(&crate::tools::map::store::maps_dir(), folder, to, base.as_ref(), &opts)
+            .map(|e| e.to)
     }
 
     fn import_map(&self, from: &Path) -> Result<String, String> {
@@ -2262,7 +2475,7 @@ impl Env for RealEnv {
         cmd.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
         let child = cmd.spawn().map_err(|e| format!("the map editor could not be started ({}): {e}", exe.display()))?;
         log::info!("map editor started (pid {}) on {}", child.id(), folder.unwrap_or("its own choice"));
-        Ok(Box::new(EditorProcess(child, "the map editor")))
+        Ok(Box::new(EditorProcess(child, "the map editor", EditorExit::default())))
     }
 
     fn game_data_base(&self) -> PathBuf {
@@ -2292,21 +2505,28 @@ impl Env for RealEnv {
         }
     }
 
+    fn studio_bad_exits(&self) -> Vec<ob_core::studio_run::BadExit> {
+        ob_core::studio_run::take_bad_exits(&ob_core::studio_run::dir(), &crate::platform::dirs::logs())
+    }
+
     fn studio_seen(&self, folders: &[String]) -> super::studio_seen::StudioSeen {
         let recent = crate::platform::dirs::config().join(super::studio_seen::RECENT_FILE);
         super::studio_seen::read(&crate::tools::map::store::maps_dir(), folders, &recent)
     }
 
-    fn start_studio(&self, root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
+    fn start_studio(&self, folder: Option<&str>, root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
         let exe = super::dirs::studio_exe();
         let mut cmd = std::process::Command::new(&exe);
+        if let Some(f) = folder {
+            cmd.args(["--mod", f]);
+        }
         if let Some(r) = root {
             cmd.env("NFSU2_ROOT", r);
         }
         cmd.stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::null());
         let child = cmd.spawn().map_err(|e| format!("Studio could not be started ({}): {e}", exe.display()))?;
-        log::info!("Studio started (pid {})", child.id());
-        Ok(Box::new(EditorProcess(child, "Studio")))
+        log::info!("Studio started (pid {}) on {}", child.id(), folder.unwrap_or("its Home"));
+        Ok(Box::new(EditorProcess(child, "Studio", EditorExit::default())))
     }
 
     fn export_map(&self, folder: &str, to: &Path, derived_ok: bool) -> Result<PathBuf, String> {
@@ -2376,7 +2596,7 @@ impl Env for RealEnv {
 pub fn check_result(root: &Path, c: &setup::Check, fp: Option<&crate::fingerprint::Fingerprint>) -> CheckResult {
     let lines: Vec<(Mark, String)> = setup::check_lines(c, fp)
         .into_iter()
-        .map(|(m, t)| (Mark::from(m), t))
+        .map(|(m, t)| (crate::launcher::ui::lamp(m), t))
         .filter(|(m, t)| !(*m == Mark::Info && (t.starts_with("Mod files found") || t.starts_with("SPEED2.EXE"))))
         .collect();
     // A folder with an error line cannot be used, files all there or
@@ -2506,6 +2726,18 @@ pub fn save_choices(c: &Choices, first: Option<&FirstRun>) -> Result<(), SaveErr
 /// Fixed data for the renders and tests.
 pub struct FakeEnv;
 
+thread_local! {
+    /// The fake mod packs' load order, kept like `order.txt` (the real file's `Order`), so a move changes what
+    /// `packs()` lists. One per thread: each test starts from the fake's own order.
+    static FAKE_PACK_ORDER: std::cell::RefCell<ob_asset_format::order::Order> = std::cell::RefCell::new({
+        let mut o = ob_asset_format::order::Order::default();
+        for id in ["docks-remix", "cone-pack"] {
+            o.set_enabled(id, true);
+        }
+        o
+    });
+}
+
 /// A fake asset report for the renders: the US layout (every movie
 /// without a language suffix, movies.tag), all found but `missing`.
 pub fn fake_assets(root: &Path, missing: &[&str]) -> crate::game_assets::Report {
@@ -2630,6 +2862,7 @@ impl Env for FakeEnv {
                 .to_vec(),
                 log: Some(PathBuf::from("/data/player/.local/share/overbright/logs/launcher-20261112-210501.log")),
                 report: None,
+                studio: None,
             }),
             browse: Browse {
                 purpose: BrowseFor::Game,
@@ -2651,7 +2884,7 @@ impl Env for FakeEnv {
                 let list = self.mods();
                 let own = self.own_packs();
                 let conflict = self.conflict(&own, &list.iter().map(|(e, _)| e.clone()).collect::<Vec<_>>());
-                Mods { list, own, maps: self.maps(), paused: self.paused().is_some(), conflict, ..Default::default() }
+                Mods { list, own, maps: self.maps(), packs: self.packs(), paused: self.paused().is_some(), conflict, ..Default::default() }
             },
             hud: None,
             prepare: Prepare::default(),
@@ -2697,6 +2930,10 @@ impl Env for FakeEnv {
 
     fn crash_errors(&self, _pid: u32, _exe_name: &str) -> Vec<String> {
         Vec::new()
+    }
+
+    fn studio_bad_exits(&self) -> Vec<ob_core::studio_run::BadExit> {
+        STUDIO_EXITS.with(|e| std::mem::take(&mut *e.borrow_mut()))
     }
 
     fn copy_text(&self, text: &str) -> Result<(), String> {
@@ -2854,9 +3091,61 @@ impl Env for FakeEnv {
 
     fn maps(&self) -> Vec<MapRow> {
         vec![
-            MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: true, races: 2, props: 9, textures: 0 },
-            MapRow { folder: "open-docks".into(), name: "Open docks".into(), on: false, races: 0, props: 14, textures: 5 },
+            MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: true, races: 2, props: 9, textures: 0, new_from_studio: false },
+            MapRow { folder: "open-docks".into(), name: "Open docks".into(), on: false, races: 0, props: 14, textures: 5, new_from_studio: true },
         ]
+    }
+
+    fn packs(&self) -> Vec<PackRow> {
+        let row = |id: &str, name: &str, on, refused: Option<&str>, clash: Option<&str>| PackRow {
+            id: id.into(),
+            name: name.into(),
+            version: "1.2.0".into(),
+            on,
+            new: false,
+            refused: refused.map(str::to_string),
+            clash: clash.map(str::to_string),
+            affects_play: id == "docks-remix",
+        };
+        let mut rows = vec![
+            row("docks-remix", "Docks remix", true, None, Some("overrules cone-pack (3 values)")),
+            row("cone-pack", "Cone pack", true, None, Some("overruled by docks-remix (3 values)")),
+        ];
+        FAKE_PACK_ORDER.with(|o| {
+            let o = o.borrow();
+            rows.sort_by_key(|r| o.packs().position(|(i, _)| i == r.id).unwrap_or(usize::MAX));
+        });
+        rows
+    }
+
+    fn pack_inside(&self, _id: &str) -> Vec<String> {
+        vec![
+            "Version 1.2.0 by Ana Docks".into(),
+            "Made for any copy of the game".into(),
+            "Affects play: your saves record that it was on".into(),
+            "Changes 2 races, 5 moved props, 1 deleted prop, 3 textures".into(),
+            "Regions Docks, Airport".into(),
+            "Overrules cone-pack (3 values)".into(),
+        ]
+    }
+
+    fn set_mod_pack(&self, _id: &str, _on: bool) -> Result<Vec<String>, String> {
+        Ok(Vec::new())
+    }
+
+    fn move_pack(&self, id: &str, by: isize) -> Result<(), String> {
+        // The same ordering function `order.txt` uses.
+        FAKE_PACK_ORDER.with(|o| {
+            if o.borrow_mut().move_pack(id, by) { Ok(()) } else { Err(format!("{id} cannot move further")) }
+        })
+    }
+
+    fn import_pack(&self, _from: &Path) -> Result<String, String> {
+        Ok("docks-remix".into())
+    }
+
+    fn export_pack(&self, folder: &str, to: &Path, _derived_ok: bool) -> Result<PathBuf, String> {
+        Ok(to.join(format!("{folder}-1.0.0.obpk")))
     }
 
     fn set_map(&self, _folder: &str, _on: bool) -> Result<(), String> {
@@ -2894,7 +3183,7 @@ impl Env for FakeEnv {
         true
     }
 
-    fn start_studio(&self, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
+    fn start_studio(&self, _folder: Option<&str>, _root: Option<&Path>) -> Result<Box<dyn EditorJob>, String> {
         Ok(Box::new(FakeEditor::default()))
     }
 

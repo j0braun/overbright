@@ -46,6 +46,9 @@ pub const VERSION: u32 = 1;
 /// `schema=`; `ob.run/1.<minor>`, the minor growing with each record or
 /// field added).
 pub const SCHEMA: &str = "ob.run/1.0";
+/// The schema id of a run written with the drive channels or a state hash at another interval (`ob.run/1.1`:
+/// the car's gear, rpm and pedals after its lights, the header's `hash=`).
+pub const SCHEMA_DRIVE: &str = "ob.run/1.1";
 
 /// What runs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
@@ -71,6 +74,15 @@ pub struct Header {
     pub track: u16,
     pub laps: u32,
     pub checkpoints: u32,
+    /// How often the file carries the state hash, in ticks (`hash=`; 0: the default, [`StateHash::EVERY`]).
+    pub hash_every: u64,
+}
+
+impl Header {
+    /// The ticks between two state hashes of this run.
+    pub fn hash_interval(&self) -> u64 {
+        if self.hash_every == 0 { StateHash::EVERY } else { self.hash_every }
+    }
 }
 
 /// A car's role.
@@ -179,6 +191,40 @@ impl Wheels {
     }
 }
 
+/// A car's gearbox, engine and pedals at one tick (the drive channels, `ob.run/1.1`): what the car did, not where
+/// it was.
+#[derive(Clone, Copy, Debug, PartialEq, Default)]
+pub struct Drive {
+    /// -1 reverse, 0 neutral, 1.. the gear.
+    pub gear: i32,
+    /// The shown engine speed (rpm).
+    pub rpm: f32,
+    /// The pedals as the car took them, 0..1.
+    pub throttle: f32,
+    pub brake: f32,
+    pub handbrake: f32,
+    /// The steering input, -1 (left) .. 1 (right).
+    pub steer: f32,
+    /// The nitrous key held.
+    pub nitrous: bool,
+}
+
+impl Drive {
+    /// Between `a` (t = 0) and `b` (t = 1): the pedals straight, the gear and the key from the nearer tick.
+    pub fn lerp(a: &Drive, b: &Drive, t: f32) -> Drive {
+        let l = |x: f32, y: f32| x + (y - x) * t;
+        let near = if t < 0.5 { a } else { b };
+        Drive {
+            rpm: l(a.rpm, b.rpm),
+            throttle: l(a.throttle, b.throttle),
+            brake: l(a.brake, b.brake),
+            handbrake: l(a.handbrake, b.handbrake),
+            steer: l(a.steer, b.steer),
+            ..*near
+        }
+    }
+}
+
 /// One car at one tick.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct CarSample {
@@ -193,6 +239,9 @@ pub struct CarSample {
     /// Its wheels and lights (none in a stream from before they were
     /// written).
     pub wheels: Option<Wheels>,
+    /// Its gear, rpm and pedals (none unless the run was written with the drive channels; the car then has its
+    /// wheels too).
+    pub drive: Option<Drive>,
 }
 
 impl CarSample {
@@ -214,6 +263,10 @@ impl CarSample {
             wheels: match (&a.wheels, &b.wheels) {
                 (Some(x), Some(y)) => Some(Wheels::lerp(x, y, t)),
                 _ => near.wheels,
+            },
+            drive: match (&a.drive, &b.drive) {
+                (Some(x), Some(y)) => Some(Drive::lerp(x, y, t)),
+                _ => near.drive,
             },
             ..*near
         }
@@ -390,6 +443,9 @@ impl Line {
                     " mode={mode} seed={} race={race} track={} laps={} checkpoints={}",
                     h.seed, h.track, h.laps, h.checkpoints
                 );
+                if h.hash_every != 0 {
+                    let _ = write!(o, " hash={}", h.hash_every);
+                }
             }
             Line::Car(c) => {
                 let _ = write!(o, "C {} {} {}", c.id, c.kind.letter(), clean(&c.name));
@@ -434,6 +490,13 @@ impl Line {
                             let _ = write!(o, " {:.3}", l);
                         }
                         let _ = write!(o, " {}", w.lights);
+                        if let Some(d) = &c.drive {
+                            let _ = write!(
+                                o,
+                                " {} {:.0} {:.3} {:.3} {:.3} {:.3} {}",
+                                d.gear, d.rpm, d.throttle, d.brake, d.handbrake, d.steer, u8::from(d.nitrous)
+                            );
+                        }
                     }
                 }
             }
@@ -483,6 +546,7 @@ impl Line {
                         "track" => h.track = v.parse().map_err(|_| format!("OBSIM: bad track `{v}`"))?,
                         "laps" => h.laps = v.parse().map_err(|_| format!("OBSIM: bad laps `{v}`"))?,
                         "checkpoints" => h.checkpoints = v.parse().map_err(|_| format!("OBSIM: bad count `{v}`"))?,
+                        "hash" => h.hash_every = v.parse().map_err(|_| format!("OBSIM: bad hash interval `{v}`"))?,
                         _ => {}
                     }
                 }
@@ -539,6 +603,19 @@ impl Line {
                                     roll: [f(15, "roll")?, f(16, "roll")?, f(17, "roll")?, f(18, "roll")?],
                                     lift: [f(19, "lift")?, f(20, "lift")?, f(21, "lift")?, f(22, "lift")?],
                                     lights: int(Some(v[23]), "lights")? as u8,
+                                })
+                            } else {
+                                None
+                            },
+                            drive: if v.len() >= 31 {
+                                Some(Drive {
+                                    gear: int(Some(v[24]), "gear")? as i32,
+                                    rpm: f(25, "rpm")?,
+                                    throttle: f(26, "throttle")?,
+                                    brake: f(27, "brake")?,
+                                    handbrake: f(28, "handbrake")?,
+                                    steer: f(29, "steer")?,
+                                    nitrous: int(Some(v[30]), "nitrous")? != 0,
                                 })
                             } else {
                                 None
@@ -614,6 +691,7 @@ mod tests {
             checkpoint: 3,
             place: 2,
             wheels: None,
+            drive: None,
         }
     }
 
@@ -629,6 +707,13 @@ mod tests {
         }
     }
 
+    fn driven(id: u32, x: f32) -> CarSample {
+        CarSample {
+            drive: Some(Drive { gear: 3, rpm: 5120.0, throttle: 0.75, brake: 0.0, handbrake: 0.0, steer: -0.25, nitrous: true }),
+            ..wheeled(id, x)
+        }
+    }
+
     fn all() -> Vec<Line> {
         vec![
             Line::Header(Header {
@@ -640,6 +725,18 @@ mod tests {
                 track: 4014,
                 laps: 2,
                 checkpoints: 5,
+                hash_every: 0,
+            }),
+            Line::Header(Header {
+                version: VERSION,
+                schema: SCHEMA_DRIVE.into(),
+                mode: SimMode::Race,
+                seed: 9,
+                race: "dock_sprint".into(),
+                track: 4014,
+                laps: 1,
+                checkpoints: 3,
+                hash_every: 1,
             }),
             Line::Header(Header { version: VERSION, mode: SimMode::World, seed: 1, ..Default::default() }),
             Line::Car(CarInfo { id: 0, kind: CarKind::Player, name: "Peugeot 206".into() }),
@@ -651,6 +748,7 @@ mod tests {
             }),
             Line::Frame(Frame { tick: 13, time: 0.0, cars: Vec::new() }),
             Line::Frame(Frame { tick: 14, time: 0.017, cars: vec![wheeled(1, 4.0), sample(104, CarKind::Traffic, 9.0)] }),
+            Line::Frame(Frame { tick: 15, time: 0.033, cars: vec![driven(0, 4.0), wheeled(1, 5.0)] }),
             Line::Look(CarLook {
                 id: 1,
                 model: "PEUGOT206".into(),
@@ -783,6 +881,28 @@ mod tests {
         assert_eq!((m.place, m.wheels.unwrap().lights), (2, LIGHT_HEAD | LIGHT_BRAKE));
         let late = CarSample::lerp(&a, &b, 0.75);
         assert_eq!((late.place, late.wheels.unwrap().lights), (1, LIGHT_HEAD));
+    }
+
+    #[test]
+    fn the_drive_channels_read_back_and_old_streams_have_none() {
+        let line = Line::Frame(Frame { tick: 1, time: 0.0, cars: vec![driven(0, 1.0), wheeled(1, 2.0)] }).write();
+        let Some(Line::Frame(f)) = Line::parse(&line).unwrap() else { panic!() };
+        assert_eq!(f.cars[0].drive, driven(0, 1.0).drive);
+        assert_eq!(f.cars[1].drive, None, "a car without the channels, in the same tick");
+        // A stream of the first minor: the same car, its fields stop at the lights.
+        let old = line.split('|').next().unwrap().split(' ').take(3 + 24).collect::<Vec<_>>().join(" ");
+        let Some(Line::Frame(f)) = Line::parse(&old).unwrap() else { panic!() };
+        assert!(f.cars[0].wheels.is_some() && f.cars[0].drive.is_none());
+        // The pedals blend between ticks; the gear is the nearer tick's.
+        let (a, mut b) = (driven(0, 0.0), driven(0, 1.0));
+        let d = b.drive.as_mut().unwrap();
+        (d.gear, d.throttle) = (4, 0.25);
+        let m = CarSample::lerp(&a, &b, 0.25).drive.unwrap();
+        assert_eq!((m.gear, m.throttle), (3, 0.625));
+        assert_eq!(CarSample::lerp(&a, &b, 0.75).drive.unwrap().gear, 4);
+        // The header's hash interval.
+        let Some(Line::Header(h)) = Line::parse("OBSIM 1 schema=ob.run/1.1 mode=race hash=1").unwrap() else { panic!() };
+        assert_eq!((h.hash_interval(), Header::default().hash_interval()), (1, StateHash::EVERY));
     }
 
     #[test]

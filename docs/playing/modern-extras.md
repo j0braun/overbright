@@ -59,7 +59,7 @@ laps, times, leader board).
 full-screen flash is the scenes' SCREEN_FLASH; the weather has no visual flash (thunder is sound only). It
 does not yet cover Take Picture's flash.
 
-**In the Background.** Native: like the original, the game pauses while its window is not the focused one or
+**In the Background.** Native: like the original (observed: docs/evidence/focus-loss/, docs/original/focus-loss.md), the game pauses while its window is not the focused one or
 is minimised. The race, the drawing and the sound stop, and keys you held are let go. When you come back it goes
 on from where it stood; the time away is not caught up. **Keep running** lets the race and the sound go on.
 **Draw less** does too, but draws only 30 frames a second, which saves power. The game's world still runs at its
@@ -73,8 +73,8 @@ showing them would be a new feature (see "Accessibility" below).
 The rest of this page is for developers. Nothing here is in `SPEED2.EXE`; what was traced in it is said per
 section.
 
-Code: `src/extras.rs` (the values, HUD element scale, flash cap, CPU palette), `src/latency.rs` (pacer,
-display model, VRR probe), `src/render/enh/post/fsr.rs` + `fsr.wgsl` (FSR 1), `src/replay_cams.rs` (extra
+Code: `crates/ob-settings/src/extras.rs` (the values, HUD element scale, flash cap, CPU palette), `src/latency.rs` (pacer,
+display model, VRR probe), `crates/ob-render/src/render/enh/post/fsr.rs` + `fsr.wgsl` (FSR 1), `src/replay_cams.rs` (extra
 cameras, smooth slow motion). Hooks in `qol.rs` (one `extras` field; FSR tiers), `enhance.rs` (FSR in place
 of the resample), `ui.rs` / `ui.wgsl` (palette pipelines), `options.rs` / `graphics_table.rs` (rows),
 `bin/game.rs` (loop, replay, HUD, `--bench latency`).

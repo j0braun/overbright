@@ -1031,6 +1031,55 @@ fn every_state_fits_every_size_and_scale() {
     }
 }
 
+/// Every launcher screen and named state through the shared screenshot-matrix kit (`ob_testkit::matrix`, the
+/// same sizes Studio's pages are drawn at, 960 x 600 to 4K at 200 %): every widget inside the window and every
+/// text inside its widget; a page that scrolls (documents, the lists, the shaders' block) is checked at its
+/// content height.
+#[test]
+fn every_screen_fits_the_standard_matrix() {
+    use ob_testkit::matrix as kit;
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let rect = |r: &Rect| [r.x, r.y, r.x + r.w, r.y + r.h];
+    let names: Vec<(&str, Option<Screen>)> = Screen::ALL
+        .iter()
+        .map(|s| (s.name(), Some(*s)))
+        .chain(super::headless::STATES.iter().map(|(n, _)| (*n, None)))
+        .collect();
+    let labels: Vec<&str> = names.iter().map(|(n, _)| *n).collect();
+    let n = kit::check("launcher", &labels, |size, name| {
+        let screen = names.iter().find(|(n, _)| *n == name).and_then(|(_, s)| *s);
+        let a = match screen {
+            Some(s) => app(&env, &fonts, s, size.w, size.h, size.scale),
+            None => super::headless::state_app(&env, &fonts, name, size.w, size.h, size.scale).unwrap(),
+        };
+        let mut view = a.ui.view;
+        let shaders = a.screen == Screen::Main && super::screens::shaders(&a.model) != super::screens::Shaders::Quiet;
+        let may_scroll = a.screen.document()
+            || matches!(a.screen, Screen::Mods | Screen::Storage | Screen::Dev)
+            || shaders
+            || size.logical().1 < 480.0;
+        if may_scroll {
+            view.h = a.ui.content_h.max(view.h);
+        }
+        let mut p = vec![];
+        if !may_scroll && a.ui.content_h > view.h + 0.5 {
+            p.push(format!("{name}: the page does not fit ({} > {})", a.ui.content_h, view.h));
+        }
+        let widgets: Vec<(&str, kit::Rect)> = a.ui.widgets.iter().map(|w| ("widget", rect(&w.rect))).collect();
+        p.extend(kit::clipped(rect(&view), &widgets).into_iter().map(|m| format!("{name}: {m}")));
+        for w in &a.ui.widgets {
+            if matches!(w.kind, Kind::List { .. }) {
+                continue;
+            }
+            let texts: Vec<(&str, kit::Rect)> = w.texts.iter().map(|t| ("text", rect(&t.rect))).collect();
+            p.extend(kit::clipped(rect(&w.rect), &texts).into_iter().map(|m| format!("{name}: {m}")));
+        }
+        p
+    });
+    assert_eq!(n, 6 * names.len());
+}
+
 /// A screen's texts, joined with spaces (wrapped lines rejoined).
 fn all_text(a: &App) -> String {
     a.ui.widgets.iter().flat_map(|w| w.texts.iter().map(|t| t.text.clone())).collect::<Vec<_>>().join(" ")
@@ -1281,6 +1330,7 @@ fn launcher_prefs_and_paused_round_trip() {
         own: vec![("night-roads".into(), true)],
         packages: vec![("roads-hd".into(), false)],
         maps: vec!["drift-park".into()],
+        packs: vec!["docks-remix".into()],
         hud: true,
     };
     assert_eq!(Paused::parse(&q.text()), q);
@@ -1381,7 +1431,7 @@ fn hud_mod_from_its_downloads() {
     key(&mut a, &fonts, Key::Space);
     assert!(a.model.choices.hud_mod);
     let t = all_text(&a);
-    assert!(t.contains("HD HUD and maps complete"), "{t}");
+    assert!(t.contains("HUD mod · complete"), "{t}");
 }
 
 /// A fresh install: no packages, the sentence on what can be added, and
@@ -2426,7 +2476,7 @@ fn mods_on_overbright_packs_and_map_mods() {
     let maps = crate::tools::map::store::maps_dir();
     let m = crate::tools::map::MapMod { name: "Drift park".into(), ..Default::default() };
     crate::tools::map::store::save(&maps, "drift-park", &m).unwrap();
-    assert_eq!(env.maps(), [super::model::MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: false, races: 0, props: 0, textures: 0 }]);
+    assert_eq!(env.maps(), [super::model::MapRow { folder: "drift-park".into(), name: "Drift park".into(), on: false, races: 0, props: 0, textures: 0, new_from_studio: false }]);
     env.set_map("drift-park", true).unwrap();
     assert!(env.maps()[0].on);
     // Its painted textures: counted on the row, exported, imported back
@@ -2455,6 +2505,54 @@ fn mods_on_overbright_packs_and_map_mods() {
     assert_eq!(env.paused(), Some(p));
     env.set_paused(None).unwrap();
     assert!(env.paused().is_none());
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// The Mods page's mod packs on a sandboxed data folder: a map mod exported as a pack file, imported (off, new),
+/// switched on, moved, and "Use mods: Off" remembering it.
+#[test]
+fn mods_on_mod_packs() {
+    use super::model::{Env, RealEnv};
+    let dir = std::env::temp_dir().join(format!("ob-launcher-packs-{}", crate::unique_tag()));
+    crate::frontend::profiles::sandbox::enter(&dir);
+    let env = RealEnv;
+    assert!(env.packs().is_empty(), "nothing installed: nothing listed");
+    let maps = crate::tools::map::store::maps_dir();
+    for f in ["docks", "cones"] {
+        let m = crate::tools::map::MapMod { name: f.to_uppercase(), ..Default::default() };
+        crate::tools::map::store::save(&maps, f, &m).unwrap();
+    }
+    let out = dir.join("exports");
+    for f in ["docks", "cones"] {
+        let file = env.export_pack(f, &out, false).unwrap();
+        assert_eq!(file, out.join(format!("{f}-1.0.0.obpk")));
+        assert_eq!(env.import_pack(&file).unwrap(), f);
+    }
+    assert!(env.import_pack(&out.join("docks-1.0.0.obpk")).unwrap_err().contains("already installed"));
+    let rows = env.packs();
+    assert_eq!(rows.iter().map(|r| (r.id.as_str(), r.on, r.new)).collect::<Vec<_>>(), [("cones", false, true), ("docks", false, true)]);
+    env.set_mod_pack("docks", true).unwrap();
+    env.set_mod_pack("cones", true).unwrap();
+    assert_eq!(env.packs().iter().map(|r| (r.id.as_str(), r.on)).collect::<Vec<_>>(), [("docks", true), ("cones", true)]);
+    env.move_pack("cones", -1).unwrap();
+    assert_eq!(env.packs()[0].id, "cones");
+    assert!(env.move_pack("cones", -1).is_err(), "not past the top");
+    // order.txt: first line strongest, as the rows show it; the file is what moved.
+    let mods = crate::mod_packs::mods_dir();
+    let listed = |dir: &std::path::Path| -> Vec<String> {
+        std::fs::read_to_string(dir.join("order.txt"))
+            .unwrap()
+            .lines()
+            .filter(|l| !l.trim().is_empty() && !l.starts_with('#'))
+            .map(|l| l.trim_start_matches('-').to_string())
+            .collect()
+    };
+    assert_eq!(listed(&mods), ["cones", "docks"]);
+    env.move_pack("cones", 1).unwrap();
+    assert_eq!(env.packs().iter().map(|r| r.id.as_str()).collect::<Vec<_>>(), ["docks", "cones"]);
+    assert_eq!(listed(&mods), ["docks", "cones"]);
+    assert!(env.move_pack("cones", 1).is_err(), "not past the bottom");
+    assert!(env.move_pack("nothing", 1).is_err(), "not installed: not moved");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -2805,12 +2903,14 @@ fn mods_page_starts_the_map_editor() {
     let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
     let t = all_text(&a);
     assert!(t.contains("2 races · 9 prop edits") && t.contains("14 prop edits · 5 textures"), "{t}");
+    a.model.mods.cur = Some("mp1");
+    a.rebuild(&fonts);
     assert!(a.ui.get("map_open").unwrap().enabled);
     a.model.mods.map_sel = Some("open-docks".into());
     a.event(&Event::Activate("map_open"));
     a.rebuild(&fonts);
     assert_eq!(a.model.mods.editor, EditorRun::Open(Some("open-docks".into())));
-    for id in ["map_open", "map_import", "map_export"] {
+    for id in ["map_open", "pack_import", "map_export"] {
         assert!(!a.ui.get(id).unwrap().enabled, "{id} waits while the editor is open");
     }
     assert!(all_text(&a).contains("The map editor is open on Open docks"), "{}", all_text(&a));
@@ -2850,12 +2950,10 @@ fn mods_page_starts_the_map_editor() {
 #[test]
 fn the_map_editor_starts_with_the_mod_and_the_game_folder() {
     use super::model::{Env, RealEnv};
-    use std::os::unix::fs::PermissionsExt;
     let dir = std::env::temp_dir().join(format!("ob-launcher-editor-{}", crate::unique_tag()));
     std::fs::create_dir_all(&dir).unwrap();
     let exe = dir.join("overbright-editor");
-    std::fs::write(&exe, "#!/bin/sh\necho \"$* root=$NFSU2_ROOT\" > \"$(dirname \"$0\")/args\"\n").unwrap();
-    std::fs::set_permissions(&exe, std::fs::Permissions::from_mode(0o755)).unwrap();
+    crate::testkit::write_script(&exe, "#!/bin/sh\necho \"$* root=$NFSU2_ROOT\" > \"$(dirname \"$0\")/args\"\n");
     // SAFETY: only the editor's start reads this variable.
     unsafe { std::env::set_var("OB_EDITOR_EXE", &exe) };
     assert_eq!(super::dirs::editor_exe(), exe);
@@ -3305,4 +3403,441 @@ fn the_crash_report_window() {
         log: None,
     };
     assert!(!clean.failed());
+}
+
+/// The same report window after a bad end of Studio (fake runs in a temp folder: a clean quit, a panic, a
+/// kill): only a note left behind shows it, with Studio's log tail, version and the mod's name, redacted;
+/// a clean quit never does; the render states carry the same words.
+#[test]
+fn the_crash_report_window_after_studio() {
+    use super::model::{FakeEditor, STUDIO_EXITS};
+    use ob_core::studio_run::{Held, Note, take_bad_exits};
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let dir = std::env::temp_dir().join(format!("ob-studio-crash-{}", crate::unique_tag()));
+    crate::platform::dirs::set_thread_data_home(dir.clone());
+    let (runs, logs) = (dir.join("runs"), crate::platform::dirs::logs());
+    std::fs::create_dir_all(&logs).unwrap();
+    let home = format!("/{}/{}", "home", "janedoe");
+    let note = |log: &str| Note {
+        program: "Overbright Studio".into(),
+        exe: "overbright-studio".into(),
+        version: "Overbright 0.6.0 (build abc1234)".into(),
+        opened: Some("drift-park".into()),
+        log: Some(log.into()),
+        ..Note::default()
+    };
+    let write_log = |name: &str, last: &str| {
+        std::fs::write(logs.join(name), format!("  1.000 [INFO x] opened {home}/mods/drift-park\n{last}\n")).unwrap();
+    };
+    // A clean quit leaves no note: nothing to show.
+    Held::create(&runs, note("studio-clean.log")).unwrap().finish();
+    assert!(take_bad_exits(&runs, &logs).is_empty());
+
+    // A panic: the note holds the line, the log its backtrace; the launcher saw the process end (code 101).
+    write_log("studio-panic.log", "  9.000 [PANIC main] at x.rs:1: boom");
+    let mut h = Held::create(&runs, note("studio-panic.log")).unwrap();
+    h.record_panic("boom at x.rs:1");
+    let pid = h.note.pid;
+    drop(h);
+    STUDIO_EXITS.with(|e| *e.borrow_mut() = take_bad_exits(&runs, &logs));
+    let mut a = app(&env, &fonts, Screen::Dev, 1280, 720, 1.0);
+    let end = std::rc::Rc::new(std::cell::Cell::new(Some(Err("Studio stopped: it stopped with exit code 101.".into()))));
+    a.studio_job = Some(Box::new(FakeEditor(end)));
+    assert!(a.poll_jobs(&fonts));
+    assert_eq!(a.screen, Screen::Failure);
+    let t = all_text(&a);
+    for want in ["Studio stopped unexpectedly", "drift-park", "Overbright 0.6.0 (build abc1234)", "internal error", "studio-panic.log"] {
+        assert!(t.contains(want), "{want} missing: {t}");
+    }
+    assert!(a.ui.get("studio_again").is_some() && a.ui.get("copy_report").is_some() && a.ui.get("open_logs").is_some());
+    super::model::COPIED.with(|c| *c.borrow_mut() = None);
+    click(&mut a, &fonts, "copy_report");
+    let copied = super::model::COPIED.with(|c| c.borrow().clone()).expect("the clipboard got the text");
+    for want in ["Overbright crash report", "Studio ended after", "mod open: drift-park", "version: Overbright 0.6.0", "Studio's last lines", "[PANIC main]"] {
+        assert!(copied.contains(want), "{want} missing:\n{copied}");
+    }
+    assert!(!copied.contains("janedoe"), "a home folder left in:\n{copied}");
+    let _ = pid;
+    // Open Studio again starts it and goes to the Dev page.
+    a.event(&Event::Activate("studio_again"));
+    assert_eq!(a.screen, Screen::Dev);
+    assert!(a.studio_job.is_some());
+
+    // Killed, found at the next start: no end status, no panic line; the words say so.
+    write_log("studio-killed.log", "  5.000 [INFO x] saved");
+    drop(Held::create(&runs, note("studio-killed.log")).unwrap());
+    let bad = take_bad_exits(&runs, &logs);
+    assert_eq!(bad.len(), 1);
+    let f = super::window::studio_failure(&bad[0], None, None);
+    assert!(f.report.as_ref().unwrap().reason.contains("without a clean quit"), "{:?}", f.report);
+    assert!(f.how.contains("no end status") && f.studio.is_some());
+    let mut a = app(&env, &fonts, Screen::Main, 1280, 720, 1.0);
+    a.show_studio_failure(&bad[0], None, None);
+    assert_eq!(a.screen, Screen::Failure);
+    a.rebuild(&fonts);
+    assert!(all_text(&a).contains("without a clean quit"));
+    // Killed from outside while the launcher watched: the signal is in the words.
+    let f = super::window::studio_failure(&bad[0], None, Some(9));
+    assert!(f.report.unwrap().reason.contains("killed"));
+
+    // A clean end (the job ends Ok) and an end with no note (an error told to the player) show no window.
+    let mut a = app(&env, &fonts, Screen::Dev, 1280, 720, 1.0);
+    let end = std::rc::Rc::new(std::cell::Cell::new(Some(Ok(()))));
+    a.studio_job = Some(Box::new(FakeEditor(end)));
+    assert!(a.poll_jobs(&fonts));
+    assert_eq!(a.screen, Screen::Dev);
+    let end = std::rc::Rc::new(std::cell::Cell::new(Some(Err("Studio stopped: it stopped with exit code 1.".into()))));
+    a.studio_job = Some(Box::new(FakeEditor(end)));
+    assert!(a.poll_jobs(&fonts));
+    assert_eq!(a.screen, Screen::Dev, "no note, no report window");
+    assert!(a.model.failure.as_ref().is_none_or(|f| f.studio.is_none()));
+
+    // The render states.
+    for (state, word) in [("crash-studio-panic", "internal error"), ("crash-studio-killed", "without a clean quit")] {
+        let a = super::headless::state_app(&env, &fonts, state, 1280, 720, 1.0).unwrap();
+        let t = all_text(&a);
+        assert!(t.contains("Studio stopped unexpectedly") && t.contains(word) && t.contains("drift-park"), "{state}: {t}");
+        assert!(a.ui.get("copy_report").is_some() && a.ui.get("open_logs").is_some() && a.ui.get("studio_again").is_some());
+    }
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+/// The Mods page's "Look inside" shows the lines about the chosen pack and closes again; "Try it once" starts the game
+/// with that pack as the run's trial and asks for nothing else; the copy that a trial leaves is kept or discarded.
+#[test]
+fn mods_look_inside_try_it_once_and_the_saves_copy() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    // Nothing chosen yet: nothing opens and nothing starts.
+    a.event(&Event::Activate("pack_inside"));
+    assert!(a.model.mods.inside.is_none());
+    assert_ne!(a.event(&Event::Activate("pack_try")), Outcome::Play);
+    a.model.mods.pack_sel = Some("cone-pack".into());
+    a.rebuild(&fonts);
+    a.event(&Event::Activate("pack_inside"));
+    let (name, lines) = a.model.mods.inside.clone().unwrap();
+    assert_eq!(name, "Cone pack");
+    assert!(lines.iter().any(|l| l.starts_with("Changes")));
+    a.rebuild(&fonts);
+    assert!(a.ui.get("inside_close").is_some());
+    a.event(&Event::Activate("inside_close"));
+    assert!(a.model.mods.inside.is_none());
+    // Try it once: the pack is named for the run; order.txt (the fake env has none) is not asked about.
+    assert_eq!(a.event(&Event::Activate("pack_try")), Outcome::Play);
+    assert_eq!(a.model.mods.try_pack.as_deref(), Some("cone-pack"));
+    // After a trial: the copy is offered, Keep leaves it, Discard refuses a folder that is not a trial copy.
+    let tries = super::trial::tries_dir();
+    let t = super::trial::Trial { pack: "cone-pack".into(), dir: tries.join("cone-pack-x") };
+    a.model.mods.try_pack = None;
+    a.model.mods.tried = Some(("Cone pack".into(), t.clone()));
+    a.rebuild(&fonts);
+    assert!(a.ui.get("try_keep").is_some() && a.ui.get("try_discard").is_some());
+    a.event(&Event::Activate("try_keep"));
+    assert!(a.model.mods.tried.is_none());
+    assert!(a.model.mods.results[0].1.contains("kept"));
+    let stray = super::trial::Trial { pack: "x".into(), dir: std::env::temp_dir().join("ob-not-a-trial-copy") };
+    a.model.mods.tried = Some(("X".into(), stray));
+    a.event(&Event::Activate("try_discard"));
+    assert_eq!(a.model.mods.results[0].0, Mark::Error);
+}
+
+/// The Mods page's one list: every kind of mod in it (texture packs, mod packs, the HUD mod, map mods), each row
+/// naming its kind; the filter chips narrow it by kind; the actions under it follow the chosen row's kind.
+#[test]
+fn mods_one_list_with_filters_and_chosen_actions() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    let lines = super::screens::mod_lines(&a.model);
+    let kinds: Vec<_> = lines.iter().map(|l| l.kind).collect();
+    for k in super::model::ListKind::ALL {
+        assert!(kinds.contains(&k) || k == super::model::ListKind::Hud, "{k:?} is in the list");
+        assert!(lines.iter().filter(|l| l.kind == k).all(|l| l.detail.starts_with(k.one())), "{k:?} named in its rows");
+    }
+    for id in ["pk0", "mk0", "mp0"] {
+        assert!(a.ui.get(id).is_some(), "{id} in the one list");
+    }
+    assert!(all_text(&a).contains("Mod pack · #1 · version 1.2.0"), "{}", all_text(&a));
+    assert!(all_text(&a).contains("MOUNTED NOW"), "what is mounted is said");
+    // The chosen row is a texture pack: the pack and map actions wait.
+    a.st.focus = Some("pk0");
+    key(&mut a, &fonts, Key::Down);
+    assert!(!a.ui.get("pack_inside").unwrap().enabled && !a.ui.get("map_open").unwrap().enabled);
+    // A mod pack chosen: its actions; a filter hides the other kinds.
+    a.st.focus = Some("mk0");
+    key(&mut a, &fonts, Key::Down);
+    assert_eq!(a.model.mods.cur, Some("mk1"));
+    assert!(a.ui.get("pack_inside").unwrap().enabled && a.ui.get("pack_up").unwrap().enabled);
+    a.st.focus = Some("kf_packs");
+    key(&mut a, &fonts, Key::Enter);
+    assert_eq!(a.model.mods.filter, Some(super::model::ListKind::Pack));
+    assert!(a.ui.get("pk0").is_none() && a.ui.get("mp0").is_none() && a.ui.get("mk1").is_some());
+    assert_eq!(focus(&a), "kf_packs");
+    a.st.focus = Some("kf_maps");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.ui.get("mk0").is_none() && a.ui.get("mp1").is_some());
+    a.st.focus = Some("mp0");
+    key(&mut a, &fonts, Key::Down);
+    assert!(a.ui.get("map_open").unwrap().enabled && !a.ui.get("pack_up").unwrap().enabled);
+    a.st.focus = Some("kf_all");
+    key(&mut a, &fonts, Key::Enter);
+    assert!(a.model.mods.filter.is_none() && a.ui.get("pk0").is_some());
+    // No filter chips when there is one kind or none.
+    let a = super::headless::state_app(&env, &fonts, "mods-empty", 1280, 720, 1.0).unwrap();
+    assert!(a.ui.get("kf_all").is_none());
+}
+
+/// Moving a mod pack in the load order: the move keys (Alt+Up / Alt+Down, the pad's triggers) and a drag with the
+/// mouse send the same move; a click without dragging still switches the row; the row stays focused where it went.
+#[test]
+fn mods_pack_reorder_by_keys_and_drag() {
+    use super::ui::{Drag, handle};
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    assert_eq!(a.ui.reorder.iter().filter(|r| r.starts_with("mk")).count(), 2, "the pack rows can be moved");
+    assert!(!a.ui.reorder.contains(&"mp0") && !a.ui.reorder.contains(&"hud"));
+    // The keys.
+    a.st.focus = Some("mk0");
+    let ev = handle(&a.ui, &mut a.st.clone(), &Input::Key(Key::MoveDown));
+    assert_eq!(ev, [Event::Move("mk0", "mk1")]);
+    assert!(handle(&a.ui, &mut a.st.clone(), &Input::Key(Key::MoveUp)).is_empty(), "not past the top");
+    let order = |a: &App| a.model.mods.packs.iter().map(|r| r.id.clone()).collect::<Vec<_>>();
+    assert_eq!(order(&a), ["docks-remix", "cone-pack"]);
+    key(&mut a, &fonts, Key::MoveDown);
+    assert_eq!(focus(&a), "mk1", "the row stays focused where it went");
+    assert_eq!(a.model.mods.pack_sel.as_deref(), Some("docks-remix"), "the moved pack stays chosen");
+    assert_eq!(order(&a), ["cone-pack", "docks-remix"], "Alt+Down / the right trigger: one place weaker");
+    // The pad's triggers are the same keys; at the end nothing moves.
+    key(&mut a, &fonts, Key::MoveDown);
+    assert_eq!(order(&a), ["cone-pack", "docks-remix"], "not past the bottom");
+    key(&mut a, &fonts, Key::MoveUp);
+    assert_eq!(order(&a), ["docks-remix", "cone-pack"], "Alt+Up / the left trigger: one place stronger");
+    assert_eq!(focus(&a), "mk0");
+    // A real drag through the app: the first pack row dropped on the second.
+    let (r0, r1) = (on_window(&a, "mk0"), on_window(&a, "mk1"));
+    let x = r0.cx() - 100.0;
+    a.input(&Input::MouseMove(x, r0.cy()), &fonts);
+    a.input(&Input::MouseDown(x, r0.cy()), &fonts);
+    a.input(&Input::MouseMove(x, r1.cy()), &fonts);
+    a.input(&Input::MouseUp(x, r1.cy()), &fonts);
+    assert_eq!(order(&a), ["cone-pack", "docks-remix"], "dropped on the second row: moved down");
+    assert_eq!(focus(&a), "mk1");
+    assert_eq!(a.model.mods.pack_sel.as_deref(), Some("docks-remix"));
+    // Dragged back up.
+    let (r0, r1) = (on_window(&a, "mk0"), on_window(&a, "mk1"));
+    a.input(&Input::MouseMove(x, r1.cy()), &fonts);
+    a.input(&Input::MouseDown(x, r1.cy()), &fonts);
+    a.input(&Input::MouseMove(x, r0.cy()), &fonts);
+    a.input(&Input::MouseUp(x, r0.cy()), &fonts);
+    assert_eq!(order(&a), ["docks-remix", "cone-pack"], "dragged back up");
+    // A drag: down on the first pack row, over the second, up.
+    let r0 = a.ui.get("mk0").unwrap().rect;
+    let r1 = a.ui.get("mk1").unwrap().rect;
+    let mut st = a.st.clone();
+    st.scroll = 0.0;
+    assert!(handle(&a.ui, &mut st, &Input::MouseDown(r0.cx() - 100.0, r0.cy())).is_empty());
+    assert!(matches!(st.drag, Some(Drag::Row { live: false, .. })));
+    handle(&a.ui, &mut st, &Input::MouseMove(r0.cx() - 100.0, r1.cy()));
+    assert!(matches!(st.drag, Some(Drag::Row { id: "mk0", over: "mk1", live: true, .. })));
+    let ev = handle(&a.ui, &mut st, &Input::MouseUp(r0.cx() - 100.0, r1.cy()));
+    assert_eq!(ev, [Event::Move("mk0", "mk1")], "dropped: moved, not switched");
+    assert!(st.drag.is_none());
+    // A click: no drag went live, the row is switched.
+    let mut st = a.st.clone();
+    handle(&a.ui, &mut st, &Input::MouseDown(r0.cx(), r0.cy()));
+    let ev = handle(&a.ui, &mut st, &Input::MouseUp(r0.cx(), r0.cy()));
+    assert_eq!(ev, [Event::Toggle("mk0")]);
+    // The drag is drawn: a line where the row would land.
+    let mut st = a.st.clone();
+    st.drag = Some(Drag::Row { id: "mk0", y0: r0.cy(), over: "mk1", live: true });
+    let mut c = super::draw::Canvas::new(1280, 720);
+    let mut c2 = super::draw::Canvas::new(1280, 720);
+    super::ui::render(&a.ui, &st, &fonts, &mut c);
+    super::ui::render(&a.ui, &super::ui::UiState::default(), &fonts, &mut c2);
+    assert_ne!(c.pixmap.data(), c2.pixmap.data(), "the landing line is drawn");
+}
+
+/// Texture packs move within their own kind only: an imported package dropped on an Overbright pack (or the other
+/// way round) is refused with a note and nothing changes; two imported packages swap; the move keys stop at the end of their kind.
+#[test]
+fn mods_texture_pack_reorder_never_crosses_kinds() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    let ids = |a: &App| -> (Vec<String>, Vec<String>) {
+        (a.model.mods.own.iter().map(|o| o.id.clone()).collect(), a.model.mods.list.iter().map(|(e, _)| e.id.clone()).collect())
+    };
+    let was = ids(&a);
+    assert_eq!(was.0, ["night-roads"]);
+    assert_eq!(was.1, ["roads-hd", "garage-redux"]);
+    let n = a.model.mods.own.len();
+    assert!(a.ui.reorder.contains(&super::screens::PACK_IDS[n]) && a.ui.reorder.contains(&super::screens::PACK_IDS[n + 1]));
+    let drag = |a: &mut App, from: &'static str, to: &'static str| {
+        let (r0, r1) = (on_window(a, from), on_window(a, to));
+        let x = r0.cx() - 100.0;
+        a.input(&Input::MouseMove(x, r0.cy()), &fonts);
+        a.input(&Input::MouseDown(x, r0.cy()), &fonts);
+        a.input(&Input::MouseMove(x, r1.cy()), &fonts);
+        a.input(&Input::MouseUp(x, r1.cy()), &fonts);
+    };
+    // Imported onto Overbright: refused.
+    drag(&mut a, super::screens::PACK_IDS[n], super::screens::PACK_IDS[0]);
+    assert_eq!(ids(&a), was, "imported onto Overbright: never swapped");
+    drag(&mut a, super::screens::PACK_IDS[0], super::screens::PACK_IDS[n]);
+    assert_eq!(ids(&a), was, "Overbright onto imported: never swapped");
+    a.st.focus = Some(super::screens::PACK_IDS[n]);
+    key(&mut a, &fonts, Key::MoveUp);
+    assert_eq!(ids(&a), was, "the move key stops at the top of its own kind");
+    // Imported onto imported: moved, and the row stays where it went.
+    drag(&mut a, super::screens::PACK_IDS[n], super::screens::PACK_IDS[n + 1]);
+    assert_eq!(ids(&a).1, ["garage-redux", "roads-hd"]);
+    assert_eq!(ids(&a).0, ["night-roads"]);
+    assert_eq!(focus(&a), super::screens::PACK_IDS[n + 1]);
+}
+
+/// "Open in Studio" on the Mods page: a map mod's row starts Studio on that mod (one Studio at a time, the
+/// button greyed and the auto-save note said while it is open), the row of a mod pack made from a map mod does
+/// the same, a row Studio cannot open leaves the button greyed, and the page reads the mods again when Studio
+/// closes. Nothing real is started: the fake data's editor stands in.
+#[test]
+fn mods_page_opens_a_mod_in_studio() {
+    use super::model::{EditorRun, FakeEditor};
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    // A texture row: nothing for Studio to open.
+    a.model.mods.cur = Some("pk0");
+    a.rebuild(&fonts);
+    assert!(!a.ui.get("studio_mod").unwrap().enabled, "{}", all_text(&a));
+    // A map mod: Studio opens it by its folder.
+    a.model.mods.cur = Some("mp1");
+    a.rebuild(&fonts);
+    assert!(a.ui.get("studio_mod").unwrap().enabled);
+    assert!(all_text(&a).contains("Studio saves the mod as you work"), "the auto-save note: {}", all_text(&a));
+    a.event(&Event::Activate("studio_mod"));
+    a.rebuild(&fonts);
+    assert_eq!(a.model.studio, EditorRun::Open(Some("open-docks".into())));
+    assert!(a.studio_job.is_some());
+    assert!(!a.ui.get("studio_mod").unwrap().enabled, "one Studio at a time");
+    let t = all_text(&a);
+    assert!(t.contains("Studio is open on Open docks. It saves as you work"), "{t}");
+    assert!(!t.contains("there is no Save to press"), "the note gives way to the state: {t}");
+    // It closes: usable again, the mods read again.
+    let end = std::rc::Rc::new(std::cell::Cell::new(Some(Ok(()))));
+    a.studio_job = Some(Box::new(FakeEditor(end)));
+    assert!(a.poll_jobs(&fonts));
+    assert_eq!(a.model.studio, EditorRun::Closed);
+    assert!(a.ui.get("studio_mod").unwrap().enabled);
+    // Studio not beside the launcher: greyed.
+    a.model.studio_here = false;
+    a.rebuild(&fonts);
+    assert!(!a.ui.get("studio_mod").unwrap().enabled);
+    // A refused pack made from a map mod of the same name: the repair message, and its button.
+    let mut b = super::headless::state_app(&env, &fonts, "mods-repair", 1280, 720, 1.0).unwrap();
+    let t = all_text(&b);
+    assert!(
+        t.contains("Docks remix can't load: 3 street objects were made for a different game version · Open in Studio to repair"),
+        "{t}"
+    );
+    assert!(b.ui.get("studio_mod").unwrap().enabled);
+    b.event(&Event::Activate("studio_mod"));
+    assert_eq!(b.model.studio, EditorRun::Open(Some("docks-remix".into())));
+    // A refused pack with no mod behind it, or without Studio: the plain line.
+    let mut c = super::headless::state_app(&env, &fonts, "mods-repair", 1280, 720, 1.0).unwrap();
+    c.model.studio_here = false;
+    c.rebuild(&fonts);
+    let t = all_text(&c);
+    assert!(t.contains("Docks remix: not used, 3 street objects") && !t.contains("to repair"), "{t}");
+    assert!(!c.ui.get("studio_mod").unwrap().enabled);
+}
+
+/// The real start: `overbright-studio --mod <folder>` (a stand-in named by OB_STUDIO_EXE) with the game folder as
+/// NFSU2_ROOT; from the Dev page, Studio starts on its Home with no `--mod`.
+#[cfg(unix)]
+#[test]
+fn studio_starts_with_the_mod_and_the_game_folder() {
+    use super::model::{Env, RealEnv};
+    let dir = std::env::temp_dir().join(format!("ob-launcher-studio-{}", crate::unique_tag()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let exe = dir.join("overbright-studio");
+    crate::testkit::write_script(&exe, "#!/bin/sh\necho \"$* root=$NFSU2_ROOT\" >> \"$(dirname \"$0\")/args\"\n");
+    // SAFETY: only Studio's start reads this variable.
+    unsafe { std::env::set_var("OB_STUDIO_EXE", &exe) };
+    let root = std::path::Path::new("/games/nfsu2");
+    for folder in [Some("drift-park"), None] {
+        let mut job = RealEnv.start_studio(folder, Some(root)).unwrap();
+        let t0 = std::time::Instant::now();
+        let end = loop {
+            if let Some(e) = job.poll() {
+                break e;
+            }
+            assert!(t0.elapsed().as_secs() < 20);
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        };
+        assert_eq!(end, Ok(()));
+    }
+    assert_eq!(std::fs::read_to_string(dir.join("args")).unwrap(), "--mod drift-park root=/games/nfsu2\n root=/games/nfsu2\n");
+    unsafe { std::env::set_var("OB_STUDIO_EXE", dir.join("missing")) };
+    assert!(RealEnv.start_studio(None, None).err().unwrap().contains("could not be started"));
+    unsafe { std::env::remove_var("OB_STUDIO_EXE") };
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// A mod made in Studio and not turned on yet says "new from Studio" in its row; one that was turned on does not.
+#[test]
+fn a_new_mod_from_studio_is_marked() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    let t = all_text(&a);
+    assert!(t.contains("14 prop edits · 5 textures · new from Studio"), "{t}");
+    assert_eq!(t.matches("new from Studio").count(), 1, "{t}");
+    let mut b = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    b.model.mods.maps[1].new_from_studio = false;
+    b.rebuild(&fonts);
+    assert!(!all_text(&b).contains("new from Studio"));
+}
+
+/// Apply, don't play: keeps the choices and says what the game will use, and starts nothing.
+#[test]
+fn apply_only_keeps_the_mods_without_starting_the_game() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    let mut a = app(&env, &fonts, Screen::Mods, 1280, 720, 1.0);
+    assert!(a.ui.get("apply").unwrap().enabled);
+    let o = a.event(&Event::Activate("apply"));
+    assert_eq!(o, Outcome::Stay, "the game is not started");
+    a.rebuild(&fonts);
+    let t = all_text(&a);
+    assert!(t.contains("Applied: ") && t.contains("The game was not started"), "{t}");
+    assert!(a.studio_job.is_none() && a.model.play_args.is_empty());
+    // Use mods off: the line says the game starts with its own files.
+    a.model.mods.paused = true;
+    a.event(&Event::Activate("apply"));
+    a.rebuild(&fonts);
+    assert!(all_text(&a).contains("Use mods is off"), "{}", all_text(&a));
+}
+
+/// Every focusable row of the Dev page has its own help (not another row's), in every state of the page.
+#[test]
+fn every_dev_row_has_its_help() {
+    let fonts = Fonts::new();
+    let env = FakeEnv;
+    for n in ["dev-studio-missing", "dev-studio-idle", "dev-studio-running", "dev-studio-elsewhere"] {
+        let mut a = super::headless::state_app(&env, &fonts, n, 1280, 720, 1.0).unwrap();
+        a.model.support = Some(std::path::PathBuf::from("/logs/support.txt"));
+        a.rebuild(&fonts);
+        let ids: Vec<super::ui::Id> = a.ui.focus_order();
+        assert!(ids.len() >= 7, "{n}: {ids:?}");
+        for id in ids {
+            let (title, text) = super::screens::dev_help(&a.model, id).unwrap_or_else(|| panic!("{n}: {id} has no help"));
+            assert!(!title.is_empty() && text.len() > 20, "{n}: {id}");
+            a.st.focus = Some(id);
+            a.rebuild(&fonts);
+            assert!(all_text(&a).contains(&text[..20]), "{n}: {id}'s help is shown: {}", all_text(&a));
+        }
+    }
 }

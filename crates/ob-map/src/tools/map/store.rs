@@ -40,9 +40,18 @@ pub const TESTED: &str = "tested.txt";
 /// The last test run's result line (`game --map-result`).
 pub const TEST_RESULT: &str = "test-result.txt";
 
+/// The note Studio's New mod writes into [`EDITOR_DIR`]: the mod was made in Studio and has not been turned on in the
+/// launcher yet (the launcher's "new from Studio" mark; turning the mod on removes it).
+pub const NEW_FROM_STUDIO: &str = "new-from-studio";
+
 /// `<dir>/<folder>/.editor`: the editor's files for that mod.
 pub fn editor_dir(dir: &Path, folder: &str) -> PathBuf {
     dir.join(folder).join(EDITOR_DIR)
+}
+
+/// The mod was made in Studio and has not been turned on yet ([`NEW_FROM_STUDIO`]).
+pub fn new_from_studio(dir: &Path, folder: &str) -> bool {
+    editor_dir(dir, folder).join(NEW_FROM_STUDIO).is_file()
 }
 
 /// `<dir>/<folder>/.editor/run/map.obmap`: the copy of the mod as it is in
@@ -55,11 +64,21 @@ pub fn run_file(dir: &Path, folder: &str) -> PathBuf {
 /// Write `m` as the run copy of `folder` (through a temporary file, so the
 /// game never reads half a file); `map.obmap` is not touched.
 pub fn write_run_copy(dir: &Path, folder: &str, m: &MapMod) -> Result<PathBuf> {
+    write_layer(dir, folder, m).map(|l| l.0)
+}
+
+/// The unsaved-work layer: the mod as Studio has it (saved or not) written as the one file every run of the mod
+/// reads (`game --map-file`), instead of a copy per run. Nothing is written when the file already holds exactly
+/// this mod (so its time does not move and a reader sees no change); `map.obmap` is never touched. True: it changed.
+pub fn write_layer(dir: &Path, folder: &str, m: &MapMod) -> Result<(PathBuf, bool)> {
     ensure!(valid_id(folder), "`{folder}` is not a map mod folder name (a-z, 0-9, - and _)");
     let path = run_file(dir, folder);
-    crate::platform::fs::write_atomic(&path, m.write().as_bytes(), false)
-        .with_context(|| format!("writing {}", path.display()))?;
-    Ok(path)
+    let text = m.write();
+    if std::fs::read(&path).is_ok_and(|old| old == text.as_bytes()) {
+        return Ok((path, false));
+    }
+    crate::platform::fs::write_atomic(&path, text.as_bytes(), false).with_context(|| format!("writing {}", path.display()))?;
+    Ok((path, true))
 }
 
 /// The mod name a run gives a mod file it was handed (`--map-file`): for a
@@ -147,6 +166,10 @@ pub fn enabled(dir: &Path) -> Vec<String> {
 
 /// Turn `folder` on or off in `<dir>/enabled.txt`.
 pub fn set_enabled(dir: &Path, folder: &str, on: bool) -> Result<()> {
+    if on {
+        // Switched on once: no longer new (best effort; the note is only a mark).
+        let _ = std::fs::remove_file(editor_dir(dir, folder).join(NEW_FROM_STUDIO));
+    }
     ensure!(valid_id(folder), "`{folder}` is not a map mod folder name");
     let mut list = enabled(dir);
     list.retain(|f| f != folder);

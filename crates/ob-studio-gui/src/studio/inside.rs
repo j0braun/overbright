@@ -21,6 +21,8 @@ pub enum FindItem {
     Run(Command),
     /// A place you were: so many steps back.
     Place(usize),
+    /// A neighbourhood of the open mod's region (an index into the game's named places): the editor goes there.
+    Hood(usize),
 }
 
 /// The commands Find lists and runs (the ones that do something by themselves; moving focus is not one).
@@ -34,6 +36,7 @@ pub fn runs_from_find(c: Command) -> bool {
             | Command::CopyAddress
             | Command::NewMod
             | Command::Workspace(Workspace::Changes)
+            | Command::Workspace(Workspace::Data)
             | Command::Tutorial
             | Command::Undo
             | Command::Redo
@@ -159,8 +162,15 @@ impl Studio {
                 self.home_focus = if end { self.home_targets().len().saturating_sub(1) } else { 0 }
             }
             Workspace::Mod if a == Area::View => self.mod_page.step_focus(if end { 1000 } else { -1000 }),
+            Workspace::Browser if a == Area::View => {
+                self.browser.focus = if end { self.browser.lines().saturating_sub(1) } else { 0 }
+            }
             Workspace::Changes if a == Area::View => {
                 self.changes.focus = if end { self.changes.lines().len().saturating_sub(1) } else { 0 }
+            }
+            Workspace::Data if a == Area::View => {
+                let n = self.data.grid.as_ref().map_or(0, |g| g.counts().1);
+                self.data.row = if end { n.checked_sub(1) } else { Some(0).filter(|_| n > 0) }
             }
             _ => self.spots.set(a, if end { usize::MAX } else { 0 }),
         }
@@ -183,11 +193,13 @@ impl Studio {
                 self.mod_page.step_focus(d);
                 self.mod_page.focus != before
             }
+            Workspace::Browser => self.browser.step_focus(d),
             Workspace::Changes => {
                 let before = self.changes.focus;
                 self.changes.step_focus(d, false);
                 self.changes.focus != before
             }
+            Workspace::Data => self.data.step_row(d, false),
             _ => false,
         }
     }
@@ -219,6 +231,11 @@ impl Studio {
         for (i, name) in places.into_iter().enumerate().take(PLACES_SHOWN) {
             if hit(&name) {
                 v.push(FindItem::Place(i + 1));
+            }
+        }
+        for (i, p) in self.hoods().iter().enumerate() {
+            if hit(&p.name) {
+                v.push(FindItem::Hood(i));
             }
         }
         v
@@ -274,6 +291,7 @@ impl Studio {
             FindItem::Mod(i) => self.open_from_find(i),
             FindItem::Run(c) => self.command(c, self.input_pad()),
             FindItem::Place(n) => self.go_back(n),
+            FindItem::Hood(i) => self.go_hood(i),
         }
     }
 

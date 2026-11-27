@@ -7,7 +7,7 @@ use ob_look::legends::InputKind;
 
 use super::Studio;
 use super::address::Address;
-use super::layout;
+use super::matrix;
 use super::nav::{Area, Pad};
 use super::shot::{frames, raw_input};
 use super::workspace::Workspace;
@@ -56,47 +56,68 @@ fn press(s: &mut Studio, size: (u32, u32), events: Vec<egui::Event>) {
     s.frame(raw_input(size, 1.0, 0, events));
 }
 
-/// The four review sizes.
-const REVIEW: [(u32, u32); 4] = [(1920, 1080), (1280, 800), (1024, 768), (2560, 1080)];
-
+/// World and Races drawn through the screenshot-matrix kit: six sizes, the mouse, the keys and the pad.
 #[test]
 fn world_hosts_the_map_editor_at_every_review_size() {
-    for (w, h) in REVIEW {
-        for ws in [Workspace::World, Workspace::Races] {
-            for input in [InputKind::Mouse, InputKind::Keyboard, InputKind::Xbox] {
-                let sc = Scratch::new(&format!("studio-world-{w}x{h}-{ws:?}-{input:?}"));
+    for ws in [Workspace::World, Workspace::Races] {
+        let mut scratches = Vec::new();
+        let mut n = 0;
+        let drawn = matrix::page(
+            &format!("{ws:?}"),
+            3,
+            |size, input| {
+                n += 1;
+                let sc = Scratch::new(&format!("studio-world-{}-{ws:?}-{input:?}-{n}", size.label()));
                 let mut s = studio(&sc);
+                scratches.push(sc);
                 s.nav.workspace = ws;
-                s.nav.input = input;
-                let scale = layout::ui_scale(w, h);
-                let (_, l) = frames(&mut s, (w, h), scale, 3);
-                assert!(s.editing(), "{w}x{h} {ws:?}: the editor opened the mod");
-                assert!(l.problems().is_empty(), "{w}x{h} {ws:?} {input:?}: {:?}", l.problems());
+                s
+            },
+            |s, l, size, _| {
+                let mut bad = vec![];
+                if !s.editing() {
+                    bad.push("the editor did not open the mod".to_string());
+                    return bad;
+                }
+                bad.extend(l.problems());
                 let app = &s.editor.as_ref().unwrap().app;
-                assert!(app.untaken.is_empty(), "{:?}", app.untaken);
+                if !app.untaken.is_empty() {
+                    bad.push(format!("untaken: {:?}", app.untaken));
+                }
                 // The editor's toolbar fits the toolbar row; its view lies in Studio's view.
                 let fit = menu::toolbar_fit(&s.ctx).expect("the editor's toolbar was laid out");
-                assert!(fit.problems().is_empty(), "{w}x{h} {ws:?}: {:?}", fit.problems());
-                assert!(l.toolbar.unwrap().expand(1.0).contains_rect(fit.bar), "{w}x{h}: {:?}", fit.bar);
-                assert!(
-                    l.view.expand(1.0).contains_rect(app.view_rect),
-                    "{w}x{h}: {:?} in {:?}",
-                    app.view_rect,
-                    l.view
-                );
-                assert!(app.view_rect.width() >= 400.0 && app.view_rect.height() >= 200.0, "{:?}", app.view_rect);
+                bad.extend(fit.problems());
+                if !l.toolbar.unwrap().expand(1.0).contains_rect(fit.bar) {
+                    bad.push(format!("toolbar {:?} outside its row", fit.bar));
+                }
+                if !l.view.expand(1.0).contains_rect(app.view_rect) {
+                    bad.push(format!("{:?} outside {:?}", app.view_rect, l.view));
+                }
+                if app.view_rect.width() < 400.0 || app.view_rect.height() < 200.0 {
+                    bad.push(format!("the view is only {:?}", app.view_rect));
+                }
                 let mode = app.state.as_ref().unwrap().mode;
-                assert_eq!(mode, if ws == Workspace::Races { Mode::Races } else { Mode::Props });
+                if mode != if ws == Workspace::Races { Mode::Races } else { Mode::Props } {
+                    bad.push(format!("mode {mode:?}"));
+                }
                 // The address bar names where the window is.
                 let c = s.crumbs();
-                assert_eq!(&c[..3], &["Harbour edits".to_string(), ws.name().to_string(), "L4RA".to_string()]);
-                if ws == Workspace::Races {
-                    assert_eq!(c.get(3).map(String::as_str), Some("Casino sprint"));
-                    assert_eq!(s.address().to_string(), "ob://harbour-edits/race/harbour-edits:sprint");
+                if c[..3] != ["Harbour edits".to_string(), ws.name().to_string(), "L4RA".to_string()] {
+                    bad.push(format!("crumbs {c:?} at {}", size.label()));
                 }
-                assert!(s.close_requested());
-            }
-        }
+                if ws == Workspace::Races
+                    && (c.get(3).map(String::as_str) != Some("Casino sprint")
+                        || s.address().to_string() != "ob://harbour-edits/race/harbour-edits:sprint")
+                {
+                    bad.push(format!("the race is not named: {c:?}"));
+                }
+                if !s.close_requested() {
+                    bad.push("close is not offered".into());
+                }
+                bad
+            },
+        );
+        assert!(drawn >= 12, "{ws:?}: {drawn}");
     }
 }
 
@@ -172,4 +193,109 @@ fn ctrl_d_is_changes_inside_studio_and_duplicate_shows_no_key() {
     frames(&mut s, size, 1.0, 1);
     press(&mut s, size, vec![key(egui::Key::D, true)]);
     assert_eq!(s.nav.workspace, Workspace::Changes);
+}
+
+fn names(s: &Studio) -> Vec<String> {
+    menu::toolbar_fit(&s.ctx).expect("toolbar laid out").items.into_iter().map(|i| i.0).collect()
+}
+
+fn ed(s: &mut Studio) -> &mut crate::editor::state::EditorState {
+    s.editor.as_mut().unwrap().app.state.as_mut().unwrap()
+}
+
+#[test]
+fn world_and_races_show_their_own_tools_layers_and_state() {
+    use crate::editor::collision::Show;
+    use crate::editor::state::Focus;
+    let sc = Scratch::new("studio-world-races-distinct");
+    let size = (1280, 800);
+    let mut s = studio(&sc);
+    s.nav.workspace = Workspace::World;
+    frames(&mut s, size, 1.0, 3);
+    // World: the props' side; no race tools, Test race or Simulate in the toolbar.
+    assert_eq!(ed(&mut s).focus, Focus::World);
+    assert_eq!(ed(&mut s).mode, Mode::Props);
+    let world = names(&s);
+    assert!(world.contains(&"Move".to_string()) && world.contains(&"Drive here".to_string()), "{world:?}");
+    for gone in ["Checkpoint", "Start", "Finish", "Grid", "Test race", "Simulate"] {
+        assert!(!world.contains(&gone.to_string()), "World shows {gone}: {world:?}");
+    }
+    assert_eq!(super::world::focus_of(Workspace::World), Focus::World);
+    assert_eq!(s.editor_tabs().iter().map(|t| t.0).collect::<Vec<_>>().contains(&"browser"), true);
+    assert!(!s.editor_tabs().iter().any(|t| t.0 == crate::editor::sim::TAB));
+    assert!(!s.editor_tabs().iter().any(|t| t.0 == crate::editor::race_strip::TAB), "the Race tab is Races'");
+    // World: a selection, the collision layer, the camera.
+    ed(&mut s).selection = vec![];
+    ed(&mut s).collision = Show::All;
+    ed(&mut s).camera.position.x += 123.0;
+    let world_cam = ed(&mut s).camera;
+    // Races: the race side; race tools, Test race and Simulate; the props' tab out; its own layers.
+    s.workspace(Workspace::Races);
+    frames(&mut s, size, 1.0, 3);
+    assert_eq!(ed(&mut s).focus, Focus::Races);
+    assert_eq!(ed(&mut s).mode, Mode::Races);
+    assert_eq!(ed(&mut s).race, Some(0));
+    assert_eq!(ed(&mut s).collision, Show::Off, "the collision layer belongs to World");
+    let races = names(&s);
+    for shown in ["Checkpoint", "Start", "Finish", "Grid", "Test race", "Simulate"] {
+        assert!(races.contains(&shown.to_string()), "Races lacks {shown}: {races:?}");
+    }
+    assert_ne!(world, races);
+    assert!(!s.editor_tabs().iter().any(|t| t.0 == "browser"));
+    assert!(s.editor_tabs().iter().any(|t| t.0 == crate::editor::sim::TAB));
+    assert!(s.editor_tabs().iter().any(|t| t.0 == crate::editor::race_strip::TAB), "Races has the Race tab");
+    assert!(!world.is_empty());
+    // The race branch alone in the left panel's rail labels.
+    let labels = crate::editor::tree::rail_labels(Some(ed(&mut s)));
+    assert_eq!(labels, ["Mod".to_string(), "Races 1".to_string()]);
+    ed(&mut s).point =
+        Some(crate::editor::state::RacePoint { part: crate::tools::map::ops::RacePart::Checkpoint, index: 1 });
+    ed(&mut s).camera.position.x -= 77.0;
+    let races_cam = ed(&mut s).camera;
+    // Back in World: its own camera and layer come back, the race's point is not there.
+    s.workspace(Workspace::World);
+    frames(&mut s, size, 1.0, 3);
+    assert_eq!(ed(&mut s).collision, Show::All);
+    assert_eq!(ed(&mut s).camera.position, world_cam.position);
+    assert_eq!(ed(&mut s).point, None);
+    assert_eq!(crate::editor::tree::rail_labels(Some(ed(&mut s))), ["Mod".to_string(), "Props 0".to_string()]);
+    s.workspace(Workspace::Races);
+    frames(&mut s, size, 1.0, 3);
+    assert_eq!(ed(&mut s).camera.position, races_cam.position);
+    assert_eq!(
+        ed(&mut s).point,
+        Some(crate::editor::state::RacePoint { part: crate::tools::map::ops::RacePart::Checkpoint, index: 1 })
+    );
+    assert!(s.close_requested());
+}
+
+/// The game's neighbourhoods: the one under the camera in the address bar and the status bar, and Find ▸ Places
+/// goes to each.
+#[test]
+fn the_neighbourhood_under_the_camera_is_named_and_find_goes_to_each() {
+    use super::inside::FindItem;
+    use crate::tools::map::assets::{GivenAssets, Place};
+    let sc = Scratch::new("studio-world-places");
+    let mut s = studio(&sc);
+    s.nav.workspace = Workspace::World;
+    frames(&mut s, (1920, 1080), 1.0, 2);
+    let place = |name: &str, x: f32| Place { name: name.into(), lo: Vec2::new(x, -50.0), hi: Vec2::new(x + 100.0, 50.0) };
+    {
+        let st = s.editor.as_mut().unwrap().app.state.as_mut().unwrap();
+        st.assets = Box::new(GivenAssets { places: vec![place("Beacon Hill", 0.0), place("City Core", 500.0)], ..Default::default() });
+        st.camera.position = glam::Vec3::new(50.0, 0.0, 30.0);
+    }
+    assert_eq!(s.editor_crumbs(), ["L4RA", "Beacon Hill"]);
+    let st = s.editor.as_ref().unwrap().app.state.as_ref().unwrap();
+    assert_eq!(st.place_name().as_deref(), Some("Beacon Hill"));
+    // Find lists them under PLACES; picking one sends the view there.
+    s.find_text = "core".into();
+    assert_eq!(s.find_items(), [FindItem::Hood(1)]);
+    s.find_run(FindItem::Hood(1));
+    let st = s.editor.as_ref().unwrap().app.state.as_ref().unwrap();
+    assert_eq!(st.goal, Some(crate::editor::views::Goal::At(Vec2::new(550.0, 0.0))));
+    // Outside every place: no name.
+    let st = s.editor.as_mut().unwrap().app.state.as_mut().unwrap();
+    st.camera.position = glam::Vec3::new(5000.0, 0.0, 30.0);
+    assert_eq!(st.place_name(), None);
 }

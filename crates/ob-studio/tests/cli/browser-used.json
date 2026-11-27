@@ -1,0 +1,41 @@
+{
+  "command": "browser.used",
+  "count": 1,
+  "exit": 0,
+  "format": 1,
+  "found": [
+    {
+      "as_lod": 0,
+      "hash": "0x00000000",
+      "knock_over": false,
+      "name": "XC_CONE_01",
+      "placed": 2,
+      "placements": [
+        0,
+        1
+      ],
+      "section_list": [
+        {
+          "placed": 2,
+          "section": 1
+        }
+      ],
+      "sections": 1,
+      "shown": 2,
+      "texture_list": [
+        {
+          "materials": 1,
+          "name": "ROAD",
+          "texture": "world:0x00000ABC"
+        }
+      ],
+      "textures": 1,
+      "triangles": 2,
+      "type": "model",
+      "used": "2 placed in 1 section"
+    }
+  ],
+  "ok": true,
+  "region": "L4RA",
+  "text": "cone"
+}

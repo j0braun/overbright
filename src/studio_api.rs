@@ -16,7 +16,7 @@
 /// The world: placements and their original keys (`World::original_placement`),
 /// the map overlay, loading a region.
 pub mod world {
-    pub use crate::world::{DrawnCollision, HIDDEN_FLAG, Placement, World, face_key, is_panorama, parts_of, transform_of};
+    pub use crate::world::{CollisionOrigin, DrawnCollision, HIDDEN_FLAG, Placement, World, face_key, is_panorama, parts_of, transform_of};
 }
 
 /// The id of this build (the build that writes a shared mod's provenance).
@@ -111,6 +111,11 @@ pub mod launcher {
     }
 }
 
+/// Mod packs (docs/modding/asset-format/layering.md): a map mod as layer entries, and the export as a pack file.
+pub mod mod_packs {
+    pub use crate::mod_packs::{Credit, Converted, report_of_id, report_of_path, report_text, ExportOpts, Exported, added_key, convert_legacy, base_in_use, clashes, engine, export_map_mod, export_mod_dir, heading, layers, mods_dir, placement_key, race_key};
+}
+
 /// The map editor's logic on a world: the edits and the game data it reads
 /// (the map data itself is crates/ob-map).
 pub mod map {
@@ -129,4 +134,67 @@ pub mod looks {
 /// real tracks.
 pub mod career {
     pub use crate::frontend::career::CareerData;
+}
+
+/// The game's sound banks and language tables, for Studio's Browser viewers (read through the game's file layer),
+/// and the one-shot player behind its Play button.
+pub mod media {
+    pub use crate::audio::banks::abk::{Bank, SampleInfo};
+    pub use crate::frontend::strings::Strings;
+
+    /// A game file by its path under the folder, as the game reads it (case, mounted layers).
+    pub fn read(root: &std::path::Path, rel: &str) -> std::io::Result<Vec<u8>> {
+        crate::game_fs::read(root, rel)
+    }
+
+    /// Plays one decoded sample (floats at 16-bit scale) on the default audio output. The output opens on the
+    /// first [`Player::play`]: nothing is opened, and nothing is heard, until the player asks for a sound.
+    #[derive(Default)]
+    pub struct Player {
+        mixer: Option<crate::audio::mixer::Mixer>,
+        tried: bool,
+    }
+
+    impl Player {
+        pub fn new() -> Player {
+            Player::default()
+        }
+
+        /// A player with no output device (tests): its sounds are only queued.
+        #[cfg(any(test, feature = "dev-harness"))]
+        pub fn silent(rate: u32) -> Player {
+            Player { mixer: Some(crate::audio::mixer::Mixer::offline(rate)), tried: true }
+        }
+
+        /// Start `samples` at `rate`. Err: why there is no sound (no output device).
+        pub fn play(&mut self, rate: u32, samples: Vec<f32>) -> Result<(), String> {
+            if self.mixer.is_none() && !self.tried {
+                self.tried = true;
+                self.mixer = crate::audio::mixer::Mixer::new();
+            }
+            let Some(m) = &self.mixer else { return Err("no audio output to play on".into()) };
+            m.play(&std::sync::Arc::new((rate, samples)), 0x7F);
+            Ok(())
+        }
+
+        /// How many sounds are queued or playing.
+        pub fn voices(&self) -> usize {
+            self.mixer.as_ref().map_or(0, |m| m.voices())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::media::Player;
+
+    #[test]
+    fn the_browsers_player_opens_nothing_until_it_is_asked_for_a_sound() {
+        // No device is touched by making one, and a silent one (no device at all) only queues what it is given.
+        assert_eq!(Player::new().voices(), 0);
+        let mut p = Player::silent(22050);
+        assert_eq!(p.voices(), 0);
+        p.play(22050, vec![0.0; 100]).unwrap();
+        assert_eq!(p.voices(), 1);
+    }
 }

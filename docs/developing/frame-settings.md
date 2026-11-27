@@ -7,7 +7,7 @@ state was stepped with (see "A tick's settings and a frame's").
 
 ## The two values
 
-* **`render::FrameSettings`** (`src/render/native/frame_settings.rs`): what a
+* **`render::FrameSettings`** (`crates/ob-render/src/render/native/frame_settings.rs`): what a
   drawn frame reads. `display: Display` and `switches: Switches` (from the
   Customize Display values, each computed once; the window's frame computed
   each of them up to three times before), and `opts: RenderOptions`, the
@@ -17,7 +17,7 @@ state was stepped with (see "A tick's settings and a frame's").
   distances; 72 fields, a `Copy` value: `RenderOptions` 88 bytes,
   `FrameSettings` with `Display` and `Switches` 104 bytes; 72 and 88 before
   the post chain's and the Enhanced effects' rows).
-  `RenderOptions::in_force()` (`src/qol/frame.rs`) copies them from the
+  `RenderOptions::in_force()` (`crates/ob-settings/src/qol/frame.rs`) copies them from the
   settings store with the store's own getters, so each field is exactly the
   value its getter returns (a ray-traced tier only while the device traces,
   HDR only where supported, ...). Derived values are methods
@@ -165,13 +165,13 @@ comment section gives the reason per file):
 * A test-only helper: `shader::world_source` (its tests' shader text).
 * Tests: the store set up and read back by the tests themselves.
 
-Outside `src/render`, the game's draw still reads `qol::temporal()` in
+Outside `crates/ob-render/src/render`, the game's draw still reads `qol::temporal()` in
 `frame_targets` (the temporal decision itself, before the snapshot) and in
 the streak buffer's `streak_probe_due` and probe bookkeeping (a decision
 before a frame is drawn); `qol::hdr_output_active()` in the window's
 swap-chain switch (`sync_hdr`).
 
-The store holds the values in force as one value (`qol::InForce`, src/qol/store.rs): the
+The store holds the values in force as one value (`qol::InForce`, crates/ob-settings/src/qol/store.rs): the
 effective `Enhancements` (the stored values with the engine rules applied) and the device's and the session's
 facts (caps, MSAA mask, ray-tracing and HDR support, the HDR signal and display, output size, Compare, the
 temporal frame, the HDR pattern). No value lives in a global atomic: every getter reads through the store, every

@@ -11,6 +11,7 @@ use ob_studio::changes::From;
 
 use super::super::Studio;
 use super::super::address::Address;
+use super::super::matrix;
 use super::super::nav::{Area, Level, Pad};
 use super::super::shot::{frames, raw_input};
 use super::super::workspace::Workspace;
@@ -138,6 +139,33 @@ fn reset_and_undo_are_steps_of_the_mods_history() {
 }
 
 #[test]
+fn an_object_returns_to_the_original_in_one_step_and_only_edited_filters() {
+    use ob_studio::changes::Show;
+    let dir = maps("object");
+    let mut s = Studio::new(dir.clone(), Some("harbour-edits"));
+    s.go(&Address::parse("ob://harbour-edits/@changes").unwrap()).unwrap();
+    let p = &mut s.changes;
+    // Only edited keeps what differs from the original.
+    p.show = Show::Edited;
+    assert!(!p.rows().is_empty() && p.rows().iter().all(|r| r.edited()));
+    p.show = Show::Mine;
+    let before = p.data().unwrap().rows.len();
+    // The first object (the dome: position and heading are both its edit) goes back whole, as one step.
+    let (key, steps) = (p.rows()[0].key.clone(), p.data().unwrap().steps.len());
+    p.reset_object(0, None);
+    assert!(p.note.as_deref().unwrap().starts_with("Returned XO_DOME_ROOF to the original"), "{:?}", p.note);
+    let d = p.data().unwrap();
+    assert_eq!(d.rows.len(), before - 1);
+    assert!(d.rows.iter().all(|r| r.key != key), "the edit is gone, not only its position");
+    assert_eq!(d.steps.len(), steps + 1, "one step in the history");
+    // What it touches: its region and section, and that it affects play.
+    let place = d.rows.iter().find(|r| r.kind == "placement").unwrap().clone();
+    let line = s.changes.touches(&place).line();
+    assert!(line.contains("region L4RA") && line.contains("section 1407") && line.ends_with("affects play"), "{line}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn addresses_name_the_pages_modes() {
     let dir = maps("addr");
     let mut s = Studio::new(dir.clone(), Some("harbour-edits"));
@@ -161,29 +189,34 @@ fn addresses_name_the_pages_modes() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// The four review sizes.
-const REVIEW: [(u32, u32); 4] = [(1920, 1080), (1280, 800), (1024, 768), (2560, 1080)];
-
 #[test]
 fn drawn_at_the_review_sizes_inside_the_page() {
     let dir = maps("draw");
-    for size in REVIEW {
-        for input in [InputKind::Mouse, InputKind::Keyboard, InputKind::Xbox] {
+    let drawn = matrix::page(
+        "changes",
+        2,
+        |_, _| {
             let mut s = Studio::new(dir.clone(), Some("harbour-edits"));
             s.go(&Address::parse("ob://harbour-edits/@changes").unwrap()).unwrap();
-            s.nav.input = input;
-            let (_, l) = frames(&mut s, size, 1.0, 2);
-            assert!(l.problems().is_empty(), "{size:?} {input:?}: {:?}", l.problems());
+            s
+        },
+        |s, l, size, input| {
             let last = &s.changes.last;
-            assert!(last.rows.len() >= 8, "{size:?}: {} rows drawn", last.rows.len());
-            for r in &last.rows {
-                assert!(l.view.expand(1.0).contains_rect(*r), "{size:?}: row {r:?} outside the page {:?}", l.view);
+            let mut p = matrix::inside_view(l, &last.rows);
+            if last.rows.len() < 8 {
+                p.push(format!("{} rows drawn", last.rows.len()));
             }
             // The Inspector beside the list on wide windows; a strip below.
-            assert_eq!(last.inspector.is_some(), size.0 >= 1280, "{size:?}");
-            assert_eq!(last.focus.is_some(), input != InputKind::Mouse, "the focus ring follows the keys");
-        }
-    }
+            if last.inspector.is_some() != (l.view.width() >= 1000.0) {
+                p.push(format!("the Inspector {:?} in a view {:.0} wide", last.inspector, l.view.width()));
+            }
+            if last.focus.is_some() != (input != InputKind::Mouse) {
+                p.push(format!("{}: the focus ring does not follow the keys", size.label()));
+            }
+            p
+        },
+    );
+    assert!(drawn >= 12, "{drawn}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -449,31 +482,34 @@ fn a_texture_reset_is_one_step_and_one_undo() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-/// The sizes the Looks rows are checked at (pixels, scale).
-const LOOKS_SIZES: [((u32, u32), f32); 4] =
-    [((1024, 768), 1.0), ((1920, 1080), 1.0), ((2560, 1440), 1.5), ((3840, 2160), 2.0)];
-
 #[test]
 fn looks_rows_fit_at_the_review_sizes() {
     let dir = maps_with_looks("looks-draw");
-    for (size, scale) in LOOKS_SIZES {
-        for input in [InputKind::Mouse, InputKind::Keyboard, InputKind::Xbox] {
+    let drawn = matrix::page(
+        "looks rows",
+        2,
+        |_, _| {
             let mut s = Studio::new(dir.clone(), Some("harbour-edits"));
             s.go(&Address::parse(&format!("ob://harbour-edits/texture/{SIGN_TEX}")).unwrap()).unwrap();
-            s.nav.input = input;
-            let (_, l) = frames(&mut s, size, scale, 2);
-            assert!(l.problems().is_empty(), "{size:?}@{scale} {input:?}: {:?}", l.problems());
+            s
+        },
+        |s, l, size, input| {
             let last = &s.changes.last;
-            assert!(last.rows.len() >= 8, "{size:?}: {} rows drawn", last.rows.len());
-            for r in last.rows.iter().chain(&last.focus) {
-                assert!(l.view.expand(1.0).contains_rect(*r), "{size:?}: row {r:?} outside the page {:?}", l.view);
+            let rows: Vec<egui::Rect> = last.rows.iter().chain(&last.focus).copied().collect();
+            let mut p = matrix::inside_view(l, &rows);
+            if last.rows.len() < if size.h < 700 { 7 } else { 8 } {
+                p.push(format!("{} rows drawn", last.rows.len()));
             }
-            if input != InputKind::Mouse {
-                assert!(last.focus.is_some(), "{size:?}: the focused texture row is in view");
+            if input != InputKind::Mouse && last.focus.is_none() {
+                p.push("the focused texture row is not in view".into());
             }
-            assert!(s.changes.thumbs_loaded() >= 2, "{size:?}: the painted images' thumbnails");
-        }
-    }
+            if s.changes.thumbs_loaded() < 2 {
+                p.push(format!("{}: the painted images' thumbnails", size.label()));
+            }
+            p
+        },
+    );
+    assert!(drawn >= 12, "{drawn}");
     let _ = std::fs::remove_dir_all(&dir);
 }
 
@@ -552,5 +588,59 @@ fn the_focus_menu_shows_each_row_where_it_has_a_place() {
     let r = t.iter().rposition(|x| x == "Reset to original").expect("the menu is drawn");
     assert_eq!(t[r + 1], "Show in Races", "{t:?}");
     assert_eq!(t[r + 2], "Copy address", "{t:?}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+/// Every file under `dir`, by path, with its bytes.
+fn bytes_of(dir: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
+    fn walk(d: &Path, out: &mut BTreeMap<PathBuf, Vec<u8>>) {
+        for e in std::fs::read_dir(d).into_iter().flatten().flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                walk(&p, out);
+            } else {
+                out.insert(p.clone(), std::fs::read(&p).unwrap_or_default());
+            }
+        }
+    }
+    let mut out = BTreeMap::new();
+    walk(dir, &mut out);
+    out
+}
+
+/// The guide of a texture painted from blank is drawn at every review size, for every input, and the mod's files
+/// (the texture, the store, the list) are the same bytes with it on.
+#[test]
+fn the_blank_guide_is_drawn_and_never_saved() {
+    use ob_studio::looks::{Domain, Origin, Original, TextureId, Textures};
+    struct Game;
+    impl Textures for Game {
+        fn original(&self, _: TextureId) -> Option<Original> {
+            let mut rgba = [200u8, 200, 200, 255].repeat(32 * 32);
+            for i in 0..32 {
+                rgba[(i * 32 + 16) * 4..(i * 32 + 16) * 4 + 3].copy_from_slice(&[20, 20, 20]);
+            }
+            Some(Original { name: "SIGN_CASINO".into(), width: 32, height: 32, rgba, used_by: Vec::new() })
+        }
+    }
+    let dir = maps("looks-guide");
+    let mut e = painted(&dir, "harbour-edits", 0x5160, "SIGN_CASINO", [255, 255, 255]);
+    e.origin = Origin::Blank;
+    assert_eq!(e.id, TextureId::new(Domain::World, 0x5160));
+    paint(&dir, "harbour-edits", vec![e]);
+    let before = bytes_of(&dir);
+    for (size, scale) in [((960, 600), 1.0), ((1920, 1080), 1.0)] {
+        for input in [InputKind::Mouse, InputKind::Keyboard, InputKind::Xbox] {
+            let mut s = Studio::new(dir.clone(), Some("harbour-edits"));
+            s.go(&Address::parse(&format!("ob://harbour-edits/texture/{SIGN_TEX}")).unwrap()).unwrap();
+            s.nav.input = input;
+            frames(&mut s, size, scale, 1);
+            s.changes.feed_originals(&egui::Context::default(), &Game);
+            assert_eq!(s.changes.guides_loaded(), 1, "{size:?} {input:?}: the guide is made from the original");
+            let (_, l) = frames(&mut s, size, scale, 2);
+            assert!(l.problems().is_empty(), "{size:?}@{scale} {input:?}: {:?}", l.problems());
+        }
+    }
+    assert_eq!(bytes_of(&dir), before, "the guide is never saved: every file of the mod keeps its bytes");
     let _ = std::fs::remove_dir_all(&dir);
 }

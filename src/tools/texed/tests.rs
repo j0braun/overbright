@@ -83,8 +83,8 @@ fn browse_export_edit_import_save_revert() {
     // The renderers' notes: one world slot, one car texture.
     let road = tex("ROAD_MAIN", 8, 8, PixelFormat::Rgba8, [50u8, 60, 70, 255].repeat(64), 1);
     let body = tex("CARSKIN", 4, 4, PixelFormat::Rgba8, [1u8, 2, 3, 255].repeat(16), 1);
-    note_world_slots([3usize].into_iter());
-    note_textures(true, [&body].into_iter());
+    crate::render::draw_notes::note_world_slots([3usize].into_iter());
+    crate::render::draw_notes::note_textures(true, [&body].into_iter());
     let r = road.clone();
     ed.take_frame(&|slot| (slot == 3).then(|| r.clone()), Instant::now());
     assert_eq!(ed.rows.len(), 2);

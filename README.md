@@ -47,7 +47,9 @@ packs; the HUD is hidden.
 
 1. Install the PC version of Need for Speed Underground 2 from your disc (any region) and patch it to version 1.2.
 2. Download the archive for your system from [Releases](https://github.com/j0braun/overbright/releases) and
-   unpack it anywhere.
+   unpack it anywhere. On Arch Linux and its derivatives you can instead install the community package
+   [overbright-bin](https://aur.archlinux.org/packages/overbright-bin) from the AUR, which installs the same release
+   archive and updates with your package manager (maintained by its packager, not in this repository).
 3. Start `overbright` (`overbright.exe` on Windows). It finds the game or asks for its folder. Press Play.
 
 More about starting:

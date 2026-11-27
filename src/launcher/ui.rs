@@ -70,15 +70,14 @@ pub struct TextBox {
 // The lamps are the shared look's (ob-look).
 pub use ob_look::lamp::Mark;
 
-impl From<crate::qol::setup::Mark> for Mark {
-    fn from(m: crate::qol::setup::Mark) -> Mark {
-        use crate::qol::setup::Mark as M;
-        match m {
-            M::Ok => Mark::Ok,
-            M::Warn => Mark::Warn,
-            M::Info => Mark::Info,
-            M::Error => Mark::Error,
-        }
+/// The shared look's lamp for a setup line's mark.
+pub fn lamp(m: crate::qol::setup::Mark) -> Mark {
+    use crate::qol::setup::Mark as M;
+    match m {
+        M::Ok => Mark::Ok,
+        M::Warn => Mark::Warn,
+        M::Info => Mark::Info,
+        M::Error => Mark::Error,
     }
 }
 
@@ -190,6 +189,10 @@ pub struct Metrics {
 /// The smallest unit per display scale factor: the body text stays at
 /// least 0.75 × 19 ≈ 14 px at 100 %.
 pub const MIN_UNIT: f32 = 0.75;
+/// The smallest unit of a page that is a list (the Mods page): its text
+/// stays at least 14 px of em in the lines under a name, and the page
+/// scrolls instead.
+pub const MIN_UNIT_LIST: f32 = 1.05;
 
 impl Metrics {
     /// `min(w / 960, h / 720)` (1 at 960 × 720; the layout is designed
@@ -236,6 +239,15 @@ pub struct Ui {
     pub scene: super::backdrop::Scene,
     /// The slab's box (the content's surface), if the page has one.
     pub slab: Option<Rect>,
+    /// The rows that can be moved (drag, or the move keys), top to bottom:
+    /// the Mods list's load-order rows. A row moves among those of its own
+    /// group (the id without its number).
+    pub reorder: Vec<Id>,
+}
+
+/// The group of a movable row: its id without the row number.
+pub fn reorder_group(id: Id) -> &'static str {
+    id.trim_end_matches(|c: char| c.is_ascii_digit())
 }
 
 /// A drag the mouse is doing (button held).
@@ -245,6 +257,10 @@ pub enum Drag {
     ListThumb { id: Id, grab: f32 },
     /// The page's scroll thumb.
     PageThumb { grab: f32 },
+    /// A movable row held (`y0`: where the press was, page px); `live`
+    /// once it has moved past the click's slack, `over` the row it would
+    /// take the place of.
+    Row { id: Id, y0: f32, over: Id, live: bool },
 }
 
 /// The pointer's shape over a spot of the window.
@@ -381,6 +397,9 @@ pub enum Key {
     Rename,
     Export,
     Undo,
+    /// The Mods list's move keys: Alt+Up / Alt+Down, the pad's triggers.
+    MoveUp,
+    MoveDown,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -425,6 +444,9 @@ pub enum Event {
     Edit(Id, Edit),
     /// Escape (pad B).
     Back,
+    /// A movable row dropped on another (or moved one place by the keys):
+    /// `(row, row it takes the place of)`.
+    Move(Id, Id),
 }
 
 impl Ui {
@@ -675,6 +697,14 @@ pub fn handle(ui: &Ui, st: &mut UiState, input: &Input) -> Vec<Event> {
                         None => move_focus(ui, st, ui.neighbour(focus.unwrap(), 0, if *k == Key::Up { -1 } else { 1 })),
                     }
                 }
+                (Key::MoveUp | Key::MoveDown, Some(Kind::Toggle { .. })) if focus.is_some_and(|f| ui.reorder.contains(&f)) => {
+                    let f = focus.unwrap();
+                    let at = ui.reorder.iter().position(|r| *r == f).unwrap_or(0);
+                    let to = if *k == Key::MoveUp { at.checked_sub(1) } else { Some(at + 1) };
+                    if let Some(t) = to.and_then(|t| ui.reorder.get(t)).filter(|t| reorder_group(t) == reorder_group(f)) {
+                        ev.push(Event::Move(f, t));
+                    }
+                }
                 (Key::Up, _) => move_focus(ui, st, focus.and_then(|f| ui.neighbour(f, 0, -1))),
                 (Key::Down, _) => move_focus(ui, st, focus.and_then(|f| ui.neighbour(f, 0, 1))),
                 (Key::Left | Key::Right, Some(Kind::Cycle { .. } | Kind::ValueRow { .. })) => {
@@ -746,6 +776,32 @@ pub fn handle(ui: &Ui, st: &mut UiState, input: &Input) -> Vec<Event> {
                         scroll_list(st, w, at * (len - rows) as f32);
                     }
                 }
+                Some(Drag::Row { id, y0, over, live }) => {
+                    let py = y + st.scroll;
+                    let live = live || (py - y0).abs() > 6.0 * u;
+                    let mut over = over;
+                    if live {
+                        let group: Vec<&Widget> = ui
+                            .reorder
+                            .iter()
+                            .filter(|r| reorder_group(r) == reorder_group(id))
+                            .filter_map(|r| ui.get(r))
+                            .collect();
+                        let hit = group.iter().find(|w| w.rect.y <= py && py < w.rect.bottom()).or_else(|| {
+                            if group.first().is_some_and(|w| py < w.rect.y) {
+                                group.first()
+                            } else if group.last().is_some_and(|w| py >= w.rect.bottom()) {
+                                group.last()
+                            } else {
+                                None
+                            }
+                        });
+                        if let Some(w) = hit.and_then(|w| w.id) {
+                            over = w;
+                        }
+                    }
+                    st.drag = Some(Drag::Row { id, y0, over, live });
+                }
                 Some(Drag::PageThumb { grab }) => {
                     if let Some((track, thumb)) = ui.page_bar(st) {
                         let span = (track.h - thumb.h).max(1.0);
@@ -799,7 +855,12 @@ pub fn handle(ui: &Ui, st: &mut UiState, input: &Input) -> Vec<Event> {
                 | Kind::SumRow { .. }
                 | Kind::Status { .. }
                 | Kind::PageTab { .. }
-                | Kind::Toggle { .. } => st.pressed = Some(id),
+                | Kind::Toggle { .. } => {
+                    st.pressed = Some(id);
+                    if w.enabled && matches!(w.kind, Kind::Toggle { .. }) && ui.reorder.contains(&id) {
+                        st.drag = Some(Drag::Row { id, y0: py, over: id, live: false });
+                    }
+                }
                 Kind::Cycle { left, .. } | Kind::ValueRow { left, .. } => ev.push(Event::Step(
                     id,
                     if left.contains(*x, py) || *x < w.rect.cx() - w.rect.w / 4.0 { -1 } else { 1 },
@@ -848,6 +909,14 @@ pub fn handle(ui: &Ui, st: &mut UiState, input: &Input) -> Vec<Event> {
             }
         }
         Input::MouseUp(x, y) => {
+            if let Some(Drag::Row { id, over, live: true, .. }) = st.drag.take() {
+                // A row dropped: it moves; it is not switched.
+                st.pressed = None;
+                if over != id {
+                    ev.push(Event::Move(id, over));
+                }
+                return ev;
+            }
             st.drag = None;
             if let Some(p) = st.pressed.take()
                 && ui.widget_at(*x, *y, st).and_then(|w| w.id) == Some(p)
@@ -1345,6 +1414,14 @@ pub fn render_on(ui: &Ui, st: &UiState, fonts: &Fonts, c: &mut Canvas, page: &[u
             }
         }
     }
+    // A row being dragged: a lime line where it would land.
+    if let Some(Drag::Row { id, over, live: true, .. }) = st.drag
+        && let (Some(from), Some(to)) = (ui.get(id), ui.get(over))
+    {
+        let r = Rect::new(to.rect.x, to.rect.y + dy, to.rect.w, to.rect.h);
+        let y = if to.rect.y < from.rect.y { r.y } else { r.bottom() };
+        c.fill_round_a(Rect::new(r.x, y - line / 2.0, r.w, line), 0.0, t.lime.a(255));
+    }
     // A scroll bar when the page is taller than the window (dragged by
     // its thumb, paged by a click beside it).
     if let Some((_, thumb)) = ui.page_bar(st) {
@@ -1475,6 +1552,7 @@ mod skin_tests {
             slack: 0.0,
             scene: super::super::backdrop::Scene::Plain,
             slab: Some(r(36.0, 104.0, 1294.0, 578.0)),
+            reorder: Vec::new(),
         };
         let st = UiState { focus: Some(focus), ..UiState::default() };
         (ui, st)

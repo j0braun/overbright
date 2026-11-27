@@ -42,6 +42,9 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `pack details` | edit | Change the mod's `--name`, `--author` and `--description` (those left out stay) |
 | `pack put` | edit | Put the whole map in place, from a map file (`--file`) |
 | `pack export` | run | Export the mod as one file to share (`--to` a `.zip`, or a new folder), without its work files; textures made from the original game's pixels need `--derived-ok` ([Studio](studio.md#the-mod-page)) |
+| `modpack export` | run | Export the mod as a mod pack file, `<id>-<version>.obpk` (`--to` a `.obpk` or a folder; optional `--version`, default 1.0.0, `--licence` as an SPDX expression, else the pack stays on this computer; `--derived-ok` as for `pack export`). Its placements, races and textures are the asset format's own files ([layering](asset-format/layering.md#7-todays-mod-registries-as-legacy-packs)) and the provenance is the launcher export's |
+| `modpack convert` | run | Convert a plain map mod or an Overbright texture pack (format 1: `world/`, `car/`, `any/`; `--from` a folder or `.zip`) to a mod pack file (`--to`; optional `--id`, `--version`, `--licence`, `--derived-ok`). The provenance says `converted`; what the pack format has no place for is listed (`left out`), a folder that is neither kind is refused. A converted texture pack stays on this computer. Needs no `--mod` |
+| `modpack report` | read | What a mod pack changes compared with the game, in words (`--pack` a `.obpk` file, a pack folder, or the id of an installed pack; optional `--to` also writes the text to a file): who made it and for which game copy, its credits, each prop it moves, removes or adds, its races, the textures it replaces, and what it overrules among the packs that are on (an installed pack only). Needs no `--mod`; nothing is mounted or switched on |
 | `pack repair` | edit | Repair a `map.obmap` that no longer reads, where a safe repair exists (a sprint or drift race with more than one lap runs its one lap), as one step |
 | `edit group` | edit | Several edits as one step (`--label`, `--ops`: the edits as a JSON list) |
 | `ops apply` | edit | Apply an operations file as one step (`--file`, optional `--label`) |
@@ -49,6 +52,31 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `looks import` | edit | Take a texture's work file in now, as one step (`--texture`) |
 | `looks watch` | run | Watch the work files and take each save in as one step (optional `--seconds`; default until Ctrl+C) |
 | `looks list` | read | The mod's changed textures and work files, with where their pixels started |
+| `props solids` | read | The region's placeable solids, as the prop browser lists them (`--filter` words of the name, `--category` knock-over, barriers, signs, street, trees or all; default all), with where they are placed; needs the game |
+| `race tracks` | read | The region's base tracks a race can be on, as the race panel lists them (number, name, the race modes the career runs on it and its neighbourhood); needs the game |
+| `looks find` | read | Find the region's world textures by name words or hash: `looks find road` or `--text 0x1A2B3C4D`; gives each texture's id for `looks open`, name, hash, size and where it is used (the models that draw it and the sections they are in), the same search as Studio's Browser; needs the game |
+| `collision show` | read | What the World view's collision layer shows in `--mode` `off`, `invisible` (invisible walls and the race and career barriers) or `all` (default; also the walls behind scenery and the floors), counted as the window builds it; with `--mod` the mod's removed and drawn collision applies; needs the game |
+| `runs list` | read | The mod's kept runs (simulations and recordings), newest first, as the Runs workspace lists them |
+| `runs show` | read | Open a run (`--run`): its race, seed, how it ended, the results and the problems it found |
+| `runs telemetry` | read | One car's telemetry in a run (`--run`, optional `--car`, default the player's slot 0): speed over time, distance from the racing line when the mod has the run's race, its events, and the gear, rpm and pedals of a run recorded with the drive channels |
+| `runs compare` | read | Compare a run with another (`--run`, `--with`, optional `--car`): the tick its state hashes part and when the car is over a metre from where the first has it |
+| `runs rename` | run | Rename a run (`--run`, `--to`); never over another run |
+| `runs delete` | run | Delete a run file (`--run`); there is no dry run and no undo |
+| `data kinds` | read | The kinds the Data grid shows (placement, race) with their columns and row counts |
+| `data show` | read | One kind's table as the Data grid shows it (`--kind`; optional `--search` words, `--filter column=text`, `--sort column`, `--desc`), each value with where it comes from (original, yours, another mod) |
+| `data set` | edit | Write one cell as the grid does (`--kind`, `--row` the row's key as `data show` gives it, `--field` the column, `--value` as typed into the cell): one undo step, with a request, a diff and `--dry-run` like any edit |
+| `data export` | run | Write one kind's table as a CSV file to `--to` (never inside the game's folder), as `data show` narrows it (`--kind`; optional `--search`, `--filter`, `--sort`, `--desc`): a `row` column with each row's key, then the columns by their field names |
+| `data import` | edit | Bring a CSV file (`--from`, as `data export` writes it; a column by its field or label) back as cell edits for `--kind`: only the cells that differ, each checked like `data set`, all as one undo step with a request, a diff and `--dry-run` like any edit; one refused cell (or an unknown row or column) refuses the whole file |
+| `browser search` | read | Search the region's models and textures as the Browser workspace does: words of the name, a hash or `section:N` (after the command or `--text`), `--kind` all, models or textures, `--category` for models, `--textures` any, in-use, unused, animated or large; needs the game |
+| `browser used` | read | Where a model or texture is used: a model's placements, sections and textures, a texture's models and sections; needs the game |
+| `browser sounds` | read | List and search the game's sounds (sound bank events) by words of the bank's path or the sound's name, as the Browser's Sounds chip does; needs the game |
+| `browser strings` | read | List and search a language file's lines by words, a hash (`0x1A2B3C4D`) or a label, as the Browser's Strings chip does (`--language`, default English, a unique start is enough); needs the game |
+| `browser wav` | run | Write a sound's first sample as a WAV (16 bit, one channel) as the Browser's Export does (the sound's name after the command or `--text`, with words of its bank when two share a name; `--to` a folder, else the mod's `.editor/reference/`; never inside the game's folder), marked as from the game files like a model's export; needs the game |
+| `browser mesh` | read | A model's geometry in numbers (vertices, triangles, size, its parts), as the Browser's model viewer shows it; needs the game |
+| `browser area` | run | Write the area around a point as one glTF 2.0 reference (`--at x,y,z` in the game's metres, Z up, as the camera's place shows; `--radius` 1 to 300, default 60; `--to` a folder, else the mod's `.editor/reference/`), marked and refused as `browser export` is; needs the game |
+| `browser export` | run | Write a model as a glTF 2.0 file for an outside 3D program, as the Browser's Export glTF does (the model's name or hash after the command or `--text`; `--to` a folder, else the mod's `.editor/reference/`; never inside the game's folder). The files say `origin = "from-game-files"`, `share = "local-only"`; needs the game |
+| `browser import` | run | Bring an edited glTF back as a mod model (`--file`, optional `--model`, default the one the file says it was exported from; needs `--mod` and the game). The file's materials are mapped onto the original model's parts by name; a material that is not a part, a part with no triangles, texture coordinates or (lit models) normals missing, more than 65,535 vertices, or a file for another model is refused with the reason (exit 1). A model made from your game files is kept in the mod's `.editor/models/` and never shared; `--own` says the model is entirely your own work: it goes to `models/` (shared) without the game's pictures, and is refused while the file is still marked from the game's files or the shape is the game's unchanged. The file is read by an isolated worker process (20 s, 3 GB of memory on Linux and macOS, bounded output): a file that crashes or hangs it is refused and nothing else is touched |
+| `game find` | read | The game folder the tool uses and where it came from: `--game`, `NFSU2_ROOT` or the launcher's choice (exit 4 when none, or it does not exist) |
 | `checks run` | read | Run the map checks on the mod |
 | `history show` | read | The mod's kept steps, with their authors |
 | `schema export` | read | The kinds' and commands' schemas |
@@ -110,8 +138,49 @@ a mod: a folder in use (`error.reason` `folder_used`) or a name another mod has 
 no name (`no_name`), a name over 60 characters (`long_name`), a folder name with other characters than a-z, 0-9,
 `-` and `_` (`bad_folder`) or a bad `--region` (`bad_region`) is a usage error (exit 2).
 
+`props solids` gives `region`, `count` and `solids` (each `name`, `knock_over`, `placed`, `categories`); `race tracks`
+gives `region`, `count` and `tracks` (`number`, `name`, `modes`, `area`); `looks find` gives `region`, `text`, `count` and `textures`
+(`texture`, `name`, `hash`, `width`, `height`, `animated`, `materials`, `used`, `used_by` (`model`, `materials`) and `sections` (`section`, `placements`)); `game find` gives `game` and `source` (`--game`, `NFSU2_ROOT` or `launcher`).
+The first three read the same lists the window shows (the prop browser, the race panel's tracks, Looks' textures), so
+the same words give the same answer. On a near miss (`--filter barier`, `looks find raod`, `--category barier`,
+`--region L4RB`, a command or `--template` with a typo) the answer says "Did you mean": plain text on the line after,
+`did_you_mean` in the JSON for the lists, and in the message of a usage error. The list commands need no `--mod`.
+
+`browser export` gives `region`, `model`, `gltf`, `bin`, `textures`, `note`, `origin` and `share`; `browser import` gives `region`, `model`, `dir`, `gltf`, `record`, `shared`, `origin`, `vertices`, `triangles` and `parts` (each `name`, `triangles`); a refusal has `error.reasons`, every reason on its own line in the text.
+
+`collision show` gives `region`, `mode`, `label`, `faces_read`, `counts` (each `what` the mode lists and its `count`) and
+`all` (`invisible`, `barriers`, `visible`, `floors`, `floors_not_ground`: every kind whatever the mode).
+
+`runs list` gives `count` and `runs` (`run`, `what`: the race's id or `world`, `seed`, `end`, `bytes`, `time_ms`). `runs show` gives
+`what`, `seed`, `end`, `span`, `frames`, `cars`, `standings` (`car`, `name`, `place`, `time`, `best`, `laps`, `dnf`) and
+`problems`. `runs telemetry` gives `speed` and, when the mod has the run's race, `lateral` (each `samples`, `min`, `max`,
+`mean`), the car's `events` and the whole `series` (time, value); a run recorded with the drive channels also has `gear`
+(-1 reverse, 0 neutral), `rpm`, `throttle`, `brake` and `steer` (null in a run without them). `runs compare` gives
+`same`, `hash_tick`, `time` and `apart`. A run that is not there fails with `error.reason` `no_run`, a car it does not have with `no_car`.
+
+`data kinds` gives `kinds` (each `kind`, `rows`, `columns`). `data show` gives `kind`, `total`, `count`, `columns` (`field`,
+`label`, `type`, `editable`) and `rows`: each `key` and `cells` by column, each cell `text`, `from` (`original`, `yours` or
+`mod <name>`), `yours` and `original` (the original's value when it differs). A cell the format cannot write yet, or a
+row another mod owns, is refused by `data set` with `error.reason` `bad_value` and the grid's words in `error.detail`.
+`data export` gives `kind`, `file`, `total` and `count`; `data import` refuses with the same `bad_value` and, in `error.detail`,
+the first refused cells ("Laps of row docks:sprint: 99 is out of range (1 to 20)"). A file that changes nothing is `unchanged`.
+
+`browser search` gives `region`, `text`, `count`, `found` (`models` and `textures` the words find at their widest) and `hits`
+(a model's `name`, `hash`, `placed`, `shown`, `sections`, `triangles`, `textures`, `used`; a texture's `name`, `texture`
+(its Looks id), `width`, `height`, `animated`, `models`, `materials`, `used`). `browser used` gives `found`: those hits with
+a model's `placements`, `as_lod`, `section_list` and `texture_list`, or a texture's `model_list` and `section_list`.
+`browser sounds` and `browser strings` are `browser search` with `--kind sounds` or `strings` (no world is loaded for
+them): a sound hit has `name`, `bank`, `samples`, `rate`, `frames`, `seconds` and `playable`, a string hit `hash`,
+`text` and `language`. `browser wav` gives `sound`, `bank`, `wav`, `rate`, `seconds`, `origin` and `share`;
+`browser mesh` gives `region`, `model`, `hash`, `vertices`, `triangles`, `lit`, `min`, `max`, `size`, `markers` and
+`parts` (`name`, `triangles`, `texture`); `browser area` gives `region`, `gltf`, `bin`, `textures`, `note`, `at`,
+`radius`, `placements`, `models`, `skipped`, `origin` and `share`.
+
 `pack export` gives `to`, `files`, `bytes`, `derived` (the textures from the original game's pixels) and
 `build`; refused for derived textures, its `error.reason` is `derived` and `derived` lists them.
+
+`modpack export` gives `to`, `id`, `files`, `bytes` and `build`, and refuses derived textures like `pack export`
+(`error.reason` is `derived`). `modpack convert` gives the same plus `kind` (`map mod` or `texture pack`) and `skipped`. `modpack report` gives `pack` and `report` (the text).
 
 `looks open` gives `texture`, `name`, `work_file`, `origin` (`game` or `blank`) and `derived`. `looks import`
 gives `outcome` (`made` with its `step`, `unchanged`, or `sent` with the inbox `request` when Studio or the map
@@ -119,6 +188,18 @@ editor has the mod open: that program makes the step and, when it next saves the
 texture under `textures/`, as `looks import` does itself when nothing else has the mod open). `looks watch` gives `saves`, one per save taken in, with its `outcome` (or `refused` and the `reason`).
 `looks list` gives `textures` (each with `texture`, `name`, `origin`, `derived`, `size`, `image`, `pack_file`)
 and `work`.
+
+## Same as the window
+
+The window's commands and the command line's are the same functions: the Runs list, Data grid, Browser index and
+collision layer the window draws are read from the code the commands call (`ob_studio::runs`, `data`, `browser`,
+`collision_view`). A test (`crates/ob-studio-gui/src/studio/parity_tests.rs`) lists the window's workspaces, menu
+actions, menu commands and key table and fails when one has neither a counterpart here nor a reason to be
+window-only. What stays in the window only: the camera, layout and what is drawn (View, Frame, Reset camera), focus,
+areas, places and dialogs, the Test and Drive here buttons that start the game on the open mod (the tool has no
+game window), Undo and Redo (a command is one step of the same history, `history show`; an edit is taken back by
+the edit that reverses it), Save (a command's step is written at once), opening a mod (a command names `--mod`) and
+Studio's settings.
 
 ## Exit codes
 
@@ -149,7 +230,7 @@ Studio's history shows the step, and Edit ▸ Undo takes it back like any other.
 - **Only files that read**: every edit is checked against the map file's rules before it becomes a step (a sprint
   or drift race runs one lap, a rotation's rows are unit axes, …), and a file is written only when it reads back,
   so no command leaves a mod that no longer opens. A dry run makes the same checks. A mod an older tool left
-  unreadable this way is repaired with `pack repair` (one undoable step; `--dry-run` shows it first).
+  unreadable this way is repaired with `pack repair` (one undoable step; `--dry-run` shows it first). The refusal also names the **known writer bug** the file has and the build that wrote it, as the mod recorded it in `.editor/saved-by.json` (`An older build wrote …` when there is no record); `error.repair.writer_bugs` lists each with its `id`, `what` and `written_by`. A new known bug is one more row of the list in `crates/ob-studio/src/writer_bugs.rs`, with its test.
 - **Studio has the mod open**: only one program writes a mod at a time. The tool then puts its change into the
   mod's inbox (`.editor/inbox/`); Studio makes it as one step at its next look and answers, and the tool prints
   that answer. A change made against the mod as the tool read it is merged item by item: if Studio changed the same
@@ -176,6 +257,6 @@ given and `checks run` with the game reports it.
 The tool is `crates/ob-studio/src/bin/overbright-studio-cli.rs` over `ob_studio::cli` (no window: it links Studio's
 operation layer only). `crates/ob-studio/tests/cli.rs` runs it on mods written in the test and compares each JSON
 document with its kept copy in `crates/ob-studio/tests/cli/` (`OB_STUDIO_BLESS=1` rewrites them; review the diff);
-it also checks that every registered command is on the command line and documented here, and that every exit code
+it also checks that every registered command is on the command line and documented here (and the window's side: `parity_tests.rs` above), and that every exit code
 is in the table above. Every edit the map editor makes goes through its JSON and back before it runs
 (`ob_studio::session::through_json`), so a request JSON cannot carry fails the editor's tests.

@@ -11,11 +11,11 @@ use super::draw::theme;
 use super::font::{Cut, Face, Fonts};
 use super::layout::{Align, Builder, Ctrl, Link, build_fit};
 use super::model::{
-    BrowseFor, Dialog, DialogAsk, DirEntry, Env, Graphics, Issue, Model, Picked, ProbeState, Problem, Verdict,
+    BrowseFor, Dialog, DialogAsk, DirEntry, Env, Graphics, Issue, ListKind, Model, Picked, ProbeState, Problem, Verdict,
     path_parts, windows_form,
 };
 use super::run::ErrorKind;
-use super::ui::{Event, Input, Key, Mark, Rect, Ui, UiState, apply_edit, handle};
+use super::ui::{Event, Id, Input, Key, Mark, Rect, Ui, UiState, apply_edit, handle};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Screen {
@@ -204,6 +204,8 @@ pub struct App<'e> {
     pub editor_job: Option<Box<dyn super::model::EditorJob>>,
     /// Studio, when the launcher started it (its end polled by the window).
     pub studio_job: Option<Box<dyn super::model::EditorJob>>,
+    /// The mod folder the last Studio start opened (None: its Home), for "Open Studio again".
+    pub studio_last: Option<String>,
     /// When Studio's locks and recent list were last read (the Dev and
     /// Mods pages read them again every [`STUDIO_LOOK`]).
     pub studio_looked: Option<std::time::Instant>,
@@ -871,7 +873,7 @@ pub fn dialog_title(p: BrowseFor) -> &'static str {
         BrowseFor::Saves => "Choose the original game's save folder",
         BrowseFor::Packages => "Choose the folder that holds the texture packages",
         BrowseFor::HudMod => "Choose the HUD mod's folder",
-        BrowseFor::MapMod => "Choose the map mod (a folder with map.obmap, or its .zip)",
+        BrowseFor::MapMod => "Choose the map mod (a folder with map.obmap, its .zip) or a mod pack (.obpk)",
         BrowseFor::MapExport => "Choose the folder to export the map mod to",
         BrowseFor::SavesExport => "Choose the folder to export the profile to",
         BrowseFor::Location => "Choose the new folder",
@@ -1520,49 +1522,60 @@ fn build_dev(b: &mut Builder, m: &Model) {
     message(b, m);
     let left_bottom = b.y;
     if let Some(r) = cols.right {
-        let cli = if m.studio_cli_here {
-            "overbright-studio-cli, beside the launcher: Studio's edits and checks from a shell or a script, one \
-             command per edit, with JSON output. Run it in a terminal; \"overbright-studio-cli help\" lists every \
-             command. Open folder shows where it is."
-        } else {
-            "overbright-studio-cli: Studio's edits and checks from a shell or a script. It is not beside the \
-             launcher in this copy of Overbright."
-        };
-        let state_help = studio_state_help(m);
-        let (h, t) = match b.st.focus.unwrap_or(dev_focus(m)) {
-            "support" => (
-                "Support file",
-                "One text file for a bug report: this computer, the game's check, the settings and the last logs, \
-                 with your home folder left out. It is saved in the logs folder.",
-            ),
-            "dev_logs" => ("Logs folder", "The game's and the launcher's logs, crash reports and support files."),
-            "studio" => (
-                "Studio (preview)",
-                "Overbright Studio in its own window: the place where mods are made. The map editor is its World \
-                 workspace. It is a preview: not every part is finished; keep a copy of mods you care about.",
-            ),
-            "studio_cli" => ("Command-line tool", cli),
-            "studio_state" => ("Studio", state_help.as_str()),
-            "studio_last" => (
-                "Last mod",
-                "The mod opened last in Studio's World workspace or in the map editor (they keep one list). Studio \
-                 lists it on its Home.",
-            ),
-            "map_editor" => (
-                "Standalone map editor (preview)",
-                "The desktop map editor on its own, without Studio: props, custom races, test runs in the game and \
-                 AI simulations. It is a preview: not every part is finished.",
-            ),
-            _ => (
-                "Editor tools",
-                "Starts the game once with --editor: F7 opens the texture editor, F8 the free camera. Your next \
-                 start from Play is a normal one. F3 shows the performance overlay in every start.",
-            ),
-        };
-        b.describe(r, h, t);
+        let id = b.st.focus.unwrap_or(dev_focus(m));
+        let (h, t) = dev_help(m, id).unwrap_or_else(|| dev_help(m, "editor_play").expect("a row"));
+        b.describe(r, h, &t);
     }
     b.y = left_bottom.max(b.widgets.last().map_or(0.0, |w| w.rect.bottom()));
     b.default_focus = Some(dev_focus(m));
+}
+
+/// What the focused row of the Dev page does, as the title and the text at the right; None for an id the page has
+/// no row for. Every focusable row has one (a test walks the page).
+pub fn dev_help(m: &Model, id: &str) -> Option<(&'static str, String)> {
+    let r = |title: &'static str, text: &str| Some((title, text.to_string()));
+    match id {
+        "support" => r(
+            "Support file",
+            "One text file for a bug report: this computer, the game's check, the settings and the last logs, \
+             with your home folder left out. It is saved in the logs folder.",
+        ),
+        "open_support" => r("Open folder", "Shows the folder the support file was saved in."),
+        "dev_logs" => r("Logs folder", "The game's and the launcher's logs, crash reports and support files."),
+        "studio" => r(
+            "Studio (preview)",
+            "Overbright Studio in its own window: the place where mods are made. The map editor is its World \
+             workspace. It is a preview: not every part is finished; keep a copy of mods you care about.",
+        ),
+        "studio_cli" if m.studio_cli_here => r(
+            "Command-line tool",
+            "overbright-studio-cli, beside the launcher: Studio's edits and checks from a shell or a script, one \
+             command per edit, with JSON output. Run it in a terminal; \"overbright-studio-cli help\" lists every \
+             command. Open folder shows where it is.",
+        ),
+        "studio_cli" => r(
+            "Command-line tool",
+            "overbright-studio-cli: Studio's edits and checks from a shell or a script. It is not beside the \
+             launcher in this copy of Overbright.",
+        ),
+        "studio_state" => Some(("Studio", studio_state_help(m))),
+        "studio_last" => r(
+            "Last mod",
+            "The mod opened last in Studio's World workspace or in the map editor (they keep one list). Studio \
+             lists it on its Home.",
+        ),
+        "map_editor" => r(
+            "Standalone map editor (preview)",
+            "The desktop map editor on its own, without Studio: props, custom races, test runs in the game and \
+             AI simulations. It is a preview: not every part is finished.",
+        ),
+        "editor_play" => r(
+            "Editor tools",
+            "Starts the game once with --editor: F7 opens the texture editor, F8 the free camera. Your next \
+             start from Play is a normal one. F3 shows the performance overlay in every start.",
+        ),
+        _ => None,
+    }
 }
 
 /// The Dev page's first focus: Studio's button (the page leads there), its
@@ -1806,6 +1819,10 @@ fn build_recover(b: &mut Builder, m: &Model) {
 /// The game stopped: what happened, the fix, the support file.
 fn build_crash(b: &mut Builder, m: &Model) {
     let f = m.failure.as_ref();
+    if let Some(run) = f.and_then(|f| f.studio.as_ref()) {
+        build_studio_crash(b, m, run);
+        return;
+    }
     let kind = f.map_or(ErrorKind::Other, |f| f.kind);
     let during = f.is_some_and(|f| f.during_start);
     let issue = match kind {
@@ -1832,6 +1849,12 @@ fn build_crash(b: &mut Builder, m: &Model) {
     b.page_title("Need for Speed Underground 2", None);
     b.message_with(Mark::Error, &title, &text, ctrls);
     b.default_focus = Some(first);
+    crash_tools(b, m);
+}
+
+/// What both crash windows share below the message: the log, the buttons, the report, the details and the support file.
+fn crash_tools(b: &mut Builder, m: &Model) {
+    let f = m.failure.as_ref();
     let where_ = match f.and_then(|f| f.log.as_ref()) {
         Some(l) => format!("The log file: {}", l.display()),
         None => format!("Logs folder: {}", m.logs_dir.display()),
@@ -1866,11 +1889,41 @@ fn build_crash(b: &mut Builder, m: &Model) {
     message(b, m);
 }
 
+/// Studio's (or the map editor's) bad end: the same window as the game's, with its own words
+/// (docs/troubleshooting.md "After a crash").
+fn build_studio_crash(b: &mut Builder, m: &Model, run: &super::model::StudioRun) {
+    let editor = run.program.contains("map editor");
+    let (title, again) = if editor {
+        ("The map editor stopped unexpectedly", ("editor_again", "Open the map editor again"))
+    } else {
+        ("Studio stopped unexpectedly", ("studio_again", "Open Studio again"))
+    };
+    let ctrls = vec![
+        Ctrl::primary(again.0, again.1),
+        Ctrl::button("support", "Save support file…"),
+        Ctrl::button("back", words::BACK),
+    ];
+    b.page_title("Need for Speed Underground 2", None);
+    b.message_with(
+        Mark::Error,
+        title,
+        "Open it again; steps it had already saved are kept. If it happens again, send the report when you ask for help.",
+        ctrls,
+    );
+    b.default_focus = Some(again.0);
+    b.dim(&match &run.opened {
+        Some(name) => format!("The mod that was open: {name}"),
+        None => "No mod was open.".to_string(),
+    });
+    b.dim(&format!("Version: {}", run.version));
+    crash_tools(b, m);
+}
+
 /// The crash report window's part of the failure screen: how the game
 /// ended in words, the system's errors for it, the logs of the run.
 fn crash_report_block(b: &mut Builder, r: &super::model::CrashReport) {
     b.gap(10.0);
-    b.dim(&format!("What happened: the game ran {:.0} s, then {}.", r.secs, r.reason));
+    b.dim(&format!("What happened: {} ran {:.0} s, then {}.", r.program, r.secs, r.reason));
     b.gap(6.0);
     if r.asking {
         b.dim("Asking the system for its record of the crash…");
@@ -2007,6 +2060,9 @@ pub const PACK_IDS: [&str; 24] = [
     "pk0", "pk1", "pk2", "pk3", "pk4", "pk5", "pk6", "pk7", "pk8", "pk9", "pk10", "pk11", "pk12", "pk13", "pk14",
     "pk15", "pk16", "pk17", "pk18", "pk19", "pk20", "pk21", "pk22", "pk23",
 ];
+pub const MODPACK_IDS: [&str; 16] = [
+    "mk0", "mk1", "mk2", "mk3", "mk4", "mk5", "mk6", "mk7", "mk8", "mk9", "mk10", "mk11", "mk12", "mk13", "mk14", "mk15",
+];
 pub const MAP_IDS: [&str; 16] = [
     "mp0", "mp1", "mp2", "mp3", "mp4", "mp5", "mp6", "mp7", "mp8", "mp9", "mp10", "mp11", "mp12", "mp13", "mp14", "mp15",
 ];
@@ -2073,9 +2129,147 @@ fn hud_words(m: &Model) -> Option<(Mark, String)> {
     })
 }
 
-/// The Mods page: Use mods, the texture packs (own and imported) with
-/// their switches, the order only when two packs collide, the HUD mod,
-/// the map mods; About mods at the right.
+/// One row of the Mods list: any kind of mod, as the asset layer sees it
+/// (what is on, what it changes, what it clashes with, why it is refused).
+#[derive(Clone, Debug, PartialEq)]
+pub struct ModLine {
+    pub kind: ListKind,
+    /// The row's widget id (the kind's own ids: `pk…`, `mk…`, `hud`, `mp…`).
+    pub id: Id,
+    pub name: String,
+    /// The line under the name; starts with the kind.
+    pub detail: String,
+    pub on: bool,
+    /// The switch can be used.
+    pub enabled: bool,
+    /// A warning under the row (a refused pack, an incomplete HUD mod).
+    pub note: Option<(Mark, String)>,
+}
+
+/// The map mod Studio opens for the row `id`: a map mod's own folder; a mod pack made from a map mod of the same
+/// name (its id is that mod's folder) when Studio is beside the launcher. None: Studio cannot open this row.
+pub fn studio_target(m: &Model, id: &str) -> Option<String> {
+    if let Some(i) = MAP_IDS.iter().position(|p| *p == id) {
+        return m.mods.maps.get(i).map(|r| r.folder.clone());
+    }
+    let i = MODPACK_IDS.iter().position(|p| *p == id)?;
+    let pack = m.mods.packs.get(i)?;
+    m.mods.maps.iter().find(|r| r.folder == pack.id).map(|r| r.folder.clone())
+}
+
+/// The warning under a refused mod pack: why it is not used and, when Studio can open the mod it was made from,
+/// where to repair it.
+fn refused_words(m: &Model, id: &str, name: &str, why: &str) -> String {
+    if m.studio_here && m.mods.maps.iter().any(|r| r.folder == id) {
+        format!("{name} can't load: {why} · Open in Studio to repair")
+    } else {
+        format!("{name}: not used, {why}")
+    }
+}
+
+/// The row the Chosen mod buttons act on (the last one focused, else the first one shown).
+pub fn chosen_id(m: &Model) -> Option<Id> {
+    let all = mod_lines(m);
+    let kinds: Vec<ListKind> = ListKind::ALL.into_iter().filter(|k| all.iter().any(|l| l.kind == *k)).collect();
+    let filter = m.mods.filter.filter(|k| kinds.contains(k));
+    let shown: Vec<&ModLine> = all.iter().filter(|l| filter.is_none_or(|k| l.kind == k)).collect();
+    chosen_line(m, &shown).map(|l| l.id)
+}
+
+/// Every mod in one list: texture packs (Overbright's own, then imported,
+/// the loader's order), mod packs (load order, the strongest first), the HUD
+/// mod, the map mods.
+pub fn mod_lines(m: &Model) -> Vec<ModLine> {
+    let mods = &m.mods;
+    let live = !mods.paused;
+    let busy = mods.busy.is_some();
+    let editing = matches!(mods.editor, super::model::EditorRun::Open(_));
+    let mut v = Vec::new();
+    for (i, l) in pack_lines(m).into_iter().enumerate().take(PACK_IDS.len()) {
+        v.push(ModLine {
+            kind: ListKind::Texture,
+            id: PACK_IDS[i],
+            detail: format!("{} · {}", ListKind::Texture.one(), l.detail),
+            name: l.name,
+            on: l.on && live,
+            enabled: live && l.usable && !busy,
+            note: None,
+        });
+    }
+    for (i, r) in mods.packs.iter().enumerate().take(MODPACK_IDS.len()) {
+        v.push(ModLine {
+            kind: ListKind::Pack,
+            id: MODPACK_IDS[i],
+            name: r.name.clone(),
+            detail: format!("{} · #{} · {}", ListKind::Pack.one(), i + 1, pack_detail(r)),
+            on: r.on && r.refused.is_none() && live,
+            enabled: live && r.refused.is_none(),
+            note: r.refused.as_ref().filter(|_| r.on || r.new).map(|why| (Mark::Warn, refused_words(m, &r.id, &r.name, why))),
+        });
+    }
+    if let Some((mark, words)) = hud_words(m) {
+        v.push(ModLine {
+            kind: ListKind::Hud,
+            id: "hud",
+            name: "HD HUD and maps".into(),
+            detail: format!("{} · {words}", ListKind::Hud.one()),
+            on: m.choices.hud_mod && live,
+            enabled: live,
+            note: (mark == Mark::Warn || mark == Mark::Error).then(|| (mark, words)),
+        });
+    }
+    for (i, r) in mods.maps.iter().enumerate().take(MAP_IDS.len()) {
+        let detail = match m.studio_seen.held_on(&r.folder) {
+            Some(h) if h.by_studio() => format!("{} · being edited in Studio", map_detail(r)),
+            Some(_) => format!("{} · being edited", map_detail(r)),
+            None => map_detail(r),
+        };
+        v.push(ModLine {
+            kind: ListKind::Map,
+            id: MAP_IDS[i],
+            name: r.name.clone(),
+            detail: format!("{} · {detail}", ListKind::Map.one()),
+            on: r.on && live,
+            enabled: live && !editing,
+            note: None,
+        });
+    }
+    v
+}
+
+/// What is on, in the order the game takes it: the Mods page's side summary.
+pub fn mounted_words(m: &Model) -> Vec<String> {
+    if m.mods.paused {
+        return vec!["Nothing: Use mods is off, the game starts with its own files.".into()];
+    }
+    let lines = mod_lines(m);
+    let mut out = Vec::new();
+    for k in ListKind::ALL {
+        let on: Vec<&str> = lines.iter().filter(|l| l.kind == k && l.on).map(|l| l.name.as_str()).collect();
+        if on.is_empty() {
+            continue;
+        }
+        out.push(match k {
+            ListKind::Pack => format!("{} (strongest first): {}", k.many(), on.join(", ")),
+            ListKind::Hud => "HUD mod".to_string(),
+            _ => format!("{}: {}", k.many(), on.join(", ")),
+        });
+    }
+    if out.is_empty() {
+        out.push("Nothing: the game's own textures, HUD and maps.".into());
+    }
+    out
+}
+
+/// The kind of the chosen row (the last one focused), or of the first one
+/// shown when none was chosen yet.
+fn chosen_line<'a>(m: &Model, shown: &[&'a ModLine]) -> Option<&'a ModLine> {
+    m.mods.cur.and_then(|c| shown.iter().find(|l| l.id == c)).or_else(|| shown.first()).copied()
+}
+
+/// The Mods page: Use mods, one list of every mod (texture packs, mod packs,
+/// the HUD mod, map mods) filtered by kind, the actions on the chosen row,
+/// what is mounted and About mods at the right.
 fn build_mods(b: &mut Builder, m: &Model) {
     let mods = &m.mods;
     let busy = mods.busy.is_some();
@@ -2087,15 +2281,74 @@ fn build_mods(b: &mut Builder, m: &Model) {
         b.row_note("Off: the game starts with its own textures, HUD and maps. Your list is kept.");
     }
     let live = !mods.paused;
-    b.section_a("Texture packs");
-    let lines = pack_lines(m);
-    if lines.is_empty() {
-        b.dim("None added: the game shows its own textures.");
+    let all = mod_lines(m);
+    let kinds: Vec<ListKind> = ListKind::ALL.into_iter().filter(|k| all.iter().any(|l| l.kind == *k)).collect();
+    let filter = mods.filter.filter(|k| kinds.contains(k));
+    if kinds.len() >= 2 {
+        b.gap(6.0);
+        let chip = |id, text: &str, on| Ctrl::Button { id, text: text.into(), primary: on, enabled: true };
+        let mut chips = vec![chip("kf_all", "All", filter.is_none())];
+        for k in &kinds {
+            chips.push(chip(filter_id(*k), k.many(), filter == Some(*k)));
+        }
+        b.buttons(Align::Left, chips);
     }
-    for (i, l) in lines.iter().enumerate().take(PACK_IDS.len()) {
-        b.toggle_sub(PACK_IDS[i], &l.name, &l.detail, l.on && live, live && l.usable && !busy);
+    b.section_a("Your mods");
+    b.row_min = 44.0;
+    let shown: Vec<&ModLine> = all.iter().filter(|l| filter.is_none_or(|k| l.kind == k)).collect();
+    if all.is_empty() {
+        b.dim("None added: the game shows its own textures, HUD and maps.");
+    } else if shown.is_empty() {
+        b.dim("None of this kind added.");
     }
-    if live && let Some(c) = &mods.conflict {
+    for l in &shown {
+        b.toggle_sub(l.id, &l.name, &l.detail, l.on, l.enabled);
+        if matches!(l.kind, ListKind::Texture | ListKind::Pack) && l.enabled {
+            b.reorder.push(l.id);
+        }
+        if let Some((mark, t)) = &l.note {
+            b.status(*mark, t);
+        }
+    }
+    b.gap(10.0);
+    let editing = matches!(mods.editor, super::model::EditorRun::Open(_));
+    let hud_busy = mods.hud_busy.is_some();
+    b.buttons(
+        Align::Left,
+        vec![
+            Ctrl::Button { id: "add", text: "Add a mod…".into(), primary: false, enabled: !busy },
+            Ctrl::Button { id: "pack_import", text: "Import…".into(), primary: false, enabled: !editing },
+            Ctrl::Button { id: "hud_add", text: "Add HUD mod…".into(), primary: false, enabled: !hud_busy },
+            Ctrl::button("pack_browse", "HUD folder…"),
+        ],
+    );
+    b.buttons(Align::Left, vec![Ctrl::Button { id: "apply", text: "Apply, don't play".into(), primary: false, enabled: !busy }]);
+    if let Some(t) = &mods.busy {
+        b.gap(6.0);
+        b.status(Mark::Busy, t);
+    }
+    for (mark, line) in &mods.results {
+        b.status(*mark, line);
+    }
+    if let Some(t) = &mods.hud_busy {
+        b.status(Mark::Busy, t);
+    }
+    for (mark, line) in &mods.hud_results {
+        b.status(*mark, line);
+    }
+    message(b, m);
+    let left_bottom = b.y;
+    // What is mounted and the side note: the right column (under the left
+    // one when the window is narrow).
+    match cols.right {
+        Some(r) => b.in_column(r),
+        None => b.gap(8.0),
+    }
+    if filter.is_none_or(|k| k == ListKind::Texture)
+        && live
+        && let Some(c) = &mods.conflict
+    {
+        let lines = pack_lines(m);
         b.gap(6.0);
         let ctrls = if !c.same_list {
             Vec::new()
@@ -2126,83 +2379,119 @@ fn build_mods(b: &mut Builder, m: &Model) {
             ctrls,
         );
     }
-    b.gap(10.0);
-    b.buttons(Align::Left, vec![Ctrl::Button { id: "add", text: "Add a mod…".into(), primary: false, enabled: !busy }]);
-    if let Some(t) = &mods.busy {
-        b.gap(6.0);
-        b.status(Mark::Busy, t);
+    // The actions on the chosen row: those of its kind can be used.
+    let chosen = chosen_line(m, &shown);
+    let kind = chosen.map(|l| l.kind);
+    b.section_a("Chosen mod");
+    match chosen {
+        Some(l) => b.dim(&format!("{} · {}", l.name, l.kind.one())),
+        None => b.dim("Choose a mod in the list to move it, look inside it or open it."),
     }
-    for (mark, line) in &mods.results {
-        b.status(*mark, line);
-    }
-    message(b, m);
-    let left_bottom = b.y;
-    // The HUD and the map mods: the right column (under the left one when
-    // the window is narrow).
-    match cols.right {
-        Some(r) => b.in_column(r),
-        None => b.gap(8.0),
-    }
-    b.section_a("HUD");
-    match hud_words(m) {
-        Some((mark, words)) => {
-            b.toggle_sub("hud", "HD HUD and maps", &words, m.choices.hud_mod && live, live);
-            if mark == Mark::Warn || mark == Mark::Error {
-                b.status(mark, &words);
-            }
-        }
-        None => b.dim(HUD_INTRO),
-    }
-    if let Some(t) = &mods.hud_busy {
-        b.status(Mark::Busy, t);
-    }
-    for (mark, line) in &mods.hud_results {
-        b.status(*mark, line);
-    }
-    let hud_busy = mods.hud_busy.is_some();
-    let dir = m.choices.texture_pack.trim();
     b.gap(6.0);
+    let sel = mods.pack_sel.as_ref().and_then(|s| mods.packs.iter().position(|r| &r.id == s));
+    let is = |k| kind == Some(k);
     b.buttons(
         Align::Left,
         vec![
-            Ctrl::Button { id: "hud_add", text: "Add HUD mod…".into(), primary: false, enabled: !hud_busy },
-            Ctrl::button("pack_browse", "Choose folder…"),
-            Ctrl::Button { id: "pack_forget", text: "Forget folder".into(), primary: false, enabled: !dir.is_empty() },
-        ],
-    );
-    b.section_a("Map mods");
-    if mods.maps.is_empty() {
-        b.dim("None added: the game's own city. Make one in the map editor.");
-    }
-    let editing = matches!(mods.editor, super::model::EditorRun::Open(_));
-    for (i, r) in mods.maps.iter().enumerate().take(MAP_IDS.len()) {
-        let detail = match m.studio_seen.held_on(&r.folder) {
-            Some(h) if h.by_studio() => format!("{} · being edited in Studio", map_detail(r)),
-            Some(_) => format!("{} · being edited", map_detail(r)),
-            None => map_detail(r),
-        };
-        b.toggle_sub(MAP_IDS[i], &r.name, &detail, r.on && live, live && !editing);
-    }
-    b.gap(6.0);
-    let any = !mods.maps.is_empty();
-    b.buttons(
-        Align::Left,
-        vec![
+            Ctrl::Button { id: "pack_up", text: "Move up".into(), primary: false, enabled: live && is(ListKind::Pack) && sel.is_some_and(|i| i > 0) },
             Ctrl::Button {
-                id: "map_open",
-                text: "Open in map editor".into(),
+                id: "pack_down",
+                text: "Move down".into(),
                 primary: false,
-                enabled: any && !editing && m.editor_here,
+                enabled: live && is(ListKind::Pack) && sel.is_some_and(|i| i + 1 < mods.packs.len()),
             },
-            Ctrl::Button { id: "map_import", text: "Import a map mod…".into(), primary: false, enabled: !editing },
-            Ctrl::Button { id: "map_export", text: "Export…".into(), primary: false, enabled: any && !editing },
+            Ctrl::Button { id: "pack_inside", text: "Look inside".into(), primary: false, enabled: is(ListKind::Pack) && sel.is_some() },
         ],
     );
+    let ok_pack = sel.and_then(|i| mods.packs.get(i)).filter(|r| r.refused.is_none());
+    let any_map = !mods.maps.is_empty();
+    let dir = m.choices.texture_pack.trim();
+    b.buttons(
+        Align::Left,
+        vec![
+            Ctrl::Button { id: "pack_try", text: "Try it once".into(), primary: false, enabled: live && is(ListKind::Pack) && ok_pack.is_some() && !editing },
+            Ctrl::Button { id: "remove", text: "Remove".into(), primary: false, enabled: live && !busy && is(ListKind::Texture) },
+            Ctrl::Button { id: "pack_forget", text: "Forget HUD folder".into(), primary: false, enabled: is(ListKind::Hud) && !dir.is_empty() },
+        ],
+    );
+    let studio_free = m.studio_here && !matches!(m.studio, super::model::EditorRun::Open(_));
+    let target = chosen.and_then(|l| studio_target(m, l.id));
+    b.buttons(
+        Align::Left,
+        vec![Ctrl::Button {
+            id: "studio_mod",
+            text: "Open in Studio".into(),
+            primary: false,
+            enabled: studio_free && target.is_some() && !editing,
+        }],
+    );
+    match &m.studio {
+        super::model::EditorRun::Open(f) => {
+            let name = f.as_ref().and_then(|f| mods.maps.iter().find(|r| &r.folder == f)).map(|r| r.name.as_str());
+            b.status(
+                Mark::Busy,
+                &match name {
+                    Some(n) => format!("Studio is open on {n}. It saves as you work; this page reads the mod again when Studio closes."),
+                    None => "Studio is open. It saves as you work; this page reads the mods again when Studio closes.".into(),
+                },
+            );
+        }
+        super::model::EditorRun::Failed(e) => b.status(Mark::Error, &format!("Studio: {e}")),
+        super::model::EditorRun::Closed if target.is_some() => b.dim(STUDIO_SAVES),
+        super::model::EditorRun::Closed => {}
+    }
+    b.buttons(
+        Align::Left,
+        vec![
+            Ctrl::Button { id: "map_open", text: "Open in map editor".into(), primary: false, enabled: any_map && is(ListKind::Map) && !editing && m.editor_here },
+            Ctrl::Button { id: "map_export", text: "Export…".into(), primary: false, enabled: any_map && is(ListKind::Map) && !editing },
+            Ctrl::Button { id: "map_export_pack", text: "Export as a mod pack…".into(), primary: false, enabled: any_map && is(ListKind::Map) && !editing },
+        ],
+    );
+    if let Some((name, lines)) = &mods.inside {
+        b.gap(6.0);
+        b.section_a(&format!("Inside {name}"));
+        for l in lines {
+            b.dim(l);
+        }
+        b.gap(6.0);
+        b.buttons(Align::Left, vec![Ctrl::button("inside_close", "Close")]);
+    }
+    if let Some((name, t)) = &mods.tried {
+        b.gap(6.0);
+        b.message_with(
+            Mark::Ok,
+            &format!("{name} was tried once"),
+            &format!(
+                "Your own saves were not touched. The game wrote into a copy: {}. Keep it to look at, or discard it.",
+                t.dir.display()
+            ),
+            vec![Ctrl::button("try_keep", "Keep the copy"), Ctrl::button("try_discard", "Discard the copy")],
+        );
+    }
     editor_status(b, m);
+    b.section_a("Mounted now");
+    for l in mounted_words(m) {
+        b.dim(&l);
+    }
+
+    if !all.iter().any(|l| l.kind == ListKind::Hud) {
+        b.dim(HUD_INTRO);
+    }
     b.gap(14.0);
     b.dim(ABOUT_MODS);
     b.y = left_bottom.max(b.y);
-    b.default_focus = Some(if lines.is_empty() { "add" } else { PACK_IDS[0] });
+    b.default_focus = Some(shown.first().map_or("add", |l| l.id));
+}
+
+/// The id of a kind's filter button.
+fn filter_id(k: ListKind) -> Id {
+    match k {
+        ListKind::Texture => "kf_tex",
+        ListKind::Pack => "kf_packs",
+        ListKind::Hud => "kf_hud",
+        ListKind::Map => "kf_maps",
+    }
 }
 
 /// The map editor's state under its buttons (Mods and Dev pages): open on
@@ -2225,9 +2514,32 @@ fn editor_status(b: &mut Builder, m: &Model) {
     }
 }
 
+/// A mod pack's line under its name: version, its place in the order, what it clashes with.
+pub fn pack_detail(r: &super::model::PackRow) -> String {
+    let mut parts = vec![format!("version {}", r.version)];
+    if r.new {
+        parts.push("new, off".into());
+    }
+    if r.affects_play {
+        parts.push("affects play".into());
+    }
+    if let Some(c) = &r.clash {
+        parts.push(c.clone());
+    }
+    parts.join(" · ")
+}
+
 /// A map mod's line under its name: its races, prop edits and the
 /// textures it changes.
 pub fn map_detail(r: &super::model::MapRow) -> String {
+    let own = map_detail_counts(r);
+    if r.new_from_studio { format!("{own} · {NEW_FROM_STUDIO}") } else { own }
+}
+
+/// The mark on a mod made in Studio that is not turned on yet.
+pub const NEW_FROM_STUDIO: &str = "new from Studio";
+
+fn map_detail_counts(r: &super::model::MapRow) -> String {
     use super::model::count;
     let parts: Vec<String> = [(r.races, "race", "races"), (r.props, "prop edit", "prop edits"), (r.textures, "texture", "textures")]
         .into_iter()
@@ -2236,6 +2548,10 @@ pub fn map_detail(r: &super::model::MapRow) -> String {
         .collect();
     if parts.is_empty() { "Empty".into() } else { parts.join(" · ") }
 }
+
+/// Under Open in Studio: there is nothing to save by hand.
+pub const STUDIO_SAVES: &str = "Studio saves the mod as you work: there is no Save to press, and the mod stays off \
+until you turn it on here.";
 
 /// The Mods page's side note.
 pub const ABOUT_MODS: &str = "Overbright copies each mod into its own folder; your game folder and your downloads are \
@@ -2282,6 +2598,7 @@ impl<'e> App<'e> {
             crash_job: None,
             editor_job: None,
             studio_job: None,
+            studio_last: None,
             studio_looked: None,
             keys_after: None,
             copy_job: None,
@@ -2307,6 +2624,8 @@ impl<'e> App<'e> {
             // A long page scrolls instead of shrinking.
             !s.document() && s != Screen::Storage,
             scale,
+            // The Mods list grows with the mods: it scrolls before its text gets small.
+            if s == Screen::Mods { super::ui::MIN_UNIT_LIST } else { super::ui::MIN_UNIT },
             &mut self.st,
             |b| build(b, m, s),
         );
@@ -2603,10 +2922,15 @@ impl<'e> App<'e> {
         if self.screen == Screen::Mods
             && let Some(f) = self.ui.focused(&self.st)
         {
+            if let Some(row) = PACK_IDS.iter().chain(&MODPACK_IDS).chain(&MAP_IDS).chain(&["hud"]).find(|p| **p == f) {
+                self.model.mods.cur = Some(row);
+            }
             if let Some(i) = PACK_IDS.iter().position(|p| *p == f) {
                 self.model.mods.sel = i;
             } else if let Some(i) = MAP_IDS.iter().position(|p| *p == f) {
                 self.model.mods.map_sel = self.model.mods.maps.get(i).map(|r| r.folder.clone());
+            } else if let Some(i) = MODPACK_IDS.iter().position(|p| *p == f) {
+                self.model.mods.pack_sel = self.model.mods.packs.get(i).map(|r| r.id.clone());
             }
         }
         let mut out = Outcome::Stay;
@@ -2943,9 +3267,82 @@ impl<'e> App<'e> {
         self.refresh_mods();
     }
 
+    /// A mod pack's switch.
+    fn toggle_mod_pack(&mut self, i: usize) {
+        let Some(r) = self.model.mods.packs.get(i).cloned() else { return };
+        self.model.mods.pack_sel = Some(r.id.clone());
+        self.model.mods.results = match self.env.set_mod_pack(&r.id, !r.on) {
+            Ok(also) if !also.is_empty() => {
+                vec![(Mark::Info, format!("{} turned on too, below {}: {} needs {}", also.join(", "), r.name, r.name, also.join(", ")))]
+            }
+            Ok(_) => Vec::new(),
+            Err(e) => vec![(Mark::Error, format!("{}: {e}", r.name))],
+        };
+        self.refresh_mods();
+    }
+
+    /// The mod pack chosen on the Mods page.
+    fn selected_pack(&self) -> Option<super::model::PackRow> {
+        let id = self.model.mods.pack_sel.as_ref()?;
+        self.model.mods.packs.iter().find(|r| &r.id == id).cloned()
+    }
+
+    /// Moves the chosen mod pack one place; the page keeps it chosen.
+    fn move_mod_pack(&mut self, by: isize) {
+        let Some(id) = self.model.mods.pack_sel.clone() else { return };
+        if let Err(e) = self.env.move_pack(&id, by) {
+            self.model.mods.results = vec![(Mark::Error, format!("{id}: {e}"))];
+        }
+        self.refresh_mods();
+    }
+
+    /// A row of the Mods list moved to another's place (a drag, or the move
+    /// keys): mod packs in the load order, texture packs within their list.
+    /// The row stays chosen and focused.
+    fn move_row(&mut self, from: Id, to: Id) {
+        let m = &self.model.mods;
+        if let (Some(i), Some(j)) = (MODPACK_IDS.iter().position(|p| *p == from), MODPACK_IDS.iter().position(|p| *p == to)) {
+            let Some(r) = m.packs.get(i).cloned() else { return };
+            if let Err(e) = self.env.move_pack(&r.id, j as isize - i as isize) {
+                self.model.mods.results = vec![(Mark::Error, format!("{}: {e}", r.name))];
+            } else {
+                self.model.mods.results = Vec::new();
+            }
+            self.model.mods.pack_sel = Some(r.id);
+            self.model.mods.cur = Some(MODPACK_IDS[j]);
+            self.st.focus = Some(MODPACK_IDS[j]);
+            self.refresh_mods();
+        } else if let (Some(i), Some(j)) =
+            (PACK_IDS.iter().position(|p| *p == from), PACK_IDS.iter().position(|p| *p == to))
+        {
+            let n = m.own.len();
+            if (i < n) != (j < n) {
+                self.model.mods.results =
+                    vec![(Mark::Info, "Overbright packs come before imported packs: they keep their own order.".into())];
+                return;
+            }
+            self.model.mods.sel = i;
+            let step = if j > i { 1 } else { -1 };
+            for _ in 0..i.abs_diff(j) {
+                self.move_pack(step);
+            }
+            self.model.mods.results = Vec::new();
+            self.model.mods.cur = Some(PACK_IDS[j]);
+            self.st.focus = Some(PACK_IDS[j]);
+        }
+    }
+
     /// A map mod imported.
     fn import_map(&mut self, from: &Path) {
         let name = from.file_name().map_or(String::new(), |n| n.to_string_lossy().into_owned());
+        if from.extension().is_some_and(|e| e.eq_ignore_ascii_case("obpk")) {
+            self.model.mods.results = vec![match self.env.import_pack(from) {
+                Ok(id) => (Mark::Ok, format!("{name}: mod pack added ({id}); turn it on below")),
+                Err(e) => (Mark::Error, format!("{name}: not added: {e}")),
+            }];
+            self.refresh_mods();
+            return;
+        }
         self.model.mods.results = vec![match self.env.import_map(from) {
             Ok(f) => (Mark::Ok, format!("{name}: map mod added ({f}); turn it on below")),
             Err(e) => (Mark::Error, format!("{name}: not a map mod Overbright can read: {e}")),
@@ -2959,6 +3356,7 @@ impl<'e> App<'e> {
         m.list = self.env.mods();
         m.own = self.env.own_packs();
         m.maps = self.env.maps();
+        m.packs = self.env.packs();
         self.check_conflict();
         self.look_at_studio();
     }
@@ -2993,7 +3391,9 @@ impl<'e> App<'e> {
     /// Export the map mod `f` into `dir` (`derived_ok`: the player said yes
     /// to its textures from the original game's pixels).
     fn export_map(&mut self, f: &str, dir: &Path, derived_ok: bool) {
-        self.model.mods.results = vec![match self.env.export_map(f, dir, derived_ok) {
+        let packed = self.model.mods.export_pack;
+        let r = if packed { self.env.export_pack(f, dir, derived_ok) } else { self.env.export_map(f, dir, derived_ok) };
+        self.model.mods.results = vec![match r {
             Ok(p) => (Mark::Ok, format!("Exported: {}", p.display())),
             Err(e) => (Mark::Error, format!("{f}: not exported: {e}")),
         }];
@@ -3007,6 +3407,7 @@ impl<'e> App<'e> {
                 own: m.mods.own.iter().map(|o| (o.id.clone(), o.on)).collect(),
                 packages: m.mods.list.iter().map(|(e, _)| (e.id.clone(), e.on)).collect(),
                 maps: m.mods.maps.iter().filter(|r| r.on).map(|r| r.folder.clone()).collect(),
+                packs: m.mods.packs.iter().filter(|r| r.on).map(|r| r.id.clone()).collect(),
                 hud: m.choices.hud_mod,
             };
             if let Err(e) = self.env.set_paused(Some(&p)) {
@@ -3022,6 +3423,10 @@ impl<'e> App<'e> {
                 r.on = false;
                 let _ = self.env.set_map(&r.folder, false);
             }
+            for r in m.mods.packs.iter_mut().filter(|r| r.on) {
+                r.on = false;
+                let _ = self.env.set_mod_pack(&r.id, false);
+            }
         } else {
             let p = self.env.paused().or_else(|| m.set_aside.take()).unwrap_or_default();
             let was = |l: &[(String, bool)], id: &str| l.iter().find(|(i, _)| i == id).is_none_or(|(_, on)| *on);
@@ -3032,6 +3437,12 @@ impl<'e> App<'e> {
                 r.on = p.maps.contains(&r.folder);
                 if r.on {
                     let _ = self.env.set_map(&r.folder, true);
+                }
+            }
+            for r in m.mods.packs.iter_mut() {
+                r.on = p.packs.contains(&r.id) && r.refused.is_none();
+                if r.on {
+                    let _ = self.env.set_mod_pack(&r.id, true);
                 }
             }
             m.mods.paused = false;
@@ -3279,6 +3690,11 @@ impl<'e> App<'e> {
                 ))
             }
             (Screen::Mods, Event::Toggle("use_mods")) => self.toggle_mods_in_use(),
+            (Screen::Mods, Event::Activate(id)) if id.starts_with("kf_") => {
+                self.model.mods.filter = ListKind::ALL.into_iter().find(|k| filter_id(*k) == *id);
+                self.st.focus = Some(id);
+            }
+            (Screen::Mods, Event::Move(from, to)) => self.move_row(from, to),
             (Screen::Mods, Event::Toggle(id)) if PACK_IDS.contains(id) => {
                 let i = PACK_IDS.iter().position(|p| p == id).unwrap_or(0);
                 self.toggle_pack(i);
@@ -3293,6 +3709,50 @@ impl<'e> App<'e> {
                         self.model.mods.results = vec![(Mark::Error, format!("{f}: {e}"))];
                     }
                 }
+            }
+            (Screen::Mods, Event::Toggle(id)) if MODPACK_IDS.contains(id) => {
+                let i = MODPACK_IDS.iter().position(|p| p == id).unwrap_or(0);
+                self.toggle_mod_pack(i);
+            }
+            (Screen::Mods, Event::Activate("pack_up")) => self.move_mod_pack(-1),
+            (Screen::Mods, Event::Activate("pack_down")) => self.move_mod_pack(1),
+            (Screen::Mods, Event::Activate("pack_inside")) => {
+                if let Some(r) = self.selected_pack() {
+                    let lines = self.env.pack_inside(&r.id);
+                    self.model.mods.inside = Some((r.name, lines));
+                }
+            }
+            (Screen::Mods, Event::Activate("inside_close")) => self.model.mods.inside = None,
+            (Screen::Mods, Event::Activate("pack_try")) => {
+                if let Some(r) = self.selected_pack().filter(|r| r.refused.is_none()) {
+                    self.model.mods.try_pack = Some(r.id);
+                    self.model.mods.tried = None;
+                    self.motion.play_pressed();
+                    if self.save() {
+                        return Some(Outcome::Play);
+                    }
+                    self.model.mods.try_pack = None;
+                }
+            }
+            (Screen::Mods, Event::Activate("try_keep")) => {
+                if let Some((name, t)) = self.model.mods.tried.take() {
+                    self.model.mods.results =
+                        vec![(Mark::Ok, format!("{name}: the saves copy is kept in {}", t.dir.display()))];
+                }
+            }
+            (Screen::Mods, Event::Activate("try_discard")) => {
+                if let Some((name, t)) = self.model.mods.tried.take() {
+                    self.model.mods.results = vec![match t.discard(&super::trial::tries_dir()) {
+                        Ok(()) => (Mark::Ok, format!("{name}: the saves copy is discarded")),
+                        Err(e) => (Mark::Error, format!("{name}: the saves copy was not discarded: {e}")),
+                    }];
+                }
+            }
+            (Screen::Mods, Event::Activate("pack_import")) => self.browse(BrowseFor::MapMod, None),
+            (Screen::Mods, Event::Activate("map_export_pack")) => {
+                self.model.mods.export_pack = true;
+                let start = super::dirs::home();
+                self.choose_folder(BrowseFor::MapExport, start);
             }
             (Screen::Mods, Event::Activate("order")) => {
                 self.model.mods.show_order = true;
@@ -3318,20 +3778,26 @@ impl<'e> App<'e> {
                 let n = pack_lines(&self.model).len();
                 self.model.mods.sel = self.model.mods.sel.min(n.saturating_sub(1));
             }
-            (Screen::Mods, Event::Activate("map_import")) => self.browse(BrowseFor::MapMod, None),
             (Screen::Mods, Event::Activate("map_open")) => {
                 let f = self.model.mods.map_sel.clone().or_else(|| self.model.mods.maps.first().map(|r| r.folder.clone()));
                 if f.is_some() {
                     self.open_editor(f);
                 }
             }
+            (Screen::Mods, Event::Activate("apply")) => self.apply_mods(),
+            (Screen::Mods, Event::Activate("studio_mod")) => {
+                if let Some(f) = chosen_id(&self.model).and_then(|id| studio_target(&self.model, id)) {
+                    self.open_studio(Some(f));
+                }
+            }
             (Screen::Dev, Event::Activate("map_editor")) => self.open_editor(None),
-            (Screen::Dev, Event::Activate("studio")) => self.open_studio(),
+            (Screen::Dev, Event::Activate("studio")) => self.open_studio(None),
             (Screen::Dev, Event::Activate("studio_cli")) => {
                 let d = super::dirs::studio_cli_exe().parent().map(Path::to_path_buf).unwrap_or_default();
                 self.open_folder(&d);
             }
             (Screen::Mods, Event::Activate("map_export")) => {
+                self.model.mods.export_pack = false;
                 let start = super::dirs::home();
                 self.choose_folder(BrowseFor::MapExport, start);
             }
@@ -3763,18 +4229,19 @@ impl<'e> App<'e> {
 
     /// The crashed game's system errors, asked on a worker (the tools can
     /// take seconds); shown when they come.
-    pub fn ask_system_errors(&mut self, pid: u32) {
+    pub fn ask_system_errors(&mut self, pid: u32, exe: &str) {
         if self.env.background_support() {
             let (tx, rx) = std::sync::mpsc::channel();
+            let exe = exe.to_string();
             let spawned = std::thread::Builder::new().name("crash-errors".into()).spawn(move || {
-                let _ = tx.send(crate::launcher::crash_report::system_errors(pid, "game"));
+                let _ = tx.send(crate::launcher::crash_report::system_errors(pid, &exe));
             });
             if spawned.is_ok() {
                 self.crash_job = Some(rx);
                 return;
             }
         }
-        let errors = self.env.crash_errors(pid, "game");
+        let errors = self.env.crash_errors(pid, exe);
         self.crash_errors_done(errors);
     }
 
@@ -3790,8 +4257,16 @@ impl<'e> App<'e> {
     fn copy_report(&mut self) {
         let Some(f) = self.model.failure.as_ref() else { return };
         let Some(r) = f.report.as_ref() else { return };
+        let studio = f.studio.as_ref();
         let facts = crate::launcher::crash_report::Facts {
-            program: "the game".into(),
+            program: r.program.clone(),
+            extra: studio.map_or_else(Vec::new, |s| {
+                vec![
+                    format!("program: {}", s.program),
+                    format!("version: {}", s.version),
+                    format!("mod open: {}", s.opened.as_deref().unwrap_or("none")),
+                ]
+            }),
             reason: r.reason.clone(),
             secs: r.secs,
             during_start: f.during_start,
@@ -3840,41 +4315,84 @@ impl<'e> App<'e> {
 
     /// Starts Studio on its Home (one at a time); a failed start is shown
     /// under its button.
-    pub fn open_studio(&mut self) {
+    pub fn open_studio(&mut self, folder: Option<String>) {
         if self.studio_job.is_some() {
             return;
         }
-        match self.env.start_studio(self.model.root.as_deref()) {
+        match self.env.start_studio(folder.as_deref(), self.model.root.as_deref()) {
             Ok(job) => {
                 self.studio_job = Some(job);
-                self.model.studio = super::model::EditorRun::Open(None);
+                self.studio_last = folder.clone();
+                self.model.studio = super::model::EditorRun::Open(folder);
             }
             Err(e) => self.model.studio = super::model::EditorRun::Failed(e),
         }
+    }
+
+    /// Apply only: keeps every choice about the mods (the lists are kept as they change; the HUD mod and the texture
+    /// folder are kept with the settings) and says what the game will use, without starting the game.
+    fn apply_mods(&mut self) {
+        let line = if !self.save_choices() {
+            return;
+        } else if self.model.mods.paused {
+            (Mark::Ok, "Applied: Use mods is off, so the game starts with its own files. The game was not started.".to_string())
+        } else {
+            let on = mounted_words(&self.model).join(" · ");
+            (Mark::Ok, format!("Applied: {on}. The game was not started; it uses these at its next start."))
+        };
+        self.model.mods.results = vec![line];
     }
 
     /// Studio's end: its button usable again, the map mods read again (it
     /// may have made or changed one). True when it ended.
     fn poll_studio(&mut self) -> bool {
         let Some(end) = self.studio_job.as_mut().and_then(|j| j.poll()) else { return false };
-        self.studio_job = None;
+        let job = self.studio_job.take();
         self.model.studio = match end {
             Ok(()) => super::model::EditorRun::Closed,
             Err(e) => super::model::EditorRun::Failed(e),
         };
+        if self.model.studio != super::model::EditorRun::Closed {
+            self.show_studio_crash(job.as_deref());
+        }
         self.refresh_mods();
         true
+    }
+
+    /// A bad end of Studio or the map editor the launcher started: when it left its run note behind (it did
+    /// not end by its own choice), the failure screen shows the report window, as after the game's.
+    fn show_studio_crash(&mut self, job: Option<&dyn super::model::EditorJob>) {
+        let (pid, code, signal) = job.map_or((None, None, None), |j| {
+            let e = j.exit();
+            (e.pid, e.code, e.signal)
+        });
+        let mut found = self.env.studio_bad_exits();
+        let Some(i) = found.iter().rposition(|b| Some(b.note.pid) == pid).or(found.len().checked_sub(1)) else { return };
+        let bad = found.swap_remove(i);
+        self.show_studio_failure(&bad, code, signal);
+    }
+
+    /// The report window for `bad`.
+    pub fn show_studio_failure(&mut self, bad: &ob_core::studio_run::BadExit, code: Option<i32>, signal: Option<i32>) {
+        self.model.failure = Some(super::window::studio_failure(bad, code, signal));
+        self.model.failure_details = false;
+        self.model.support = None;
+        self.go(Screen::Failure);
+        self.ask_system_errors(bad.note.pid, &bad.note.exe);
     }
 
     /// The map editor's end: the page usable again, its map mods read
     /// again (the editor may have made or changed one). True when it ended.
     fn poll_editor(&mut self) -> bool {
         let Some(end) = self.editor_job.as_mut().and_then(|j| j.poll()) else { return false };
-        self.editor_job = None;
+        let job = self.editor_job.take();
         self.model.mods.editor = match end {
             Ok(()) => super::model::EditorRun::Closed,
             Err(e) => super::model::EditorRun::Failed(e),
         };
+        if self.model.mods.editor != super::model::EditorRun::Closed {
+            self.show_studio_crash(job.as_deref());
+        }
         self.refresh_mods();
         true
     }
@@ -4181,7 +4699,15 @@ impl<'e> App<'e> {
             (Screen::About, Event::Activate("notices")) => self.go(Screen::Notices),
             (Screen::Licence | Screen::Notices, Event::Activate("back") | Event::Back) => self.go(Screen::About),
             (Screen::Failure, Event::Activate("settings")) => self.go(Screen::Settings),
-            (Screen::Failure, Event::Back) => self.go(Screen::Main),
+            (Screen::Failure, Event::Back | Event::Activate("back")) => self.go(Screen::Main),
+            (Screen::Failure, Event::Activate("studio_again")) => {
+                self.open_studio(self.studio_last.clone());
+                self.go(Screen::Dev);
+            }
+            (Screen::Failure, Event::Activate("editor_again")) => {
+                self.open_editor(None);
+                self.go(Screen::Mods);
+            }
             (Screen::Failure, Event::Activate("retry")) => return Outcome::Play,
             (Screen::Failure, Event::Activate("details")) => self.model.failure_details = !self.model.failure_details,
             (Screen::Failure, Event::Activate("folder")) => match self.model.root.clone() {
@@ -4367,14 +4893,19 @@ impl<'e> App<'e> {
     /// the probe's first-run values, as the game's first start would
     /// (`model::save_choices`).
     fn save(&mut self) -> bool {
-        let first = self.model.probe.first_run().cloned();
-        let m = &mut self.model;
         if !matches!(
             self.screen,
             Screen::Main | Screen::Failure | Screen::Settings | Screen::Advanced | Screen::Recover
         ) {
             return true;
         }
+        self.save_choices()
+    }
+
+    /// Keeps the choices (the texture folder, the HUD mod, the settings) whatever the screen is.
+    fn save_choices(&mut self) -> bool {
+        let first = self.model.probe.first_run().cloned();
+        let m = &mut self.model;
         if m.choices.texture_pack != m.saved.texture_pack {
             m.pack_status = self.env.set_pack(&m.choices.texture_pack);
         }

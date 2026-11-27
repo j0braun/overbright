@@ -19,7 +19,7 @@ use std::time::{Duration, Instant, SystemTime};
 use serde::{Deserialize, Serialize};
 
 use super::{
-    Entry, FILE, Looks, MAX_SIDE, Origin, PACK_DIR, STORE_DIR, TextureId, Textures, WORK_DIR, WORK_FILE, decode_png,
+    Domain, Entry, FILE, Looks, MAX_SIDE, Origin, PACK_DIR, STORE_DIR, TextureId, Textures, WORK_DIR, WORK_FILE, decode_png,
     encode_png, image_hash, quote,
 };
 use crate::history::{History, Outcome, inbox};
@@ -249,13 +249,7 @@ impl Workbench {
         let (width, height) = check(&saved.png)?;
         let image = image_hash(&saved.png);
         // The image first, by its content: a step only ever names an image that is on disk.
-        let blob = store_path(&self.edir, &image);
-        if !blob.is_file() {
-            if let Some(p) = blob.parent() {
-                std::fs::create_dir_all(p).map_err(|e| e.to_string())?;
-            }
-            ob_core::platform::fs::write_atomic(&blob, &saved.png, true).map_err(|e| e.to_string())?;
-        }
+        keep_image(&self.edir, &image, &saved.png)?;
         let mut looks = Looks::parse(h.doc(FILE).unwrap_or_default())?;
         let entry = Entry { id: f.id, name: f.name.clone(), origin: f.origin, image: image.clone(), width, height };
         let result = if looks.entries.get(&f.id) == Some(&entry) {
@@ -322,6 +316,109 @@ impl Workbench {
             }
             std::thread::sleep(every);
         }
+    }
+}
+
+/// Keep `png` (its content hash `image`) in the mod's image store, unless it is there.
+fn keep_image(edir: &Path, image: &str, png: &[u8]) -> Result<(), String> {
+    let blob = store_path(edir, image);
+    if !blob.is_file() {
+        if let Some(p) = blob.parent() {
+            std::fs::create_dir_all(p).map_err(|e| e.to_string())?;
+        }
+        ob_core::platform::fs::write_atomic(&blob, png, true).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// The texture of a pack file name (`1A2B3C4D.png`) in `domain`'s folder.
+fn id_of_file(domain: Domain, name: &str) -> Option<TextureId> {
+    let stem = name.strip_suffix(".png")?;
+    (stem.len() == 8 && stem.bytes().all(|b| b.is_ascii_digit() || (b'A'..=b'F').contains(&b)))
+        .then(|| u32::from_str_radix(stem, 16).ok())
+        .flatten()
+        .map(|hash| TextureId::new(domain, hash))
+}
+
+/// The mod's pack data (`textures/`), watched for another program's writes (another paint program, a checkout):
+/// each changed, added or removed texture file becomes one step of the history, "Outside change:
+/// textures/world/1A2B3C4D.png", which undo takes back (the pack data then follows the list again).
+#[derive(Default)]
+pub struct PackWatch {
+    seen: HashMap<PathBuf, Stamp>,
+}
+
+impl PackWatch {
+    /// Watch the pack data of the mod in `dir`: what is there now counts as handled.
+    pub fn new(dir: &Path) -> PackWatch {
+        let mut w = PackWatch::default();
+        for (_, path) in Self::files(dir) {
+            w.seen.insert(path.clone(), stamp(&path));
+        }
+        w
+    }
+
+    fn files(dir: &Path) -> Vec<(TextureId, PathBuf)> {
+        let mut out = Vec::new();
+        for d in Domain::ALL {
+            let Ok(rd) = std::fs::read_dir(dir.join(PACK_DIR).join(d.word())) else { continue };
+            for f in rd.flatten() {
+                if let Some(id) = id_of_file(d, &f.file_name().to_string_lossy()) {
+                    out.push((id, f.path()));
+                }
+            }
+        }
+        out
+    }
+
+    /// One look. Call it only while the pack data follows the list (a step not yet followed would look like an
+    /// outside change). The labels of the steps made.
+    pub fn take(&mut self, h: &mut History, dir: &Path, edir: &Path) -> Result<Vec<String>, String> {
+        if !h.writable() {
+            return Ok(Vec::new());
+        }
+        let mut looks = Looks::parse(h.doc(FILE).unwrap_or_default())?;
+        let mut ids: std::collections::BTreeMap<TextureId, PathBuf> = Self::files(dir).into_iter().collect();
+        for id in looks.entries.keys() {
+            ids.entry(*id).or_insert_with(|| dir.join(PACK_DIR).join(id.pack_file()));
+        }
+        let mut made = Vec::new();
+        for (id, path) in ids {
+            let st = stamp(&path);
+            let prev = self.seen.insert(path.clone(), st);
+            if prev == Some(st) || (prev.is_none() && st.is_none()) {
+                continue;
+            }
+            let label = crate::history::outside_label(&format!("{PACK_DIR}/{}", id.pack_file()));
+            match st {
+                None => {
+                    if prev.is_none() || looks.entries.remove(&id).is_none() {
+                        continue;
+                    }
+                }
+                Some(_) => {
+                    let Ok(png) = std::fs::read(&path) else { continue };
+                    // Half written, or not a picture: looked at again when it changes.
+                    let Ok((width, height)) = check(&png) else { continue };
+                    let image = image_hash(&png);
+                    if looks.entries.get(&id).is_some_and(|e| e.image == image) {
+                        continue;
+                    }
+                    keep_image(edir, &image, &png)?;
+                    // A texture first seen here has no known start: counted as made from the game's pixels
+                    // (marked and warned about before sharing, the safe side).
+                    let (name, origin) = looks.entries.get(&id).map_or((String::new(), Origin::Game), |e| (e.name.clone(), e.origin));
+                    looks.entries.insert(id, Entry { id, name, origin, image, width, height });
+                }
+            }
+            let docs = BTreeMap::from([(FILE.to_string(), Some(looks.write()))]);
+            match h.transact(crate::history::OUTSIDE, &label, None, &docs, None).map_err(|e| e.to_string())? {
+                Outcome::Made(_) => made.push(label),
+                Outcome::Unchanged => {}
+                o => return Err(format!("not made: {o:?}")),
+            }
+        }
+        Ok(made)
     }
 }
 

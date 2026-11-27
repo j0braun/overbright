@@ -66,7 +66,7 @@ fn editor(s: &Scratch, view: &str) -> App {
     a.new_mod("r", "Races", "L4RA").unwrap();
     let st = a.state.as_mut().unwrap();
     st.assets = Box::new(GivenAssets {
-        tracks: vec![TrackInfo { number: 4001, name: "Test road".into() }],
+        tracks: vec![TrackInfo { number: 4001, name: "Test road".into(), modes: vec![], area: String::new() }],
         nets: [(4001, straight(false))].into(),
         ..Default::default()
     });
@@ -79,7 +79,6 @@ fn editor(s: &Scratch, view: &str) -> App {
         st.session.world.road_height_below(Vec3::new(100.0, 0.0, 100.0)).is_some_and(|z| (z - FLOOR_Z).abs() < 0.01)
     );
     match view {
-        "map" => st.view = View::Map,
         "top" => {
             let st = a.state.as_mut().unwrap();
             a.panels.viewport.set_look(st, "top");
@@ -102,12 +101,6 @@ fn frame(a: &mut App, events: Vec<Event>) {
 
 /// World x/y on screen as the view last drew it.
 fn screen(a: &App, p: Vec2) -> Pos2 {
-    let st = a.state.as_ref().unwrap();
-    if st.view == View::Map {
-        let (centre, scale, rect) = crate::editor::sim::panel::map_transform(&a.ctx).expect("the map drew");
-        let c = rect.center();
-        return Pos2::new(c.x + (p.x - centre.x) * scale, c.y - (p.y - centre.y) * scale);
-    }
     let (top, rect) = crate::editor::viewport::top_view(&a.ctx).expect("the overview drew");
     let m = top.metres_per_point(rect);
     let c = rect.center();
@@ -157,9 +150,9 @@ fn undo_label(a: &App) -> Option<&str> {
 fn place_and_drag(view: &str) {
     let s = Scratch::new(&format!("editor-race-points-{view}"));
     let mut a = editor(&s, view);
-    let snap_m = match view {
+    let snap_m = {
         // The overview opens on the region: zoom in on the road first.
-        "top" => {
+        {
             let at = screen(&a, Vec2::new(200.0, 0.0));
             for _ in 0..40 {
                 let (top, rect) = crate::editor::viewport::top_view(&a.ctx).unwrap();
@@ -183,7 +176,6 @@ fn place_and_drag(view: &str) {
             let (top, rect) = crate::editor::viewport::top_view(&a.ctx).unwrap();
             top.metres_per_point(rect)
         }
-        _ => 1.0 / crate::editor::sim::panel::map_transform(&a.ctx).unwrap().1,
     };
     assert!(snap_m < 2.0, "{view}: {snap_m} m per point");
     let before = race(&a).clone();
@@ -211,7 +203,8 @@ fn place_and_drag(view: &str) {
     // New race's rule is not in play here; C arms Checkpoint; a click beside the road adds checkpoint 3.
     frame(&mut a, key(egui::Key::C).to_vec());
     assert_eq!(a.panels.races.borrow().tool, RaceTool::Checkpoint, "{view}: C arms Checkpoint");
-    click(&mut a, Vec2::new(390.0, -3.0));
+    // (Far enough from the finish clicked below: in Top a click within 12 points of a point picks it.)
+    click(&mut a, Vec2::new(300.0, -3.0));
     let cps = race(&a).checkpoints.clone();
     assert_eq!(
         cps.len(),
@@ -220,18 +213,17 @@ fn place_and_drag(view: &str) {
         a.state.as_ref().unwrap().status,
         crate::editor::viewport::top_view(&a.ctx)
     );
-    assert!(cps[2].y.abs() < 0.01 && (cps[2].x - 390.0).abs() < 2.0 * snap_m, "{view}: {cps:?}");
+    assert!(cps[2].y.abs() < 0.01 && (cps[2].x - 300.0).abs() < 2.0 * snap_m, "{view}: {cps:?}");
     assert_eq!(undo_label(&a), Some("Add checkpoint 3"), "{view}");
     // X arms Finish.
     frame(&mut a, key(egui::Key::X).to_vec());
-    click(&mut a, Vec2::new(395.0, 2.0));
+    click(&mut a, Vec2::new(335.0, 2.0));
     let fi = race(&a).finish.expect("a finish line");
     assert!(fi.position.y.abs() < 0.01 && (fi.position.z - FLOOR_Z).abs() < 0.05, "{view}: {fi:?}");
     let placed = race(&a).clone();
 
     // A drag of the start moves it along the road (snapped, the road's height): one step.
     let shown = |a: &App| match view {
-        "map" => crate::editor::sim::panel::map_transform(&a.ctx).unwrap().0,
         _ => crate::editor::viewport::top_view(&a.ctx).unwrap().0.centre,
     };
     let centre = shown(&a);
@@ -272,20 +264,15 @@ fn place_and_drag(view: &str) {
 }
 
 #[test]
-fn race_points_are_placed_and_dragged_on_the_map() {
-    place_and_drag("map");
-}
-
-#[test]
 fn race_points_are_placed_and_dragged_in_top() {
     place_and_drag("top");
 }
 
-/// A drag on the Map that does not start on a race point still pans.
+/// A drag in the overview that does not start on a race point still pans.
 #[test]
-fn a_map_drag_off_the_points_pans() {
+fn an_overview_drag_off_the_points_pans() {
     let s = Scratch::new("editor-race-points-pan");
-    let mut a = editor(&s, "map");
+    let mut a = editor(&s, "top");
     frame(&mut a, key(egui::Key::C).to_vec());
     let before = crate::editor::sim::panel::map_transform(&a.ctx).unwrap().0;
     // Off the road and its points: 60 points above the map's middle (the road runs through it).
@@ -391,12 +378,8 @@ fn draw_and_pick(view: &str) {
     let original = collision_of(&a);
     let none = egui::Modifiers::NONE;
     let tol = |a: &App, m: f32| {
-        m * if view == "map" {
-            1.0 / crate::editor::sim::panel::map_transform(&a.ctx).unwrap().1
-        } else {
-            let (t, r) = crate::editor::viewport::top_view(&a.ctx).unwrap();
-            t.metres_per_point(r)
-        }
+        let (t, r) = crate::editor::viewport::top_view(&a.ctx).unwrap();
+        m * t.metres_per_point(r)
     };
 
     // Two clicks make a wall: x/y from the mouse, the floor's height.
@@ -419,7 +402,7 @@ fn draw_and_pick(view: &str) {
     // Same collision as the wall run as the op the 3D view runs.
     {
         let s2 = Scratch::new(&format!("editor-collision-draw-{view}-3d"));
-        let mut b = editor(&s2, "map");
+        let mut b = editor(&s2, "top");
         let st = b.state.as_mut().unwrap();
         let op = crate::tools::map::ops::Op::DrawWall {
             from,
@@ -433,19 +416,21 @@ fn draw_and_pick(view: &str) {
     }
 
     // A second wall started 3 points from the first one's end snaps to it;
-    // with Alt it lands where the mouse is.
+    // in the Free snap mode it lands where the mouse is.
     let near_end = to.truncate() + Vec2::new(0.0, 3.0 * tol(&a, 1.0));
     click_mods(&mut a, near_end, none);
     click_mods(&mut a, Vec2::new(140.0, 90.0), none);
     let w = drawn_walls(&a);
     assert_eq!(w.len(), 2, "{view}");
     assert!(w[1].0.truncate().distance(to.truncate()) < 1e-3, "{view}: snapped {} to {}", w[1].0, to);
-    click_mods(&mut a, near_end, egui::Modifiers::ALT);
+    a.state.as_mut().unwrap().snap_mode = crate::editor::state::SnapMode::Free;
+    click_mods(&mut a, near_end, none);
+    a.state.as_mut().unwrap().snap_mode = crate::editor::state::SnapMode::default();
     click_mods(&mut a, Vec2::new(180.0, 90.0), none);
     let w = drawn_walls(&a);
     assert_eq!(w.len(), 3, "{view}");
-    assert!(w[2].0.truncate().distance(near_end) <= tol(&a, 1.0), "{view}: Alt places at the mouse, got {}", w[2].0);
-    assert!(w[2].0.truncate().distance(to.truncate()) > tol(&a, 1.0), "{view}: Alt did not snap");
+    assert!(w[2].0.truncate().distance(near_end) <= tol(&a, 1.0), "{view}: Free places at the mouse, got {}", w[2].0);
+    assert!(w[2].0.truncate().distance(to.truncate()) > tol(&a, 1.0), "{view}: Free did not snap");
     let three = collision_of(&a);
 
     // Undo and redo, exact (picking needs the real collision: collision_tests).
@@ -479,11 +464,88 @@ fn draw_and_pick(view: &str) {
 }
 
 #[test]
-fn walls_and_ground_are_drawn_snapped_and_picked_on_the_map() {
-    draw_and_pick("map");
-}
-
-#[test]
 fn walls_and_ground_are_drawn_snapped_and_picked_in_top() {
     draw_and_pick("top");
+}
+
+/// A recorded sequence of collision edits (two walls, a ground, a wall deleted with the Del key, an undo and a redo) writes
+/// the same mod bytes whatever the tools' grammar around them: the file's
+/// FNV-1a hash is the one the sequence wrote before the tools shared one
+/// grammar.
+#[test]
+fn a_recorded_collision_sequence_writes_the_same_mod() {
+    use crate::editor::collision::{Draw, Picked};
+    use crate::tools::map::ops::CollisionKey as Target;
+    let s = Scratch::new("editor-collision-recorded");
+    let mut a = editor(&s, "top");
+    zoom_top(&mut a);
+    let st = a.state.as_mut().unwrap();
+    st.mode = Mode::Props;
+    st.collision = crate::editor::collision::Show::Invisible;
+    let alt = egui::Modifiers::ALT;
+    a.state.as_mut().unwrap().draw = Some(Draw::Wall { first: None });
+    click_mods(&mut a, Vec2::new(100.0, 40.0), alt);
+    click_mods(&mut a, Vec2::new(140.0, 40.0), alt);
+    click_mods(&mut a, Vec2::new(140.0, 90.0), alt);
+    click_mods(&mut a, Vec2::new(180.0, 90.0), alt);
+    a.state.as_mut().unwrap().draw = Some(Draw::Ground { points: Vec::new() });
+    for p in [Vec2::new(20.0, 100.0), Vec2::new(60.0, 100.0), Vec2::new(60.0, 130.0)] {
+        click_mods(&mut a, p, alt);
+    }
+    frame(&mut a, key(egui::Key::Enter).to_vec());
+    frame(&mut a, vec![]);
+    let st = a.state.as_mut().unwrap();
+    st.draw = None;
+    st.wall = Some(Picked {
+        key: Target::Drawn("wall-1".into()),
+        what: "Drawn wall wall-1".into(),
+        outline: vec![Vec3::ZERO, Vec3::X],
+        z: (0.0, 2.0),
+        surface: None,
+        owner: String::new(),
+    });
+    frame(&mut a, key(egui::Key::Delete).to_vec());
+    frame(&mut a, vec![]);
+    let st = a.state.as_mut().unwrap();
+    assert_eq!(st.session.undo.undo_label(), Some("Remove wall-1"));
+    assert!(crate::editor::undo::undo(st));
+    assert!(crate::editor::undo::redo(st));
+    let bytes = st.session.map.write();
+    let hash = bytes.bytes().fold(0xcbf2_9ce4_8422_2325u64, |h, b| (h ^ u64::from(b)).wrapping_mul(0x0100_0000_01b3));
+    assert_eq!(hash, 0x18be_739e_1622_f11d, "the recorded sequence's file changed");
+}
+
+/// The collision tools' Esc and Backspace: one level back at a time, and the hint line names the tool.
+#[test]
+fn esc_steps_back_one_level_in_the_collision_tools() {
+    use crate::editor::collision::Draw;
+    let s = Scratch::new("editor-collision-esc");
+    let mut a = editor(&s, "top");
+    zoom_top(&mut a);
+    a.state.as_mut().unwrap().mode = Mode::Props;
+    let alt = egui::Modifiers::ALT;
+    let hint = |a: &App| {
+        let (p, r) = (a.panels.props.borrow(), a.panels.races.borrow());
+        crate::editor::menu::hint_job(a.state.as_ref().unwrap(), &p, &r).text
+    };
+    a.state.as_mut().unwrap().draw = Some(Draw::Wall { first: None });
+    assert!(hint(&a).starts_with("Draw wall") && hint(&a).contains("stop drawing"), "{}", hint(&a));
+    click_mods(&mut a, Vec2::new(100.0, 40.0), alt);
+    assert!(matches!(a.state.as_ref().unwrap().draw, Some(Draw::Wall { first: Some(_) })));
+    assert!(hint(&a).contains("cancel this shape"), "{}", hint(&a));
+    frame(&mut a, key(egui::Key::Escape).to_vec());
+    assert_eq!(a.state.as_ref().unwrap().draw, Some(Draw::Wall { first: None }), "Esc drops the begun wall");
+    assert!(a.state.as_ref().unwrap().session.map.collision.is_empty());
+    frame(&mut a, key(egui::Key::Escape).to_vec());
+    assert_eq!(a.state.as_ref().unwrap().draw, None, "the next Esc puts the tool down");
+
+    a.state.as_mut().unwrap().draw = Some(Draw::Ground { points: Vec::new() });
+    for p in [Vec2::new(20.0, 100.0), Vec2::new(60.0, 100.0)] {
+        click_mods(&mut a, p, alt);
+    }
+    frame(&mut a, key(egui::Key::Backspace).to_vec());
+    let Some(Draw::Ground { points }) = a.state.as_ref().unwrap().draw.clone() else { panic!("ground armed") };
+    assert_eq!(points.len(), 1, "Backspace takes back the last corner");
+    frame(&mut a, key(egui::Key::Escape).to_vec());
+    assert_eq!(a.state.as_ref().unwrap().draw, Some(Draw::Ground { points: Vec::new() }));
 }

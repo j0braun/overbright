@@ -1,0 +1,19 @@
+{
+  "command": "race.tracks",
+  "count": 1,
+  "exit": 0,
+  "format": 1,
+  "ok": true,
+  "region": "L4RA",
+  "tracks": [
+    {
+      "area": "City Core",
+      "modes": [
+        "Circuit",
+        "Sprint"
+      ],
+      "name": "Docks",
+      "number": 4001
+    }
+  ]
+}

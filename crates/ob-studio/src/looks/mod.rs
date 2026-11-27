@@ -18,6 +18,7 @@
 //! marks and sharing warnings) read the same model: [`TextureId`] names a texture everywhere, [`Original`]
 //! carries its uses, and [`Entry::origin`] says whether its pixels came from the game.
 
+pub mod guide;
 pub mod work;
 
 use std::collections::BTreeMap;

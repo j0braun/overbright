@@ -18,6 +18,7 @@ use nfsu2::studio_api::world::World;
 use ob_formats::formats::roads::{RoadNet, Segment};
 use ob_map::tools::map::format::{CustomRace, MapMod, RaceKind, Spot};
 use ob_map::tools::map::store;
+use ob_studio::browser::media::{GivenMedia, Line, Pcm, Sound};
 use ob_studio::cli::{self, Env};
 use ob_studio::history::{self, History, disk};
 use ob_studio::registry;
@@ -39,6 +40,7 @@ fn straight() -> RoadNet {
         spline_length: 200.0,
         exits,
         barriers: vec![],
+        tracks: Default::default(),
     };
     net.segments = vec![seg(0, [vec![], vec![(1, 0)]]), seg(3, [vec![(0, 1)], vec![]])];
     net
@@ -70,12 +72,16 @@ fn fixture(tag: &str, broken: bool) -> (Scratch, PathBuf) {
 fn env() -> Env {
     Env {
         game: Some(PathBuf::from("game")),
+        game_source: "NFSU2_ROOT",
         world: Box::new(|_, _| Ok(World::default())),
+        media: Box::new(|_| Box::new(GivenMedia::default())),
         assets: Box::new(|_| {
             Box::new(GivenAssets {
-                tracks: vec![TrackInfo { number: 4001, name: "Docks".into() }],
+                tracks: vec![TrackInfo { number: 4001, name: "Docks".into(), modes: vec!["Circuit".into(), "Sprint".into()], area: "City Core".into() }],
                 nets: HashMap::from([(4001, straight())]),
                 free_roam: Vec::new(),
+                places: Vec::new(),
+                routes: HashMap::new(),
             })
         }),
         poll: Duration::from_millis(5),
@@ -90,14 +96,30 @@ fn argv(words: &[&str], dir: &Path) -> Vec<String> {
     words.iter().map(|w| w.replace("<mod>", &dir.to_string_lossy())).collect()
 }
 
+/// Every in-process call of the tool works on a cache folder of its own under the temp folder: `modpack report` and
+/// friends unpack packs into the asset cache, which without the harness feature would be the player's. Asserted on
+/// each call, so a change that brings the real folder back fails here instead of writing there.
+fn private_cache() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let d = std::env::temp_dir().join(format!("ob-studio-cli-cache-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        std::mem::forget(ob_core::cache::override_dir(d));
+    });
+    let dir = ob_core::cache::dir().expect("the cache is on");
+    assert!(dir.starts_with(std::env::temp_dir()), "the tool's cache is not the player's: {}", dir.display());
+}
+
 /// The tool's run: (exit code, stdout, stderr).
 fn run(words: &[&str], dir: &Path, env: &Env) -> (i32, String, String) {
+    private_cache();
     let (mut out, mut err) = (Vec::new(), Vec::new());
     let code = cli::run(&argv(words, dir), env, &mut out, &mut err);
     (code, String::from_utf8(out).unwrap(), String::from_utf8(err).unwrap())
 }
 
-/// Paths under the scratch folder as `<tmp>/…` (with `/` on every system), times as 0.
+/// Paths under the scratch folder as `<tmp>/…` (with `/` on every system), times as 0, the build line and a pack's size
+/// (which holds the build line) as placeholders.
 fn normal(v: &mut Value, tmp: &str) {
     match v {
         Value::String(s) => {
@@ -113,9 +135,21 @@ fn normal(v: &mut Value, tmp: &str) {
         }
         Value::Array(a) => a.iter_mut().for_each(|x| normal(x, tmp)),
         Value::Object(o) => {
+            // A written pack's size depends on the build line inside it, so it is checked against the file on disk
+            // (the document must tell the truth) and kept out of the golden.
+            if let (Some(to), Some(n)) = (o.get("to").and_then(Value::as_str), o.get("bytes").and_then(Value::as_u64)) {
+                if to.ends_with(".obpk") {
+                    let len = std::fs::metadata(to).unwrap_or_else(|e| panic!("{to}: {e}")).len();
+                    assert_eq!(n, len, "{to}: \"bytes\" is the written file's size");
+                    o.insert("bytes".into(), Value::from("<bytes>"));
+                }
+            }
             for (k, x) in o.iter_mut() {
                 if k == "time_ms" {
                     *x = Value::from(0);
+                } else if k == "build" {
+                    // The build line differs with every build.
+                    *x = Value::from("<build>");
                 } else {
                     normal(x, tmp);
                 }
@@ -463,6 +497,62 @@ fn looks_open_import_and_list() {
     let f = ob_studio::share::import(&fresh, &zip).unwrap();
     assert!(fresh.join(&f).join("textures/world/00000ABC.png").is_file());
     assert!(!fresh.join(&f).join("work").exists());
+    // `modpack export`: the same yes for the same texture; the pack holds the race and the texture as their own files.
+    let packs = s.path().join("packs");
+    let pto = packs.to_string_lossy().to_string();
+    assert_eq!(
+        golden("modpack-export-derived", &["modpack", "export", "--mod", "<mod>", "--to", &pto], &s, &dir, &e),
+        cli::FAILED
+    );
+    assert!(!packs.exists());
+    let (code, out, _) = run(
+        &["modpack", "export", "--mod", "<mod>", "--to", &pto, "--derived-ok", "--version", "1.2.0", "--json"],
+        &dir,
+        &e,
+    );
+    assert_eq!(code, cli::OK, "{out}");
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(doc["id"], "docks");
+    let file = packs.join("docks-1.2.0.obpk");
+    assert_eq!(doc["to"], file.to_string_lossy().as_ref());
+    let b = ob_asset_format::bundle::Bundle::open(&file, ob_asset_format::bundle::Kind::PackFile).unwrap();
+    b.verify().unwrap();
+    for f in ["pack.toml", "provenance.toml", "races/sprint.toml", "world/_any/textures/images/0x00000ABC.png"] {
+        assert!(b.get(f).is_some(), "{f}");
+    }
+    assert!(b.get("map.obmap").is_none());
+    assert_eq!(
+        run(&["modpack", "export", "--mod", "<mod>", "--to", &pto, "--derived-ok", "--version", "one"], &dir, &e).0,
+        cli::USAGE
+    );
+    // `modpack report`: the pack file read in words, nothing written; a name that is no pack is refused.
+    let (code, out, _) = run(&["modpack", "report", "--pack", &file.to_string_lossy(), "--json"], &dir, &e);
+    assert_eq!(code, cli::OK, "{out}");
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    let rep = doc["report"].as_str().unwrap();
+    assert!(rep.starts_with("Edit report: ") && rep.contains("Compared with the game") && rep.contains("Races"), "{rep}");
+    let rto = s.path().join("report.txt");
+    let (code, _, _) = run(&["modpack", "report", "--pack", &file.to_string_lossy(), "--to", &rto.to_string_lossy()], &dir, &e);
+    assert_eq!((code, std::fs::read_to_string(&rto).unwrap()), (cli::OK, rep.to_string()));
+    assert_eq!(run(&["modpack", "report", "--pack", "no-such-pack"], &dir, &e).0, cli::FAILED);
+    // `modpack convert`: the plain mod (its zip from `pack export`) becomes a pack, refused when it is neither kind.
+    let conv = s.path().join("converted");
+    let (cto, czip) = (conv.to_string_lossy().to_string(), zip.to_string_lossy().to_string());
+    let words = ["modpack", "convert", "--from", &czip, "--to", &cto, "--id", "docks-old", "--derived-ok"];
+    assert_eq!(golden("modpack-convert", &words, &s, &dir, &e), cli::OK);
+    let b = ob_asset_format::bundle::Bundle::open(
+        &conv.join("docks-old-1.0.0.obpk"),
+        ob_asset_format::bundle::Kind::PackFile,
+    )
+    .unwrap();
+    let prov = String::from_utf8(b.read(b.get("provenance.toml").unwrap()).unwrap().into_owned()).unwrap();
+    assert!(prov.contains("converted = true"), "{prov}");
+    let nothing = s.path().join("nothing");
+    std::fs::create_dir_all(&nothing).unwrap();
+    let nothing = nothing.to_string_lossy().to_string();
+    let (code, _, err) = run(&["modpack", "convert", "--from", &nothing, "--to", &cto], &dir, &e);
+    assert_eq!(code, cli::FAILED);
+    assert!(err.contains("neither a map mod"), "{err}");
     let h =
         History::open_read(&dir, &dir.join(store::EDITOR_DIR), ob_studio::MOD_DOCS, std::sync::Arc::new(disk::Real))
             .unwrap();
@@ -546,6 +636,10 @@ fn a_mod_left_unreadable_says_so_and_pack_repair_mends_it() {
     let msg = doc["error"]["message"].as_str().unwrap();
     assert!(msg.contains("line 8: a sprint race runs one lap") && msg.contains("pack repair"), "{msg}");
     assert_eq!(doc["error"]["repair"]["fixes"].as_array().unwrap().len(), 1, "{out}");
+    // The known writer bug is named; with no record of who wrote the file it was an older build.
+    assert!(msg.contains("An older build wrote a sprint or drift race with more than one lap"), "{msg}");
+    assert_eq!(doc["error"]["repair"]["writer_bugs"][0]["id"], "laps-on-a-sprint", "{out}");
+    assert!(doc["error"]["repair"]["writer_bugs"][0]["written_by"].is_null());
     let (code, _, _) = run(&["pack", "repair", "--mod", "<mod>", "--dry-run"], &dir, &e);
     assert_eq!((code, text(&dir).as_str()), (cli::OK, broken), "a dry run writes nothing");
     let (code, out, err) = run(&["pack", "repair", "--mod", "<mod>"], &dir, &e);
@@ -554,6 +648,20 @@ fn a_mod_left_unreadable_says_so_and_pack_repair_mends_it() {
     assert_eq!((m.races[0].kind, m.races[0].laps), (RaceKind::Sprint, 1));
     let (code, out, _) = run(&["pack", "repair", "--mod", "<mod>"], &dir, &e);
     assert!(code == cli::OK && out.contains("Nothing to repair"), "{out}");
+    // A file the mod's record says a named build wrote: the finding names that build.
+    std::fs::write(dir.join(store::FILE), broken).unwrap();
+    std::fs::remove_dir_all(dir.join(store::EDITOR_DIR)).unwrap();
+    std::fs::create_dir_all(dir.join(store::EDITOR_DIR)).unwrap();
+    std::fs::write(
+        dir.join(store::EDITOR_DIR).join(ob_studio::history::SAVED_BY),
+        r#"{"build":"Overbright 0.5.0 (build 00000000000000aa)","at":1,"docs":{}}"#,
+    )
+    .unwrap();
+    let (_, out, _) = run(&["history", "show", "--mod", "<mod>", "--json"], &dir, &e);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    let msg = doc["error"]["message"].as_str().unwrap();
+    assert!(msg.contains("Overbright 0.5.0 (build 00000000000000aa) wrote a sprint or drift race"), "{msg}");
+    assert_eq!(doc["error"]["repair"]["writer_bugs"][0]["written_by"], "Overbright 0.5.0 (build 00000000000000aa)");
     // No safe repair: refused, the file kept.
     let zero =
         "overbright-map 1\n\n[prop.add]\nregion = L4RA\nsolid = X\nposition = 0 0 0\nrotation = 0 0 0 0 0 0 0 0 0\n";
@@ -630,4 +738,438 @@ fn race_points_take_the_road_height_and_the_checks_look_under_them() {
     assert!(out.contains("grid slot 1 has no floor under it") && out.contains("fall through the world"), "{out}");
     assert!(out.contains("the finish line has no floor under it"), "{out}");
     assert!(!out.contains("start line has no floor"), "{out}");
+}
+
+/// The game for the list commands: a region with cones, a barrier and a sign placed, one texture named ROAD.
+fn lists_env() -> Env {
+    use ob_formats::formats::solid::Solid;
+    let solid = |name: &str| Solid {
+        name: name.into(),
+        hash: 0,
+        bbox_min: [-0.5, -0.5, 0.0],
+        bbox_max: [0.5, 0.5, 1.0],
+        textures: vec![0x0000_0ABC],
+        vertices: Vec::new(),
+        normals: Vec::new(),
+        light_materials: Vec::new(),
+        indices: vec![0; 6],
+        materials: vec![ob_formats::formats::solid::Material {
+            texture_slot: 0,
+            light_material: 0xFF,
+            first_index: 0,
+            index_count: 3,
+            flags: 0,
+        }],
+        mesh_flags: 0,
+        markers: Vec::new(),
+        light_markers: Vec::new(),
+    };
+    Env {
+        world: Box::new(move |root, _| {
+            let mut w = (looks_env().world)(root, "L4RA")?;
+            w.solids = vec![solid("XC_CONE_01"), solid("XB_BARRIER_03"), solid("XS_SIGN_STOP")];
+            let place = |solid| nfsu2::studio_api::world::Placement {
+                solid,
+                low_solid: None,
+                mid_solid: None,
+                transform: glam::Mat4::IDENTITY,
+                section: 1,
+                flags: 0,
+                cull_radius: 5.0,
+            };
+            w.placements = vec![place(0), place(0), place(1), place(2)];
+            Ok(w)
+        }),
+        ..env()
+    }
+}
+
+#[test]
+fn the_list_and_find_commands_read_what_the_window_reads() {
+    let (s, dir) = fixture("cli-lists", false);
+    let e = lists_env();
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("props-solids", &["props", "solids"], cli::OK),
+        ("props-solids-filter", &["props", "solids", "--filter", "barrier"], cli::OK),
+        ("props-solids-category", &["props", "solids", "--category", "signs"], cli::OK),
+        ("props-solids-near-miss", &["props", "solids", "--filter", "barier"], cli::OK),
+        ("props-solids-bad-category", &["props", "solids", "--category", "barier"], cli::USAGE),
+        ("race-tracks", &["race", "tracks"], cli::OK),
+        ("race-tracks-other-region", &["race", "tracks", "--region", "L4RB"], cli::OK),
+        ("looks-find", &["looks", "find", "road"], cli::OK),
+        ("looks-find-hash", &["looks", "find", "--text", "0x0ABC"], cli::OK),
+        ("looks-find-near-miss", &["looks", "find", "raod"], cli::OK),
+        ("looks-find-no-text", &["looks", "find"], cli::USAGE),
+        ("game-find", &["game", "find", "--game", "<mod>"], cli::OK),
+        ("game-find-missing-folder", &["game", "find", "--game", "<mod>/nowhere"], cli::NO_GAME),
+        ("unknown-command-near-miss", &["looks", "fnd"], cli::USAGE),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    // The prop browser's list and the command give the same solids.
+    let (_, out, _) = run(&["props", "solids", "--category", "knock-over", "--json"], &dir, &e);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(doc["count"], 0, "nothing in the fixture world is knocked over");
+    // Without the game the lists say so and exit 4; the tool needs no mod for them.
+    for w in [&["props", "solids"][..], &["race", "tracks"], &["looks", "find", "road"], &["game", "find"]] {
+        assert_eq!(run(w, &dir, &no_game()).0, cli::NO_GAME, "{w:?}");
+    }
+    // The plain text names the near miss.
+    let (code, out, _) = run(&["props", "solids", "--filter", "barier"], &dir, &e);
+    assert_eq!(code, cli::OK);
+    assert!(out.contains("Did you mean `barrier`?"), "{out}");
+}
+
+/// Run files in the mod's editor folder, as the window's Runs workspace keeps them.
+fn put_runs(dir: &Path) {
+    use ob_studio::runs::{fixtures, library};
+    let runs = dir.join(store::EDITOR_DIR).join("runs");
+    let text = |seed, prop_crash| -> String {
+        fixtures::lines(seed, prop_crash, false).iter().map(|l| l.write() + "\n").collect()
+    };
+    library::save(&runs, "seed1", &text(1, true)).unwrap();
+    library::save(&runs, "seed2", &text(2, false)).unwrap();
+}
+
+/// A run recorded with the drive channels and the hash of every tick (docs/modding/asset-format/runs.md, 3.3): its
+/// telemetry has the gear and the pedals, and a second run names the tick it parted at.
+#[test]
+fn the_runs_commands_show_the_drive_channels_and_the_tick_two_runs_part_at() {
+    use ob_studio::runs::{fixtures, library};
+    let (s, dir) = fixture("cli-runs-drive", false);
+    let e = env();
+    let runs = dir.join(store::EDITOR_DIR).join("runs");
+    let text = |seed, parts_at| -> String { fixtures::driven(seed, parts_at).iter().map(|l| l.write() + "\n").collect() };
+    library::save(&runs, "drive1", &text(1, 70)).unwrap();
+    library::save(&runs, "drive2", &text(2, 70)).unwrap();
+    library::save(&runs, "drive3", &text(3, 1000)).unwrap();
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("runs-telemetry-drive", &["runs", "telemetry", "--mod", "<mod>", "--run", "drive1", "--car", "0"], cli::OK),
+        ("runs-compare-tick", &["runs", "compare", "--mod", "<mod>", "--run", "drive1", "--with", "drive2"], cli::OK),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    let (code, out, _) = run(&["runs", "compare", "--mod", "<mod>", "--run", "drive1", "--with", "drive3", "--json"], &dir, &e);
+    assert_eq!(code, cli::OK);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(doc["hash_tick"], 70, "the tick itself: the hash is carried every tick");
+    let (_, out, _) = run(&["runs", "compare", "--mod", "<mod>", "--run", "drive1", "--with", "drive3", "--json"], &dir, &e);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(doc["hash_tick"], 70);
+    let (_, out, _) = run(&["runs", "compare", "--mod", "<mod>", "--run", "drive3", "--with", "drive3", "--json"], &dir, &e);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert!(doc["hash_tick"].is_null() && doc["same"] == true);
+}
+
+#[test]
+fn the_runs_commands_read_and_change_the_runs_the_window_lists() {
+    let (s, dir) = fixture("cli-runs", false);
+    let e = env();
+    put_runs(&dir);
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("runs-list", &["runs", "list", "--mod", "<mod>"], cli::OK),
+        ("runs-show", &["runs", "show", "--mod", "<mod>", "--run", "seed1"], cli::OK),
+        ("runs-telemetry", &["runs", "telemetry", "--mod", "<mod>", "--run", "seed1", "--car", "2"], cli::OK),
+        ("runs-telemetry-no-car", &["runs", "telemetry", "--mod", "<mod>", "--run", "seed1", "--car", "9"], cli::FAILED),
+        ("runs-compare", &["runs", "compare", "--mod", "<mod>", "--run", "seed1", "--with", "seed2"], cli::OK),
+        ("runs-show-missing", &["runs", "show", "--mod", "<mod>", "--run", "nothing"], cli::FAILED),
+        ("runs-show-bad-name", &["runs", "show", "--mod", "<mod>", "--run", "../x"], cli::USAGE),
+        ("runs-rename", &["runs", "rename", "--mod", "<mod>", "--run", "seed2", "--to", "other"], cli::OK),
+        ("runs-rename-taken", &["runs", "rename", "--mod", "<mod>", "--run", "seed1", "--to", "other"], cli::FAILED),
+        ("runs-delete", &["runs", "delete", "--mod", "<mod>", "--run", "other"], cli::OK),
+        ("runs-delete-gone", &["runs", "delete", "--mod", "<mod>", "--run", "other"], cli::FAILED),
+        ("runs-dry-run-refused", &["runs", "delete", "--mod", "<mod>", "--run", "seed1", "--dry-run"], cli::USAGE),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    // The telemetry is the window's: speed from the file, the racing line from the mod's race.
+    let (_, out, _) = run(&["runs", "telemetry", "--mod", "<mod>", "--run", "seed1", "--car", "2", "--json"], &dir, &e);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert!(doc["lateral"].is_null(), "the run's race `r` is not in the mod: no line to measure from");
+    assert_eq!(doc["speed"]["max"], 20.0);
+    // Deleting left the other run alone.
+    assert!(dir.join(store::EDITOR_DIR).join("runs").join("seed1.obrun").is_file());
+}
+
+#[test]
+fn the_data_commands_read_the_grid_and_write_cells_as_undo_steps() {
+    let (s, dir) = fixture("cli-data", true);
+    let e = env();
+    let key = "docks:sprint";
+    let set = |v: &'static str| ["data", "set", "--mod", "<mod>", "--kind", "race", "--row", key, "--field", "name", "--value", v];
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("data-kinds", &["data", "kinds", "--mod", "<mod>"], cli::OK),
+        ("data-show-race", &["data", "show", "--mod", "<mod>", "--kind", "race"], cli::OK),
+        ("data-show-search", &["data", "show", "--mod", "<mod>", "--kind", "race", "--search", "short"], cli::OK),
+        ("data-show-sorted", &["data", "show", "--mod", "<mod>", "--kind", "race", "--sort", "name", "--desc"], cli::OK),
+        ("data-show-filter", &["data", "show", "--mod", "<mod>", "--kind", "race", "--filter", "name=sprint"], cli::OK),
+        ("data-show-bad-kind", &["data", "show", "--mod", "<mod>", "--kind", "rac"], cli::USAGE),
+        ("data-show-bad-column", &["data", "show", "--mod", "<mod>", "--kind", "race", "--sort", "colour"], cli::USAGE),
+        ("data-set-dry-run", &[&set("Docks run")[..], &["--dry-run"]].concat(), cli::OK),
+        ("data-set", &set("Docks run"), cli::OK),
+        ("data-set-unchanged", &set("Docks run"), cli::OK),
+        ("data-set-read-only-column", &["data", "set", "--mod", "<mod>", "--kind", "race", "--row", key, "--field", "checkpoints", "--value", "3"], cli::FAILED),
+        ("data-set-bad-value", &["data", "set", "--mod", "<mod>", "--kind", "race", "--row", key, "--field", "laps", "--value", "many"], cli::FAILED),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    // The cell is the race's name, in one history step the window shows and can undo.
+    assert!(text(&dir).contains("name = Docks run"));
+    let (_, out, _) = run(&["history", "show", "--mod", "<mod>", "--json"], &dir, &e);
+    assert!(out.contains("Docks run") || out.contains("Rename"), "{out}");
+}
+
+#[test]
+fn data_export_and_import_round_trip_a_table_as_one_undo_step() {
+    let (s, dir) = fixture("cli-data-csv", true);
+    let e = env();
+    let file = dir.join("out").join("races.csv");
+    let f = file.to_string_lossy().to_string();
+    let export = ["data", "export", "--mod", "<mod>", "--kind", "race", "--to", f.as_str()];
+    let import = ["data", "import", "--mod", "<mod>", "--kind", "race", "--from", f.as_str()];
+    assert_eq!(golden("data-export", &export, &s, &dir, &e), cli::OK);
+    let csv = std::fs::read_to_string(&file).unwrap();
+    assert!(csv.starts_with("row,name,type,track,laps,backward,checkpoints\n"), "{csv}");
+    // Nothing changed in the file: nothing is made.
+    let before = text(&dir);
+    assert_eq!(golden("data-import-unchanged", &import, &s, &dir, &e), cli::OK);
+    assert_eq!(text(&dir), before);
+    // A name changed in the file is one step; a bad cell refuses the whole file.
+    std::fs::write(&file, csv.replacen("docks:sprint,Sprint", "docks:sprint,\"Docks, run\"", 1)).unwrap();
+    assert_eq!(golden("data-import", &import, &s, &dir, &e), cli::OK);
+    assert!(text(&dir).contains("Docks, run"));
+    let now = text(&dir);
+    std::fs::write(&file, csv.replace(",no,", ",maybe,")).unwrap();
+    assert_eq!(golden("data-import-bad-value", &import, &s, &dir, &e), cli::FAILED);
+    assert_eq!(text(&dir), now);
+    // Never into the game's folder.
+    let in_game = ["data", "export", "--mod", "<mod>", "--kind", "race", "--to", "game/x.csv"];
+    assert_eq!(run(&in_game, &dir, &e).0, cli::FAILED);
+}
+
+#[test]
+fn the_browser_commands_read_the_regions_index() {
+    let (s, dir) = fixture("cli-browser", false);
+    let e = lists_env();
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("browser-search", &["browser", "search"], cli::OK),
+        ("browser-search-words", &["browser", "search", "cone"], cli::OK),
+        ("browser-search-models", &["browser", "search", "--text", "x", "--kind", "models", "--category", "signs"], cli::OK),
+        ("browser-search-textures", &["browser", "search", "--kind", "textures", "--textures", "unused"], cli::OK),
+        ("browser-search-bad-kind", &["browser", "search", "--kind", "model"], cli::USAGE),
+        ("browser-used", &["browser", "used", "cone"], cli::OK),
+        ("browser-used-none", &["browser", "used", "zebra"], cli::OK),
+        ("browser-used-no-text", &["browser", "used"], cli::USAGE),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    for w in [&["browser", "search"][..], &["browser", "used", "cone"]] {
+        assert_eq!(run(w, &dir, &no_game()).0, cli::NO_GAME, "{w:?}");
+    }
+}
+
+#[test]
+fn collision_show_counts_what_each_mode_of_the_layer_draws() {
+    let (s, dir) = fixture("cli-collision", false);
+    let e = lists_env();
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("collision-show", &["collision", "show"], cli::OK),
+        ("collision-show-invisible", &["collision", "show", "--mode", "invisible"], cli::OK),
+        ("collision-show-off", &["collision", "show", "--mode", "off", "--mod", "<mod>"], cli::OK),
+        ("collision-show-bad-mode", &["collision", "show", "--mode", "some"], cli::USAGE),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    assert_eq!(run(&["collision", "show"], &dir, &no_game()).0, cli::NO_GAME);
+}
+
+/// A region with one model that has real geometry (two parts) for the export and import commands.
+fn model_env() -> Env {
+    use ob_formats::formats::solid::{Material, Solid, Vertex};
+    let v = |p: [f32; 3], uv: [f32; 2]| Vertex { position: p, color: [255; 4], uv };
+    let solid = Solid {
+        name: "XC_CONE_01".into(),
+        hash: 0x55,
+        bbox_min: [0.0; 3],
+        bbox_max: [1.0, 1.0, 2.0],
+        textures: vec![0x0000_0ABC, 0x0000_0ABD],
+        vertices: vec![
+            v([0.0, 0.0, 0.0], [0.0, 0.0]),
+            v([1.0, 0.0, 0.0], [1.0, 0.0]),
+            v([1.0, 1.0, 2.0], [1.0, 1.0]),
+            v([0.0, 1.0, 2.0], [0.0, 1.0]),
+        ],
+        normals: Vec::new(),
+        light_materials: Vec::new(),
+        indices: vec![0, 1, 2, 0, 2, 3],
+        materials: vec![
+            Material { texture_slot: 0, light_material: 0xFF, first_index: 0, index_count: 3, flags: 0 },
+            Material { texture_slot: 1, light_material: 0xFF, first_index: 3, index_count: 3, flags: 0 },
+        ],
+        mesh_flags: 0,
+        markers: Vec::new(),
+        light_markers: Vec::new(),
+    };
+    Env {
+        world: Box::new(move |root, _| {
+            let mut w = (looks_env().world)(root, "L4RA")?;
+            w.solids = vec![solid.clone()];
+            let place = nfsu2::studio_api::world::Placement {
+                solid: 0,
+                low_solid: None,
+                mid_solid: None,
+                transform: glam::Mat4::IDENTITY,
+                section: 1,
+                flags: 0,
+                cull_radius: 5.0,
+            };
+            w.placements = vec![place];
+            Ok(w)
+        }),
+        ..env()
+    }
+}
+
+#[test]
+fn a_model_goes_out_as_gltf_and_an_edited_one_comes_back_as_a_mod_model() {
+    let (s, dir) = fixture("cli-model", false);
+    let e = model_env();
+    // Out: the reference lands in the mod's work folder, marked; the game folder is never a target.
+    assert_eq!(golden("browser-export", &["browser", "export", "cone", "--mod", "<mod>"], &s, &dir, &e), cli::OK);
+    let reference = dir.join(".editor/reference");
+    assert!(reference.join("XC_CONE_01.gltf").is_file() && reference.join("LOCAL-ONLY.txt").is_file());
+    let r = run(&["browser", "export", "cone", "--mod", "<mod>", "--to", "game/models"], &dir, &e); assert_eq!(r.0, cli::FAILED, "{r:?}");
+    assert_eq!(run(&["browser", "export", "zebra", "--mod", "<mod>"], &dir, &e).0, cli::FAILED);
+    assert_eq!(run(&["browser", "export", "cone"], &dir, &e).0, cli::USAGE);
+
+    // Back: the unedited file maps onto the two parts and stays on this computer.
+    let file = reference.join("XC_CONE_01.gltf").to_string_lossy().into_owned();
+    let imp = ["browser", "import", "--mod", "<mod>", "--file", file.as_str()];
+    assert_eq!(golden("browser-import", &imp, &s, &dir, &e), cli::OK);
+    assert!(dir.join(".editor/models/XC_CONE_01.gltf").is_file());
+    assert!(dir.join(".editor/models/XC_CONE_01.model.toml").is_file());
+    assert!(!dir.join("models").exists(), "a model from the game's files is never shared");
+    // Own work: refused while the shape is the game's own and the file says so; accepted once edited.
+    let own = [&imp[..], &["--own"]].concat();
+    assert_eq!(golden("browser-import-own-refused", &own, &s, &dir, &e), cli::FAILED);
+    let bin = reference.join("XC_CONE_01.bin");
+    let mut b = std::fs::read(&bin).unwrap();
+    b[0..4].copy_from_slice(&5.0f32.to_le_bytes());
+    std::fs::write(&bin, b).unwrap();
+    let mut g: Value = serde_json::from_slice(&std::fs::read(&file).unwrap()).unwrap();
+    g["asset"]["extras"] = serde_json::json!({ "model": "XC_CONE_01" });
+    std::fs::write(&file, serde_json::to_vec_pretty(&g).unwrap()).unwrap();
+    assert_eq!(golden("browser-import-own", &own, &s, &dir, &e), cli::OK);
+    assert!(dir.join("models/XC_CONE_01.gltf").is_file());
+    // Refusals say why: a model the file is not for, a part that is not the model's, no model named.
+    assert_eq!(golden("browser-import-other-model", &[&imp[..], &["--model", "zebra"]].concat(), &s, &dir, &e), cli::FAILED);
+    g["materials"][0]["name"] = serde_json::json!("CHROME");
+    std::fs::write(&file, serde_json::to_vec_pretty(&g).unwrap()).unwrap();
+    assert_eq!(golden("browser-import-unmapped", &imp, &s, &dir, &e), cli::FAILED);
+    g["asset"].as_object_mut().unwrap().remove("extras");
+    std::fs::write(&file, serde_json::to_vec_pretty(&g).unwrap()).unwrap();
+    assert_eq!(run(&imp, &dir, &e).0, cli::USAGE);
+    assert_eq!(run(&["browser", "import", "--mod", "<mod>"], &dir, &e).0, cli::USAGE);
+    assert_eq!(run(&[&imp[..], &["--model", "cone"]].concat(), &dir, &no_game()).0, cli::NO_GAME);
+}
+
+/// The game's sounds and language files as the Browser's viewers read them: two banks, two languages.
+fn sound(bank: &str, name: &str, samples: &[u32], playable: bool) -> Sound {
+    Sound { bank: bank.into(), name: name.into(), samples: samples.to_vec(), rate: 22050, frames: 4, playable }
+}
+
+fn lines(t: &[(u32, &str)]) -> Vec<Line> {
+    t.iter().map(|&(hash, text)| Line { hash, text: text.into() }).collect()
+}
+
+fn media() -> GivenMedia {
+    GivenMedia {
+        sounds: vec![
+            sound("SOUND/FE/FE_MB.abk", "FE_MENU_CLICK", &[3], true),
+            sound("SOUND/IG_GLOBAL/FX_MAIN_MEM_MB.abk", "FX_TURBO_01", &[0, 1], true),
+            sound("SOUND/IG_GLOBAL/FX_MAIN_MEM_MB.abk", "FX_BLOWOFF", &[2], false),
+        ],
+        pcm: vec![("SOUND/IG_GLOBAL/FX_MAIN_MEM_MB.abk".into(), 0, Pcm { rate: 22050, samples: vec![0.0, 100.0, -100.0, 5.0] })],
+        languages: vec![
+            ("English".into(), lines(&[(0x10, "Press START"), (0x20, "Race Again")])),
+            ("German".into(), lines(&[(0x10, "START dr\u{fc}cken"), (0x20, "Nochmal")])),
+        ],
+    }
+}
+
+fn media_env() -> Env {
+    Env { media: Box::new(|_| Box::new(media())), ..model_env() }
+}
+
+#[test]
+fn the_sound_and_string_commands_list_what_the_viewers_list() {
+    let (s, dir) = fixture("cli-media", false);
+    let e = media_env();
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("browser-sounds", &["browser", "sounds"], cli::OK),
+        ("browser-sounds-words", &["browser", "sounds", "fx main"], cli::OK),
+        ("browser-sounds-none", &["browser", "sounds", "zebra"], cli::OK),
+        ("browser-search-sounds", &["browser", "search", "--kind", "sounds", "turbo"], cli::OK),
+        ("browser-strings", &["browser", "strings"], cli::OK),
+        ("browser-strings-words", &["browser", "strings", "race"], cli::OK),
+        ("browser-strings-german", &["browser", "strings", "--language", "ger"], cli::OK),
+        ("browser-strings-hash", &["browser", "strings", "0x20"], cli::OK),
+        ("browser-strings-bad-language", &["browser", "strings", "--language", "germn"], cli::USAGE),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    // The command line reads the same sounds the viewer does: a hit per sound, in bank order.
+    let (_, out, _) = run(&["browser", "sounds", "--json"], &dir, &e);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(doc["count"], 3);
+    assert_eq!(doc["hits"][1]["name"], "FX_TURBO_01");
+    for w in [&["browser", "sounds"][..], &["browser", "strings"]] {
+        assert_eq!(run(w, &dir, &no_game()).0, cli::NO_GAME, "{w:?}");
+    }
+}
+
+#[test]
+fn a_sound_goes_out_as_a_marked_wav_and_never_into_the_game_folder() {
+    let (s, dir) = fixture("cli-wav", false);
+    let e = media_env();
+    assert_eq!(golden("browser-wav", &["browser", "wav", "turbo", "--mod", "<mod>"], &s, &dir, &e), cli::OK);
+    let out = dir.join(store::EDITOR_DIR).join("reference");
+    let wav = std::fs::read(out.join("FX_MAIN_MEM_MB-FX_TURBO_01.wav")).unwrap();
+    assert_eq!(&wav[..4], b"RIFF");
+    assert_eq!(wav.len(), 44 + 8);
+    assert!(std::fs::read_to_string(out.join("LOCAL-ONLY.txt")).unwrap().contains("local-only"));
+    let r = run(&["browser", "wav", "turbo", "--mod", "<mod>", "--to", "game/sounds"], &dir, &e);
+    assert_eq!(r.0, cli::FAILED, "{r:?}");
+    // Not decodable, unknown, ambiguous and unplaced are told apart.
+    assert_eq!(run(&["browser", "wav", "blowoff", "--mod", "<mod>"], &dir, &e).0, cli::FAILED);
+    assert_eq!(run(&["browser", "wav", "zebra", "--mod", "<mod>"], &dir, &e).0, cli::FAILED);
+    assert_eq!(run(&["browser", "wav", "fx", "--mod", "<mod>"], &dir, &e).0, cli::FAILED);
+    assert_eq!(run(&["browser", "wav", "turbo"], &dir, &e).0, cli::USAGE);
+}
+
+#[test]
+fn a_mesh_and_the_area_around_a_point_come_from_the_regions_models() {
+    let (s, dir) = fixture("cli-mesh", false);
+    let e = model_env();
+    assert_eq!(golden("browser-mesh", &["browser", "mesh", "cone"], &s, &dir, &e), cli::OK);
+    assert_eq!(run(&["browser", "mesh", "zebra"], &dir, &e).0, cli::FAILED);
+    assert_eq!(golden("browser-area", &["browser", "area", "--at", "0,0,0", "--radius", "20", "--mod", "<mod>"], &s, &dir, &e), cli::OK);
+    let out = dir.join(store::EDITOR_DIR).join("reference");
+    let doc: Value = serde_json::from_slice(&std::fs::read(out.join("area-L4RA.gltf")).unwrap()).unwrap();
+    assert_eq!(doc["asset"]["extras"]["origin"], "from-game-files");
+    assert_eq!(doc["asset"]["extras"]["share"], "local-only");
+    assert_eq!(doc["asset"]["extras"]["area"]["placements"], 1);
+    // Far from the only placement nothing stands; a bad point, a huge radius and the game folder are refused.
+    assert_eq!(run(&["browser", "area", "--at", "900,0,0", "--mod", "<mod>"], &dir, &e).0, cli::FAILED);
+    assert_eq!(run(&["browser", "area", "--at", "1,2", "--mod", "<mod>"], &dir, &e).0, cli::USAGE);
+    assert_eq!(run(&["browser", "area", "--at", "0,0,0", "--radius", "9000", "--mod", "<mod>"], &dir, &e).0, cli::FAILED);
+    assert_eq!(run(&["browser", "area", "--at", "0,0,0", "--to", "game/area"], &dir, &e).0, cli::FAILED);
+    assert_eq!(run(&["browser", "area", "--mod", "<mod>"], &dir, &e).0, cli::USAGE);
 }

@@ -1,0 +1,17 @@
+{
+  "command": "modpack.export",
+  "derived": [
+    {
+      "name": "ROAD",
+      "texture": "world:0x00000ABC"
+    }
+  ],
+  "error": {
+    "kind": "failed",
+    "message": "1 texture is made from the original game's pixels. That is fine in your game, but sharing the mod shares the original game's art. You are responsible for what you share. Give --derived-ok to export them.",
+    "reason": "derived"
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false
+}

@@ -13,7 +13,8 @@ use glam::Vec2;
 
 pub use ob_studio::validate::*;
 
-use super::state::{EditorState, Issue, Level, commit};
+use super::state::{EditorState, Issue, Level};
+use crate::tools::map::ops::Op;
 
 /// The ground under `p` in the edited world (0 with none).
 pub fn ground(s: &EditorState, p: Vec2) -> f32 {
@@ -31,8 +32,10 @@ pub fn refresh(s: &mut EditorState, region_tracks: &[u16], tested: &Tested) -> V
         out.extend(ob_studio::validate::floor_checks(&s.session.map, &under));
         let c = &w.map_overlay.collision;
         out.extend(ob_studio::validate::collision_checks(&s.session.map, &under, &c.unmatched_at, &c.outside_at));
-        out.sort_by_key(|c| (std::cmp::Reverse(c.level), c.ok));
     }
+    // The props the mod added or moved: where they would pop in, and models a section cannot load (view-only).
+    out.extend(ob_studio::world_checks::of(w));
+    out.sort_by_key(|c| (std::cmp::Reverse(c.level), c.ok));
     s.session.issues = out
         .iter()
         .map(|c| Issue { level: c.level, text: c.text.clone(), race: c.race, at: c.at.map(|p| p.extend(ground(s, p))) })
@@ -47,8 +50,9 @@ pub fn apply(s: &mut EditorState, k: usize, fix: &Fix) {
     let heights = |p: Vec2| s.session.world.grid_ground(p.extend(1.0e5)).unwrap_or(0.0);
     let mut map = s.session.map.clone();
     if fix_race(&mut map, k, fix, net.as_ref(), &heights) {
-        s.session.map = map;
-        commit(s, &fix.label());
+        let Some(to) = map.races.get(k).cloned() else { return };
+        let race = s.session.map.races[k].id.clone();
+        let _ = super::undo::run(s, Op::Group { label: fix.label(), ops: vec![Op::PutRace { race, to }] });
     }
 }
 
@@ -60,6 +64,16 @@ pub fn show(s: &mut EditorState, c: &Check) {
         s.mode = super::state::Mode::Races;
     }
     s.point = c.point;
+    // An entry about a drawn wall or ground selects it (and puts the collision layer on, which draws the selection).
+    if let Some(id) = &c.wall
+        && let Some(p) = super::collision::pick_drawn(s, id)
+    {
+        s.selection.clear();
+        s.wall = Some(p);
+        if s.collision == super::collision::Show::Off {
+            s.collision = super::collision::Show::Invisible;
+        }
+    }
     if let Some(at) = c.at {
         let target = at.extend(ground(s, at));
         let f = s.camera.forward();

@@ -3,6 +3,7 @@
 use glam::{Vec2, Vec3};
 
 use super::*;
+use crate::editor::state::SnapMode;
 use crate::editor::validate::tests::{sprint, straight};
 use crate::tools::map::assets::GivenAssets;
 use crate::tools::map::ops::RacePoint as Point;
@@ -129,7 +130,7 @@ fn state(race: CustomRace) -> EditorState {
         cam,
     );
     st.assets = Box::new(GivenAssets {
-        tracks: vec![TrackInfo { number: 4001, name: "Test road".into() }],
+        tracks: vec![TrackInfo { number: 4001, name: "Test road".into(), modes: vec![], area: String::new() }],
         nets: [(4001, straight(false))].into(),
         ..Default::default()
     });
@@ -143,17 +144,28 @@ fn clicks_place_snapped_points_as_undo_steps() {
     s.mode = Mode::Races;
     races.tool = Tool::Checkpoint;
     // A click beside the road puts checkpoint 3 on it.
-    races.click(&mut s, Vec3::new(390.0, 6.0, 0.0), false, false);
+    races.click(&mut s, Vec3::new(390.0, 6.0, 0.0), false);
     assert_eq!(s.session.map.races[0].checkpoints[2], Vec2::new(390.0, 0.0));
     assert_eq!(s.point, cp(2));
     assert_eq!(s.session.undo.undo_label(), Some("Add checkpoint 3"));
     // Alt places it where clicked.
-    races.click(&mut s, Vec3::new(395.0, 6.0, 0.0), false, true);
+    s.snap_mode = SnapMode::Free;
+    races.click(&mut s, Vec3::new(395.0, 6.0, 0.0), false);
+    s.snap_mode = SnapMode::default();
     assert_eq!(s.session.map.races[0].checkpoints[3], Vec2::new(395.0, 6.0));
     // A click on a point picks it; dragging moves it, one step on release.
-    races.click(&mut s, Vec3::new(21.0, 1.0, 0.0), false, false);
+    races.click(&mut s, Vec3::new(21.0, 1.0, 0.0), false);
     assert_eq!(s.point, cp(0));
-    races.drag(&mut s, Vec3::new(50.0, 3.0, 0.0), false);
+    // Esc during a drag puts the point back and leaves no step.
+    let (before, label) = (s.session.map.races[0].checkpoints[0], s.session.undo.undo_label().map(String::from));
+    races.drag(&mut s, Vec3::new(50.0, 3.0, 0.0));
+    assert_ne!(s.session.map.races[0].checkpoints[0], before);
+    races.cancel_drag(&mut s);
+    races.release(&mut s);
+    assert_eq!(s.session.map.races[0].checkpoints[0], before);
+    assert_eq!(s.session.undo.undo_label().map(String::from), label);
+    races.click(&mut s, Vec3::new(21.0, 1.0, 0.0), false);
+    races.drag(&mut s, Vec3::new(50.0, 3.0, 0.0));
     races.release(&mut s);
     assert_eq!(s.session.map.races[0].checkpoints[0], Vec2::new(50.0, 0.0));
     assert_eq!(s.session.undo.undo_label(), Some("Move checkpoint 1"));
@@ -196,13 +208,13 @@ fn a_race_is_made_validated_and_selected() {
     let mut races = Races::new();
     races.new_race(&mut s);
     assert_eq!((s.session.map.races.len(), s.race, s.mode, races.tool), (2, Some(1), Mode::Races, Tool::Start));
-    races.click(&mut s, Vec3::new(10.0, 3.0, 0.0), false, false);
+    races.click(&mut s, Vec3::new(10.0, 3.0, 0.0), false);
     assert_eq!(races.tool, Tool::Checkpoint, "the start placed arms Checkpoint");
     for x in [120.0, 220.0, 360.0] {
-        races.click(&mut s, Vec3::new(x, -4.0, 0.0), false, false);
+        races.click(&mut s, Vec3::new(x, -4.0, 0.0), false);
     }
     races.tool = Tool::Finish;
-    races.click(&mut s, Vec3::new(395.0, 2.0, 0.0), false, false);
+    races.click(&mut s, Vec3::new(395.0, 2.0, 0.0), false);
     let r = &s.session.map.races[1];
     assert_eq!(r.checkpoints, vec![Vec2::new(120.0, 0.0), Vec2::new(220.0, 0.0), Vec2::new(360.0, 0.0)]);
     assert!(r.start.is_some() && r.finish.is_some());
@@ -259,14 +271,16 @@ fn a_select_click_on_the_road_adds_nothing() {
     s.mode = Mode::Races;
     let before = s.session.map.clone();
     for at in [Vec3::new(200.0, 0.0, 0.0), Vec3::new(300.0, 2.0, 0.0)] {
-        races.click(&mut s, at, false, false);
-        races.click(&mut s, at, true, false);
-        races.click(&mut s, at, false, true);
+        races.click(&mut s, at, false);
+        races.click(&mut s, at, true);
+        s.snap_mode = SnapMode::Free;
+        races.click(&mut s, at, false);
+        s.snap_mode = SnapMode::default();
     }
     assert_eq!(s.session.map, before);
     assert_eq!(s.session.undo.undo_label(), None);
     assert!(!s.session.dirty);
-    races.click(&mut s, Vec3::new(21.0, 0.0, 0.0), false, false);
+    races.click(&mut s, Vec3::new(21.0, 0.0, 0.0), false);
     races.release(&mut s);
     assert_eq!(s.point, cp(0));
     assert_eq!(s.session.map, before, "a pick without a move is no edit");
@@ -283,17 +297,17 @@ fn a_race_is_built_only_through_ops() {
     s.race = None;
     let mut races = Races::new();
     races.new_race(&mut s);
-    races.click(&mut s, Vec3::new(10.0, 3.0, 0.0), false, false);
+    races.click(&mut s, Vec3::new(10.0, 3.0, 0.0), false);
     for x in [120.0, 220.0, 360.0] {
-        races.click(&mut s, Vec3::new(x, -4.0, 0.0), false, false);
+        races.click(&mut s, Vec3::new(x, -4.0, 0.0), false);
     }
     // Drag checkpoint 2 along the road; the live change is one step.
-    races.click(&mut s, Vec3::new(220.0, 0.0, 0.0), false, false);
-    races.drag(&mut s, Vec3::new(230.0, 1.0, 0.0), false);
-    races.drag(&mut s, Vec3::new(240.0, 2.0, 0.0), false);
+    races.click(&mut s, Vec3::new(220.0, 0.0, 0.0), false);
+    races.drag(&mut s, Vec3::new(230.0, 1.0, 0.0));
+    races.drag(&mut s, Vec3::new(240.0, 2.0, 0.0));
     races.release(&mut s);
     crate::editor::menu::set_tool(&mut s, &mut Default::default(), &mut races, crate::editor::menu::Tool::Finish);
-    races.click(&mut s, Vec3::new(395.0, 2.0, 0.0), false, false);
+    races.click(&mut s, Vec3::new(395.0, 2.0, 0.0), false);
     races.delete_selected(&mut s);
     let mut labels = Vec::new();
     let mut u = s.session.undo.clone();
@@ -362,5 +376,55 @@ fn races_edit_only_through_ops() {
         let code: String = src.lines().filter(|l| !l.trim_start().starts_with("//")).collect::<Vec<_>>().join("\n");
         assert!(!code.contains("commit("), "{file} edits in place");
         assert!(!code.contains("CareerData") && !code.contains("race::road_net"), "{file} reads the game's files");
+    }
+}
+
+/// In the top view a race point is grabbed within the same number of screen points at any zoom; the 3D view keeps
+/// its metres.
+#[test]
+fn the_top_views_grab_keeps_its_screen_size_at_any_zoom() {
+    use crate::editor::camera::TopView;
+    let rect = egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(800.0, 450.0));
+    assert_eq!(pick_radius(None), PICK_M);
+    for half_height in [20.0_f32, 150.0, 2000.0] {
+        let top = TopView { centre: Vec2::ZERO, half_height };
+        let m = pick_radius(Some((top, rect)));
+        assert!((m / top.metres_per_point(rect) - PICK_POINTS).abs() < 1e-3, "{half_height}: {m} m");
+    }
+    // Zoomed out a checkpoint 30 m off is grabbed (it is a few points on screen); zoomed in it is not.
+    let r = sprint(&[(100.0, 0.0), (300.0, 0.0)]);
+    let near = Vec2::new(100.0, 30.0);
+    let out = pick_radius(Some((TopView { centre: Vec2::ZERO, half_height: 2000.0 }, rect)));
+    let inn = pick_radius(Some((TopView { centre: Vec2::ZERO, half_height: 20.0 }, rect)));
+    assert!(pick(&r, near, out).is_some() && pick(&r, near, inn).is_none());
+}
+
+/// The inspector's four Mode buttons sit in two columns of two, aligned, inside the panel, at the narrow dock widths.
+#[test]
+fn the_mode_buttons_are_a_deliberate_two_by_two() {
+    for width in [280.0_f32, 300.0, 380.0, 520.0] {
+        let mut s = state(sprint(&[(20.0, 0.0), (380.0, 0.0)]));
+        let mut races = Races::new();
+        let ctx = egui::Context::default();
+        for _ in 0..3 {
+            let raw = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(width, 700.0))),
+                ..Default::default()
+            };
+            let _ = crate::editor::run_headless(&ctx, raw, |ui| {
+                ui.set_max_width(width - 16.0);
+                races.properties(&mut s, ui);
+            });
+        }
+        let b = &races.mode_buttons;
+        assert_eq!(b.len(), 4, "{width}");
+        assert_eq!(b[0].top(), b[1].top(), "{width}: Circuit and Sprint share a row");
+        assert_eq!(b[2].top(), b[3].top(), "{width}: StreetX and Drift share a row");
+        assert!(b[2].top() > b[0].bottom() - 1.0, "{width}: the second row is below the first");
+        assert_eq!(b[0].left(), b[2].left(), "{width}: the columns line up");
+        assert_eq!(b[1].left(), b[3].left(), "{width}: the columns line up");
+        for r in b {
+            assert!(r.right() <= width - 8.0, "{width}: a button ends at {}", r.right());
+        }
     }
 }

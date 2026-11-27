@@ -11,7 +11,7 @@
 use egui::{Color32, Pos2, Rect, RichText, Stroke, Ui};
 use glam::{Mat3, Mat4, Vec3, Vec4};
 
-use super::state::{EditorState, Panel, project};
+use super::state::{EditorState, Panel, SnapMode, project};
 use super::undo::run;
 use crate::draw::camera::Camera;
 use crate::launch::theme::{Rgb, THEME_A};
@@ -103,16 +103,50 @@ struct Drag {
     copied: Option<Vec<PropKey>>,
 }
 
+/// Values typed into the properties panel, not yet applied: the selection they are for, the position the pivot
+/// would take and the heading (None: not typed).
+#[derive(Clone, Debug, PartialEq)]
+pub struct Staged {
+    pub of: Vec<usize>,
+    pub position: Option<Vec3>,
+    pub heading: Option<f32>,
+}
+
+impl Staged {
+    /// Apply the typed values as one undo step; the staged values are gone either way.
+    pub fn apply(self, s: &mut EditorState) {
+        if self.of != s.selection {
+            return;
+        }
+        let (Some(pivot_at), live) = (pivot(s), Live::begin(s)) else { return };
+        let by = self.position.map(|p| p - pivot_at);
+        let (_, rot) = edit::placement_parts(&s.session.world, self.of[0]).unwrap_or((Vec3::ZERO, Mat3::IDENTITY));
+        let turn = self.heading.map(|h| h - edit::heading_of(rot));
+        live.nudge(s, |q, r| (q + by.unwrap_or(Vec3::ZERO), turn.map_or(r, |t| edit::turned(r, t))));
+        let verb = match (by.is_some(), turn.is_some()) {
+            (true, false) => "Move",
+            (false, true) => "Rotate",
+            _ => "Edit",
+        };
+        live.finish(s, verb);
+    }
+}
+
 /// Props mode: the tool, the snap settings and the properties panel.
 #[derive(Clone, Debug)]
 pub struct Props {
     pub tool: Tool,
-    pub snap: bool,
     pub snap_metres: f32,
     pub snap_degrees: f32,
     drag: Option<Drag>,
-    /// A typed or dragged value of the properties panel in progress.
+    /// A value being dragged in the properties panel (the world moves live; one op on release).
     live: Option<Live>,
+    /// Typed values of the properties panel waiting for Enter or Apply; nothing of them is in the world yet.
+    staged: Option<Staged>,
+    /// Where the Apply button was drawn last frame (a press on it must not count as leaving the field).
+    apply_at: Option<Rect>,
+    /// Esc put a dragged number back: the rest of that drag changes nothing.
+    voided: bool,
     /// The handle under the pointer this frame.
     pub hover: Option<Handle>,
     /// The prop menu's place while it is open (screen), and the turn its
@@ -128,11 +162,13 @@ impl Default for Props {
     fn default() -> Props {
         Props {
             tool: Tool::Move,
-            snap: true,
             snap_metres: SNAP_METRES,
             snap_degrees: SNAP_DEGREES,
             drag: None,
             live: None,
+            staged: None,
+            apply_at: None,
+            voided: false,
             hover: None,
             menu_at: None,
             turn_by: 45.0,
@@ -425,6 +461,22 @@ impl Live {
         s.session.world_changed = true;
     }
 
+    /// Each placement moved by `delta` from its start and set down on the ground there (To surface).
+    fn set_on_ground(&self, s: &mut EditorState, delta: Vec3) {
+        let zs: Vec<f32> = self
+            .starts
+            .iter()
+            .map(|(_, _, t)| super::validate::ground(s, (crate::world::parts_of(*t).0 + delta).truncate()))
+            .collect();
+        for ((i, _, t), z) in self.starts.iter().zip(zs) {
+            let (p, r) = crate::world::parts_of(*t);
+            let mut at = p + delta;
+            at.z = z;
+            s.session.world.set_placement_transform(*i, crate::world::transform_of(at, r));
+        }
+        s.session.world_changed = true;
+    }
+
     /// Each placement by `f(position, rotation)` from where it is now.
     fn nudge(&self, s: &mut EditorState, f: impl Fn(Vec3, Mat3) -> (Vec3, Mat3)) {
         for (i, ..) in &self.starts {
@@ -467,9 +519,6 @@ impl Props {
         self.drag.is_some()
     }
 
-    fn snapping(&self, ctx: &egui::Context) -> bool {
-        self.snap && !ctx.input(|i| i.modifiers.alt)
-    }
 
     /// The handles' world length at `pivot`: [`HANDLE_POINTS`] on screen,
     /// in any view (the Top overview's field of view is a couple of
@@ -527,7 +576,7 @@ impl Props {
 
     /// The handles of the selection in the viewport `rect`: drawn, and
     /// dragged with the left button (Shift at the start of a move drag
-    /// copies the selection first; Alt bypasses snapping). True while the
+    /// or Alt copies the selection first; the snap mode is the editor's). True while the
     /// pointer is on a handle or a drag runs: the viewport must not pick
     /// with that click.
     pub fn handles(&mut self, s: &mut EditorState, ctx: &egui::Context, painter: &egui::Painter, rect: Rect) -> bool {
@@ -569,7 +618,7 @@ impl Props {
     }
 
     fn begin(&mut self, s: &mut EditorState, ctx: &egui::Context, rect: Rect, handle: Handle, from: Pos2, pivot: Vec3) {
-        let copy = handle != Handle::Ring && ctx.input(|i| i.modifiers.shift);
+        let copy = handle != Handle::Ring && ctx.input(|i| i.modifiers.shift || i.modifiers.alt);
         let copied = if copy { copy_in_place(s) } else { None };
         let verb = match (copied.is_some(), handle) {
             (true, _) => "Copy",
@@ -580,8 +629,9 @@ impl Props {
         self.drag = Some(Drag { handle, from, live: Live::begin(s), pivot, angle, verb, copied });
     }
 
-    fn drag_to(&mut self, s: &mut EditorState, ctx: &egui::Context, rect: Rect, p: Pos2) {
-        let snapping = self.snapping(ctx);
+    fn drag_to(&mut self, s: &mut EditorState, _ctx: &egui::Context, rect: Rect, p: Pos2) {
+        let mode = s.snap_mode;
+        let snapping = mode.snaps();
         let (step_m, step_deg) = (self.snap_metres, self.snap_degrees);
         let Some(d) = self.drag.as_ref() else { return };
         let pivot = d.pivot;
@@ -603,7 +653,11 @@ impl Props {
                     by = edit::snap(pivot[k] + by, step_m) - pivot[k];
                 }
                 let delta = Vec3::AXES[k] * by;
-                d.live.set(s, |p, r| (p + delta, r));
+                if mode == SnapMode::Surface && k != 2 {
+                    d.live.set_on_ground(s, delta);
+                } else {
+                    d.live.set(s, |p, r| (p + delta, r));
+                }
             }
             Handle::Ring => {
                 let Some(a) = Self::ring_angle(s, rect, pivot, p) else { return };
@@ -703,7 +757,7 @@ impl Props {
             && s.camera.position.distance(eye) < 1e-3
         {
             let (e, d) = screen_ray(s, rect, at);
-            if let Some(hit) = super::viewport::pick(&s.session.world, e, d) {
+            if let Some(hit) = super::viewport::pick_where(&s.session.world, e, d, &|i| super::views::view_hides(s, i)) {
                 if !s.selection.contains(&hit.placement) {
                     s.selection = vec![hit.placement];
                 }
@@ -819,11 +873,34 @@ impl Props {
         if dup {
             duplicate_selection(s, cursor);
         }
-        if esc && self.drag.is_none() {
-            s.selection.clear();
-            s.wall = None;
-            s.draw = None;
+        if esc && self.drag.is_some() {
+            self.cancel_drag(s);
+        } else if esc && let Some(live) = self.live.take() {
+            live.take_back(s);
+            self.voided = true;
+            s.status = crate::studio::words::DRAG_CANCELLED.into();
+        } else if esc {
+            if s.draw.is_some() {
+                super::collision::step_back(s);
+            } else {
+                s.selection.clear();
+                s.wall = None;
+            }
         }
+    }
+}
+
+impl Props {
+    /// Esc during a handle drag: everything is put back exactly as it was before the press (a Shift copy is
+    /// taken back too), and nothing is left on the undo stack.
+    pub fn cancel_drag(&mut self, s: &mut EditorState) {
+        let Some(d) = self.drag.take() else { return };
+        d.live.take_back(s);
+        if let Some(originals) = d.copied {
+            s.session.undo();
+            s.selection = originals.iter().filter_map(|k| s.session.placement_of(k)).collect();
+        }
+        s.status = crate::studio::words::DRAG_CANCELLED.into();
     }
 }
 
@@ -952,40 +1029,71 @@ impl Panel for Props {
         let editable = !matches!(state, PropState::OtherMod | PropState::Deleted);
         ui.separator();
 
-        // Position: of the one prop, or the selection's pivot (all move).
+        // Position and rotation: values typed here wait for Enter or Apply (leaving the field or Esc puts them
+        // back); dragging a number moves the prop live and is one step on release.
+        let sel = s.selection.clone();
+        if self.staged.as_ref().is_some_and(|st| st.of != sel) {
+            self.staged = None;
+        }
+        if !ui.input(|i| i.pointer.primary_down()) {
+            self.voided = false;
+        }
+        let enter = ui.input(|i| i.key_pressed(egui::Key::Enter));
+        let on_apply = self.apply_at.is_some_and(|r| {
+            ui.input(|i| i.pointer.primary_down() && i.pointer.hover_pos().is_some_and(|p| r.contains(p)))
+        });
+        // A field's end: apply on Enter, put back on anything else (a press on Apply is kept for its click).
+        let mut apply = false;
+        let mut revert = false;
+        let mut end = |r: &egui::Response| {
+            if r.lost_focus() {
+                if enter {
+                    apply = true;
+                } else if !on_apply {
+                    revert = true;
+                }
+            }
+        };
+
         heading(ui, "Position (m)");
         let pivot = pivot(s).unwrap_or_default();
-        let mut p = pivot;
-        let mut done = false;
+        let shown = self.staged.as_ref().and_then(|st| st.position).unwrap_or(pivot);
+        let mut p = shown;
+        let mut dropped = false;
         ui.add_enabled_ui(editable, |ui| {
             ui.horizontal(|ui| {
                 for (k, axis) in ["X", "Y", "Z"].into_iter().enumerate() {
                     ui.label(RichText::new(axis).color(AXIS[k]));
                     let r = ui.add(egui::DragValue::new(&mut p[k]).speed(0.05).fixed_decimals(2));
-                    done |= finished(&r);
+                    end(&r);
+                    dropped |= r.drag_stopped();
+                    if r.dragged() && p != shown && !self.voided {
+                        let by = p - pivot;
+                        self.live.get_or_insert_with(|| Live::begin(s)).nudge(s, |q, r| (q + by, r));
+                    }
                 }
             });
         });
-        if p != pivot {
-            let by = p - pivot;
-            self.live.get_or_insert_with(|| Live::begin(s)).nudge(s, |q, r| (q + by, r));
-        }
-        if done && let Some(live) = self.live.take() {
-            live.finish(s, "Move");
+        if p != shown && !self.live.is_some() {
+            self.staged.get_or_insert(Staged { of: sel.clone(), position: None, heading: None }).position = Some(p);
         }
 
-        // Rotation.
         heading(ui, "Rotation");
         let (_, rot) = edit::placement_parts(&s.session.world, first).unwrap_or((Vec3::ZERO, Mat3::IDENTITY));
         let h0 = edit::heading_of(rot);
-        let mut h = h0;
-        let mut done = false;
+        let h_shown = self.staged.as_ref().and_then(|st| st.heading).unwrap_or(h0);
+        let mut h = h_shown;
         ui.add_enabled_ui(editable, |ui| {
             egui::Grid::new("prop-rotation").num_columns(2).show(ui, |ui| {
                 ui.label("Heading");
                 let r =
                     ui.add(egui::DragValue::new(&mut h).speed(0.5).range(-180.0..=180.0).suffix("°").fixed_decimals(1));
-                done |= finished(&r);
+                end(&r);
+                dropped |= r.drag_stopped();
+                if r.dragged() && h != h_shown && !self.voided {
+                    let turn = h - h0;
+                    self.live.get_or_insert_with(|| Live::begin(s)).nudge(s, |q, r| (q, edit::turned(r, turn)));
+                }
                 ui.end_row();
                 ui.label("Tilt");
                 let t = edit::tilt_of(rot);
@@ -1006,12 +1114,33 @@ impl Panel for Props {
                 ui.end_row();
             });
         });
-        if h != h0 {
-            let turn = h - h0;
-            self.live.get_or_insert_with(|| Live::begin(s)).nudge(s, |q, r| (q, edit::turned(r, turn)));
+        if h != h_shown && self.live.is_none() {
+            self.staged.get_or_insert(Staged { of: sel.clone(), position: None, heading: None }).heading = Some(h);
         }
-        if done && let Some(live) = self.live.take() {
-            live.finish(s, "Rotate");
+        // The end of a dragged number: one step. (Esc while dragging puts it back: `keys`.)
+        if dropped && let Some(live) = self.live.take() {
+            let verb = if h != h_shown { "Rotate" } else { "Move" };
+            live.finish(s, verb);
+        }
+        // Apply: shown while values wait.
+        if let Some(st) = self.staged.as_ref() {
+            let r = ui.horizontal(|ui| {
+                let b = ui.add(egui::Button::new(crate::studio::words::APPLY)).on_hover_text("Enter");
+                ui.label(RichText::new(crate::studio::words::TYPED_VALUE_WAITING).small().color(colour(THEME_A.dim)));
+                b
+            });
+            self.apply_at = Some(r.inner.rect);
+            if r.inner.clicked() {
+                apply = true;
+            }
+            let _ = st;
+        } else {
+            self.apply_at = None;
+        }
+        if apply && let Some(st) = self.staged.take() {
+            st.apply(s);
+        } else if revert {
+            self.staged = None;
         }
 
         ui.add_space(6.0);
@@ -1266,6 +1395,125 @@ pub(crate) mod tests {
         assert!((copy.x - 20.0).abs() < 0.01 && (edit::heading_of(cr) - 90.0).abs() < 1e-3, "{copy}");
         assert!(edit::placement_parts(&s.session.world, 0).unwrap().0.abs_diff_eq(pivot, 1e-4));
         assert!(matches!(s.session.map.props.last(), Some(PropEdit::Add { position, .. }) if *position == copy));
+    }
+
+    #[test]
+    fn esc_during_a_drag_puts_everything_back_exactly() {
+        for copy in [false, true] {
+            let mut s = state();
+            top(&mut s);
+            s.selection = vec![0];
+            let mut p = Props::default();
+            let rect = viewport();
+            let pivot = Vec3::new(10.0, 0.0, 0.0);
+            let len = Props::handle_length(&s, rect, pivot);
+            let mid = project(&s, rect, pivot + Vec3::X * len * 0.6).unwrap();
+            let (n, bytes, label) =
+                (s.session.world.placements.len(), s.session.map.write(), s.session.undo.undo_label().map(String::from));
+            let ctx = egui::Context::default();
+            frame(&mut p, &mut s, &ctx, copy, vec![egui::Event::PointerMoved(mid)]);
+            frame(&mut p, &mut s, &ctx, copy, vec![button(mid, true)]);
+            frame(&mut p, &mut s, &ctx, copy, vec![egui::Event::PointerMoved(mid + egui::vec2(96.0, 0.0))]);
+            assert!(p.dragging());
+            assert_ne!(edit::placement_parts(&s.session.world, n * usize::from(copy)).unwrap().0, pivot, "copy {copy}: it moved live");
+            let esc = egui::Event::Key {
+                key: egui::Key::Escape,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: Default::default(),
+            };
+            let input = egui::RawInput { screen_rect: Some(rect), events: vec![esc], ..Default::default() };
+            let _ = crate::editor::run_headless(&ctx, input, |ui| p.keys(&mut s, ui.ctx(), None));
+            assert!(!p.dragging());
+            frame(&mut p, &mut s, &ctx, copy, vec![button(mid, false)]);
+            assert_eq!(edit::placement_parts(&s.session.world, 0).unwrap().0, pivot, "copy {copy}");
+            assert_eq!(s.session.world.placements.len(), n, "copy {copy}: no copy left");
+            assert_eq!(s.session.map.write(), bytes, "copy {copy}: the mod is as it was");
+            assert_eq!(s.session.undo.undo_label().map(String::from), label, "copy {copy}: no undo step");
+            assert_eq!(s.selection, vec![0], "copy {copy}");
+        }
+    }
+
+    /// A drag of the x arrow of the floating barrier (placement 2) by 100 points under `mode`, with `alt` held.
+    fn drag_barrier(mode: SnapMode, alt: bool) -> EditorState {
+        let mut s = state();
+        top(&mut s);
+        s.selection = vec![2];
+        s.snap_mode = mode;
+        let mut p = Props::default();
+        let rect = viewport();
+        let pivot = Vec3::new(30.0, 0.0, 2.0);
+        let len = Props::handle_length(&s, rect, pivot);
+        let mid = project(&s, rect, pivot + Vec3::X * len * 0.6).unwrap();
+        let ctx = egui::Context::default();
+        let mods = |a| egui::Event::ModifiersChanged(egui::Modifiers { alt: a, ..Default::default() });
+        let run = |p: &mut Props, s: &mut EditorState, events: Vec<egui::Event>| {
+            let input = egui::RawInput { screen_rect: Some(rect), events, ..Default::default() };
+            let _ = crate::editor::run_headless(&ctx, input, |ui| {
+                p.handles(s, ui.ctx(), ui.painter(), rect);
+            });
+        };
+        let to = mid + egui::vec2(100.0, 0.0);
+        run(&mut p, &mut s, vec![mods(alt), egui::Event::PointerMoved(mid)]);
+        run(&mut p, &mut s, vec![button(mid, true)]);
+        run(&mut p, &mut s, vec![egui::Event::PointerMoved(to)]);
+        run(&mut p, &mut s, vec![button(to, false)]);
+        assert!(!p.dragging());
+        s
+    }
+
+    #[test]
+    fn the_snap_mode_decides_how_a_drag_lands() {
+        let at = |s: &EditorState, i| edit::placement_parts(&s.session.world, i).unwrap().0;
+        let keep = drag_barrier(SnapMode::KeepHeight, false);
+        let (k, free) = (at(&keep, 2), at(&drag_barrier(SnapMode::Free, false), 2));
+        assert_eq!(edit::snap(k.x, SNAP_METRES), k.x, "steps: {k}");
+        assert_eq!(k.z, 2.0, "Keep height keeps it");
+        assert!(free.x > 40.0 && edit::snap(free.x, SNAP_METRES) != free.x, "Free does not snap: {free}");
+        assert_eq!(free.z, 2.0);
+        let surface = at(&drag_barrier(SnapMode::Surface, false), 2);
+        assert_eq!(surface.x, k.x, "To surface snaps to the same steps");
+        assert_eq!(surface.z, 0.0, "and lands on the ground: {surface}");
+        assert_eq!(SnapMode::Surface.next(), SnapMode::KeepHeight);
+        assert_eq!(SnapMode::Free.next(), SnapMode::Surface);
+    }
+
+    #[test]
+    fn alt_no_longer_frees_the_snap_and_alt_drag_copies() {
+        // Alt held, Keep height: still on the steps, and a copy is made (the original stays).
+        let s = drag_barrier(SnapMode::KeepHeight, true);
+        assert_eq!(s.session.world.placements.len(), 4, "a copy");
+        assert_eq!(s.session.undo.undo_label(), Some("Copy XC_BARRIER_03"));
+        let (orig, copy) = (
+            edit::placement_parts(&s.session.world, 2).unwrap().0,
+            edit::placement_parts(&s.session.world, 3).unwrap().0,
+        );
+        assert_eq!(orig, Vec3::new(30.0, 0.0, 2.0));
+        assert_eq!(edit::snap(copy.x, SNAP_METRES), copy.x, "Alt did not free the snap: {copy}");
+    }
+
+    #[test]
+    fn typed_values_wait_for_apply_and_are_one_undo_step() {
+        let mut s = state();
+        s.selection = vec![0];
+        let bytes = s.session.map.write();
+        // Staged and then put back (leaving the field, Esc): the mod is untouched.
+        let staged = Staged { of: vec![0], position: Some(Vec3::new(12.0, 3.0, 0.0)), heading: Some(90.0) };
+        assert_eq!(s.session.map.write(), bytes);
+        assert!(s.session.undo.undo_label().is_none());
+        // Apply: position and heading together, one step.
+        staged.clone().apply(&mut s);
+        let (at, r) = edit::placement_parts(&s.session.world, 0).unwrap();
+        assert_eq!(at, Vec3::new(12.0, 3.0, 0.0));
+        assert!((edit::heading_of(r) - 90.0).abs() < 1e-3);
+        assert_eq!(s.session.undo.undo_label(), Some("Edit XC_CONE_01"));
+        assert!(crate::editor::undo::undo(&mut s));
+        assert_eq!(s.session.map.write(), bytes, "one undo step takes all of it back");
+        // Staged for another selection is not applied.
+        s.selection = vec![1];
+        staged.apply(&mut s);
+        assert_eq!(s.session.map.write(), bytes);
     }
 
     #[test]

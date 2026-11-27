@@ -10,7 +10,7 @@
 #                                     again), or a folder that was missing before and exists now.
 #
 # The player's folders, as crates/ob-core/src/platform/dirs.rs resolves them on Linux without NFSU2_DATA_DIR:
-#   <data home>/overbright, <data home>/NFS Underground 2 (the profiles), <cache home>/overbright,
+#   <data home>/overbright, <data home>/NFS Underground 2 (the profiles), <data home>/NFS Underground 2 Mods (the save sidecars), <cache home>/overbright,
 #   <cache home>/overbright-dev; <data home> = $XDG_DATA_HOME (set, not empty) else ~/.local/share, <cache home> the
 #   same with XDG_CACHE_HOME and ~/.cache.
 # Without user namespaces (some containers, kernels with them switched off) `run` starts CMD unmasked and `verify`
@@ -27,7 +27,7 @@ if [ "$mode" = run ]; then
   cache=${XDG_CACHE_HOME:-}; [ -n "$cache" ] || cache=$HOME/.cache
   : > "$M/folders.tsv"
   n=0
-  for f in "$data/overbright" "$data/NFS Underground 2" "$cache/overbright" "$cache/overbright-dev"; do
+  for f in "$data/overbright" "$data/NFS Underground 2" "$data/NFS Underground 2 Mods" "$cache/overbright" "$cache/overbright-dev"; do
     n=$((n + 1))
     if [ -d "$f" ]; then
       mkdir -p "$M/$n"

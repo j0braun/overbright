@@ -85,7 +85,7 @@ pub fn route_path(root: &Path, track: &Track) -> PathBuf {
 
 /// A track's route. The checkpoints are the track's record in the paths
 /// file's 0x3414C table (0x110-byte records: u16 track, u8 count, u8 loop
-/// flag, u8 —, u8 width?, u16 —, then up to 33 × (f32 x, f32 y); read at
+/// flag, u8 branches (the road also takes the ways off the route that come back to it, 0x5E5BC0), u8 width?, u16 —, then up to 33 × (f32 x, f32 y); read at
 /// 0x5D9AA0); markers come from the region's TrackPosMarkersAll.bin.
 /// `backward` runs the route the other way with the Backward markers.
 pub fn load_route(root: &Path, track: &Track, backward: bool) -> Result<Route> {
@@ -93,12 +93,14 @@ pub fn load_route(root: &Path, track: &Track, backward: bool) -> Result<Route> {
     let data = crate::game_fs::read_file(&path).with_context(|| format!("reading {}", path.display()))?;
     let mut checkpoints = Vec::new();
     let mut loops = false;
+    let mut branches = false;
     crate::formats::bundle::walk(chunks(&data, 0), &mut |c| {
         if c.id == 0x3414C && checkpoints.is_empty() {
             for r in c.body.chunks_exact(0x110) {
                 if read_u16(r, 0) == track.number {
                     let count = (r[2] as usize).min(33);
                     loops = r[3] != 0;
+                    branches = r[4] != 0;
                     checkpoints =
                         (0..count).map(|k| Vec2::new(read_f32(r, 8 + k * 8), read_f32(r, 12 + k * 8))).collect();
                 }
@@ -127,8 +129,10 @@ pub fn load_route(root: &Path, track: &Track, backward: bool) -> Result<Route> {
     // The race's barriers close their road records first (0x578070).
     let n = track.number as i16;
     net.close_barriers(&[&format!("BARRIERS_{n}"), &format!("PLAYER_BARRIERS_{n}")]);
+    // The search keeps to the track's own segments (0x5D4F70).
+    net.track = Some(track.number);
     let road = match net.route(&checkpoints, loops) {
-        Some(r) => net.race_road(&r, loops),
+        Some(r) => net.race_road_with(&r, loops, branches),
         None => RoadRoute::new(checkpoints.clone(), loops),
     };
     // 0x5EE500: a marker by a fresh locator, else a default percent: the

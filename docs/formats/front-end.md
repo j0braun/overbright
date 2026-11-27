@@ -1097,7 +1097,7 @@ The menus are FEng packages: FRONTEND/FrontB.lzc (137), GLOBAL/GlobalB.lzc
 * **Cash** — the wallet is career +0x7134 (0x861E74); a new career starts
   with 0x865128 + 0x86512C (0x53291D), which only the bonus codes set
   ($200 / $1000, 0x5760B0): 0 otherwise.
-* **HUD** (HUD_SingleRace, built at 0x4F8BF0; `src/frontend/hud/`).
+* **HUD** (HUD_SingleRace, built at 0x4F8BF0; `crates/ob-menus/src/frontend/hud/`).
   Objects are found by `fe_hash` (0x505450: `bin_hash` of the name in
   upper case). Each element lists its objects and a feature mask (low,
   high words): tach 0x4F5100 and turbo 0x4F5A70 (0x10000060, 0), position
@@ -3568,7 +3568,7 @@ follows from the selection alone). What each list's fill passes to it:
   browsers). The update 0x538770 places the items at the offset (0x52EEB0) and steps the ease; a new selection
   (0x52EE50) sets the target to minus the item's place and restarts from the current value and speed (mode 2);
   filling the scroller (0x5386B0) puts it at rest on the item. Clone: `ScrollEase`
-  (src/frontend/widgets/scroll_ease.rs), used by `IconMenu` and `PartsBrowser::step` (stepped on the tick).
+  (crates/ob-menus/src/frontend/widgets/scroll_ease.rs), used by `IconMenu` and `PartsBrowser::step` (stepped on the tick).
   Observed: a strip step slides with an ease over about 150 ms of visible motion at 60 fps.
 * **Accept on the Car Shop (FORWARD).** 0x543D50 on 0x0C407210, for an option neither locked (+0x22) nor direct
   (+0x45): 0x51FD20 (the strip's fade by place off), 0x52FC00 (input off), 0x50DA20 sends 0x0C407210 to the

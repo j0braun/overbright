@@ -23,6 +23,7 @@ pub fn net_from(data: &[u8], track: u16) -> RoadNet {
     let mut net = RoadNet::parse(data);
     let n = track as i16;
     net.close_barriers(&[&format!("BARRIERS_{n}"), &format!("PLAYER_BARRIERS_{n}")]);
+    net.track = Some(track);
     net
 }
 

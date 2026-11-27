@@ -1,0 +1,546 @@
+//! The link between Studio and the test game it started (`game
+//! --studio-link <dir>`, docs/modding/map-editor.md, "The test window stays
+//! open"): two small files in a folder of the mod's own `.editor/` (so in
+//! the player's data folder, which only the player can read and write;
+//! nothing listens on a network, and the same files work on Windows and
+//! Linux). Studio writes `command.txt` (what to do, with a running number);
+//! the game, between two frames, reads it and writes `game.txt` (what it did
+//! and that it is alive). Both are written through a temporary file, so a
+//! reader never sees half a line. Without the flag the game never looks at
+//! the folder.
+
+use std::path::{Path, PathBuf};
+
+/// The link folder of a mod (`<maps>/<folder>/.editor/link`).
+pub const DIR: &str = "link";
+/// Studio's file: the latest command.
+pub const COMMAND: &str = "command.txt";
+/// The game's file: its state.
+pub const STATE: &str = "game.txt";
+/// The game's file: what it loaded for the run (written only when asked, [`Op::Loaded`]).
+pub const LOADED: &str = "loaded.txt";
+/// How long the game's last sign of life counts as connected (it writes one
+/// about twice a second).
+pub const ALIVE_MS: u64 = 3000;
+/// The most game runs (test windows and simulations, over every mod and
+/// every Studio window) that run at once ([`Slot::take`]).
+pub const MAX_RUNS: usize = 4;
+/// The memory a game run Studio starts may use (resident, MiB) before it stops itself
+/// (`--map-mem-cap`): one runaway run must not take the machine down with the others.
+pub const MEM_CAP_MB: u64 = 8192;
+/// The flag and value Studio starts a run with.
+pub fn mem_cap_args() -> [String; 2] {
+    ["--map-mem-cap".to_string(), MEM_CAP_MB.to_string()]
+}
+
+/// A run's slot counts while it was touched this recently (Studio touches
+/// it every poll); a Studio that died leaves a slot that expires.
+pub const SLOT_MS: u64 = 15_000;
+
+/// `<maps>/<folder>/.editor/link`.
+pub fn dir(maps: &Path, folder: &str) -> PathBuf {
+    super::store::editor_dir(maps, folder).join(DIR)
+}
+
+/// `<maps>/<folder>/.editor/link-sim`: the link of a headless simulation
+/// (apart from the test window's, so both can run).
+pub fn sim_dir(maps: &Path, folder: &str) -> PathBuf {
+    super::store::editor_dir(maps, folder).join("link-sim")
+}
+
+/// What Studio asks of the game.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Op {
+    /// Read the mod file again and start the run over with it (props, race
+    /// points and all).
+    Apply,
+    /// Start the run over with the mod as the game has it.
+    Restart,
+    /// Health check: the game answers at once with its state, so Studio
+    /// knows the command file is read (not only that the game beats).
+    Probe,
+    /// End the run (a headless simulation has no window to close).
+    Stop,
+    /// Opt-in probe: the game writes what it loaded for the run ([`Loaded`], `loaded.txt`) and answers.
+    Loaded,
+}
+
+impl Op {
+    fn word(&self) -> &'static str {
+        match self {
+            Op::Apply => "apply",
+            Op::Restart => "restart",
+            Op::Probe => "probe",
+            Op::Stop => "stop",
+            Op::Loaded => "loaded",
+        }
+    }
+}
+
+/// What the test starts with besides the place: the car and the world
+/// clock (seconds since the world loaded; it sets the time of day and the
+/// weather as the game's own cycle has them then). Empty: the run's own
+/// (the save's car or the first Quick Race car, the clock of a new load).
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Focus {
+    pub car: Option<String>,
+    pub clock: Option<f32>,
+}
+
+/// The longest clock a focus may name (this only keeps the game's catch-up
+/// of the sky cycle bounded).
+pub const MAX_CLOCK: f32 = 3600.0;
+
+/// A car name that can sit in a command line (`240SX`, `RX-8`).
+pub fn valid_car(s: &str) -> bool {
+    !s.is_empty() && s.len() <= 32 && s.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
+}
+
+impl Focus {
+    pub fn is_empty(&self) -> bool {
+        self.car.is_none() && self.clock.is_none()
+    }
+
+    /// Whether every part is one the game takes.
+    pub fn valid(&self) -> bool {
+        self.car.as_deref().is_none_or(valid_car) && self.clock.is_none_or(|c| c.is_finite() && (1.0..=MAX_CLOCK).contains(&c))
+    }
+
+    /// ` car=240SX clock=600` (nothing when empty).
+    pub fn words(&self) -> String {
+        let mut w = String::new();
+        if let Some(c) = &self.car {
+            w += &format!(" car={c}");
+        }
+        if let Some(c) = self.clock {
+            w += &format!(" clock={c}");
+        }
+        w
+    }
+
+    /// The game's flags for it (`--map-car`, `--map-clock`).
+    pub fn args(&self) -> Vec<String> {
+        let mut a = Vec::new();
+        if let Some(c) = &self.car {
+            a.extend(["--map-car".to_string(), c.clone()]);
+        }
+        if let Some(c) = self.clock {
+            a.extend(["--map-clock".to_string(), c.to_string()]);
+        }
+        a
+    }
+}
+
+/// What the run is about, when a command changes it.
+#[derive(Clone, Debug, PartialEq)]
+pub enum Aim {
+    Race(String),
+    /// Free roam: x, y, z, heading in degrees.
+    At(f32, f32, f32, f32),
+}
+
+/// One command; `seq` grows with each, the game does a number once.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Command {
+    pub seq: u64,
+    pub op: Op,
+    pub aim: Option<Aim>,
+    /// The car and clock the run starts over with (None: as it was).
+    pub focus: Option<Focus>,
+}
+
+impl Command {
+    /// `seq=3 op=apply race=dock` (or `at=1,2,3,90`).
+    pub fn line(&self) -> String {
+        let op = self.op.word();
+        let aim = match &self.aim {
+            None => String::new(),
+            Some(Aim::Race(id)) => format!(" race={id}"),
+            Some(Aim::At(x, y, z, h)) => format!(" at={x},{y},{z},{h}"),
+        };
+        let focus = self.focus.as_ref().map_or(String::new(), |f| if f.is_empty() { " focus=none".into() } else { f.words() });
+        format!("seq={} op={op}{aim}{focus}\n", self.seq)
+    }
+
+    pub fn parse(text: &str) -> Option<Command> {
+        let (mut seq, mut op, mut aim) = (None, None, None);
+        let (mut focus, mut car, mut clock) = (None, None, None);
+        for (k, v) in text.split_whitespace().filter_map(|w| w.split_once('=')) {
+            match k {
+                "seq" => seq = v.parse().ok(),
+                "op" => {
+                    op = match v {
+                        "apply" => Some(Op::Apply),
+                        "restart" => Some(Op::Restart),
+                        "probe" => Some(Op::Probe),
+                        "stop" => Some(Op::Stop),
+                        "loaded" => Some(Op::Loaded),
+                        _ => None,
+                    }
+                }
+                "race" => aim = Some(Aim::Race(v.to_string())),
+                "at" => {
+                    let n: Vec<f32> = v.split(',').filter_map(|p| p.parse().ok()).collect();
+                    if let [x, y, z, h] = n[..] {
+                        aim = Some(Aim::At(x, y, z, h));
+                    }
+                }
+                "car" => car = Some(v.to_string()),
+                "clock" => clock = v.parse().ok(),
+                "focus" if v == "none" => focus = Some(Focus::default()),
+                _ => {}
+            }
+        }
+        if car.is_some() || clock.is_some() {
+            focus = Some(Focus { car, clock });
+        }
+        Some(Command { seq: seq?, op: op?, aim, focus })
+    }
+}
+
+/// Write Studio's command.
+pub fn write_command(dir: &Path, c: &Command) -> std::io::Result<()> {
+    crate::platform::fs::write_atomic(&dir.join(COMMAND), c.line().as_bytes(), false)
+}
+
+/// Studio's latest command (None: none yet, or not readable).
+pub fn read_command(dir: &Path) -> Option<Command> {
+    Command::parse(&std::fs::read_to_string(dir.join(COMMAND)).ok()?)
+}
+
+/// What the game says of itself.
+#[derive(Clone, Debug, PartialEq)]
+pub struct GameState {
+    pub pid: u32,
+    /// The last command number the game dealt with.
+    pub seq: u64,
+    /// Unix milliseconds of the game's last sign of life.
+    pub beat_ms: u64,
+    /// The last command worked.
+    pub ok: bool,
+    /// Why it did not (one line).
+    pub note: String,
+    /// How many times the game's loop turned (a game that beats but does
+    /// not advance is stuck).
+    pub turns: u64,
+}
+
+impl GameState {
+    pub fn line(&self) -> String {
+        let note = self.note.replace(['\n', '\r'], " ");
+        format!(
+            "pid={} seq={} beat={} ok={} turns={}{}{}\n",
+            self.pid,
+            self.seq,
+            self.beat_ms,
+            if self.ok { "yes" } else { "no" },
+            self.turns,
+            if note.is_empty() { "" } else { " note=" },
+            note
+        )
+    }
+
+    pub fn parse(text: &str) -> Option<GameState> {
+        let text = text.lines().next()?;
+        let (head, note) = text.split_once(" note=").unwrap_or((text, ""));
+        let (mut pid, mut seq, mut beat, mut ok, mut turns) = (None, None, None, None, 0);
+        for (k, v) in head.split_whitespace().filter_map(|w| w.split_once('=')) {
+            match k {
+                "pid" => pid = v.parse().ok(),
+                "seq" => seq = v.parse().ok(),
+                "beat" => beat = v.parse().ok(),
+                "ok" => ok = Some(v == "yes"),
+                "turns" => turns = v.parse().unwrap_or(0),
+                _ => {}
+            }
+        }
+        Some(GameState { pid: pid?, seq: seq?, beat_ms: beat?, ok: ok?, note: note.to_string(), turns })
+    }
+
+    /// Whether the game showed a sign of life lately, at `now_ms`.
+    pub fn alive(&self, now_ms: u64) -> bool {
+        now_ms.saturating_sub(self.beat_ms) < ALIVE_MS
+    }
+}
+
+/// Unix milliseconds now.
+pub fn now_ms() -> u64 {
+    std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
+}
+
+pub fn write_state(dir: &Path, s: &GameState) -> std::io::Result<()> {
+    crate::platform::fs::write_atomic(&dir.join(STATE), s.line().as_bytes(), false)
+}
+
+pub fn read_state(dir: &Path) -> Option<GameState> {
+    GameState::parse(&std::fs::read_to_string(dir.join(STATE)).ok()?)
+}
+
+/// What the game loaded for a test run (the "what did the game load" probe): the mod it applies, where it read
+/// it from, how much of it, and the texture folders it looks into.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Loaded {
+    pub folder: String,
+    /// The file the mod was read from (the unsaved layer for a Studio run).
+    pub file: String,
+    pub moved: usize,
+    pub deleted: usize,
+    pub added: usize,
+    pub races: usize,
+    pub collision: usize,
+    /// Texture folders in use (world, then car) with their file counts.
+    pub textures: Vec<(String, usize)>,
+}
+
+impl Loaded {
+    /// `mod=x file=… moved=1 deleted=0 added=2 races=1 collision=0` then a `texture=<n> <folder>` line each.
+    pub fn text(&self) -> String {
+        let one = |s: &str| s.replace(['\n', '\r'], " ");
+        let mut t = format!(
+            "mod={}\nfile={}\nmoved={}\ndeleted={}\nadded={}\nraces={}\ncollision={}\n",
+            one(&self.folder), one(&self.file), self.moved, self.deleted, self.added, self.races, self.collision
+        );
+        for (d, n) in &self.textures {
+            t += &format!("texture={n} {}\n", one(d));
+        }
+        t
+    }
+
+    pub fn parse(text: &str) -> Option<Loaded> {
+        let mut l = Loaded::default();
+        let mut seen = false;
+        for (k, v) in text.lines().filter_map(|x| x.split_once('=')) {
+            let n = || v.parse::<usize>().unwrap_or(0);
+            match k {
+                "mod" => (l.folder, seen) = (v.to_string(), true),
+                "file" => l.file = v.to_string(),
+                "moved" => l.moved = n(),
+                "deleted" => l.deleted = n(),
+                "added" => l.added = n(),
+                "races" => l.races = n(),
+                "collision" => l.collision = n(),
+                "texture" => {
+                    let (c, d) = v.split_once(' ')?;
+                    l.textures.push((d.to_string(), c.parse().ok()?));
+                }
+                _ => {}
+            }
+        }
+        seen.then_some(l)
+    }
+
+    /// One line for the status bar.
+    pub fn words(&self) -> String {
+        let files: usize = self.textures.iter().map(|t| t.1).sum();
+        format!(
+            "The game loaded `{}`: {} moved, {} deleted, {} added props, {} races, {} collision edits, {} texture files in {} folders",
+            self.folder, self.moved, self.deleted, self.added, self.races, self.collision, files, self.textures.len()
+        )
+    }
+}
+
+pub fn write_loaded(dir: &Path, l: &Loaded) -> std::io::Result<()> {
+    crate::platform::fs::write_atomic(&dir.join(LOADED), l.text().as_bytes(), false)
+}
+
+pub fn read_loaded(dir: &Path) -> Option<Loaded> {
+    Loaded::parse(&std::fs::read_to_string(dir.join(LOADED)).ok()?)
+}
+
+/// Remove the layer of `folder` once no run of the data folder `dir` (the maps folder) is open any more, so no
+/// stale unsaved copy lies about. True: it was removed.
+pub fn drop_layer_when_idle(dir: &Path, folder: &str) -> bool {
+    if Slot::live(&Slot::dir(dir)) > 0 {
+        return false;
+    }
+    std::fs::remove_file(super::store::run_file(dir, folder)).is_ok()
+}
+
+/// Clear the folder's files before a run starts (a leftover state of an
+/// earlier game must not read as a connected one).
+pub fn clear(dir: &Path) {
+    let _ = std::fs::remove_file(dir.join(COMMAND));
+    let _ = std::fs::remove_file(dir.join(STATE));
+    let _ = std::fs::remove_file(dir.join(LOADED));
+}
+
+/// One of the few places for a running game (a test window or a
+/// simulation): a small file in `<data>/studio-runs/`, touched while the
+/// run lives and removed when the slot is dropped. Every Studio window and
+/// mod of a data folder shares them, so a loop that starts runs cannot fill the machine; a
+/// slot whose Studio died expires after [`SLOT_MS`].
+#[derive(Debug)]
+pub struct Slot {
+    file: PathBuf,
+}
+
+impl Slot {
+    /// `<data>/studio-runs`, beside the map mods' folder `maps`.
+    pub fn dir(maps: &Path) -> PathBuf {
+        maps.parent().unwrap_or(maps).join("studio-runs")
+    }
+
+    /// A place for one more run of the data folder of `maps`, at most
+    /// `MAX_RUNS` at once.
+    pub fn take(maps: &Path) -> Result<Slot, String> {
+        Slot::take_in(&Slot::dir(maps), MAX_RUNS)
+    }
+
+    /// A place among at most `cap` in `dir`.
+    pub fn take_in(dir: &Path, cap: usize) -> Result<Slot, String> {
+        std::fs::create_dir_all(dir).map_err(|e| format!("No place made for the run: {e}"))?;
+        let busy = || Slot::live(dir);
+        if busy() >= cap {
+            return Err(format!("{cap} game runs are open already; end one first"));
+        }
+        static N: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let n = N.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let file = dir.join(format!("{}-{}-{n}.run", std::process::id(), now_ms()));
+        std::fs::write(&file, b"").map_err(|e| format!("No place made for the run: {e}"))?;
+        // Two Studios taking at once: the later one gives way.
+        if busy() > cap {
+            let _ = std::fs::remove_file(&file);
+            return Err(format!("{cap} game runs are open already; end one first"));
+        }
+        Ok(Slot { file })
+    }
+
+    /// The runs in `dir` that were touched lately (the stale files are
+    /// removed).
+    pub fn live(dir: &Path) -> usize {
+        let Ok(rd) = std::fs::read_dir(dir) else { return 0 };
+        let mut n = 0;
+        for e in rd.flatten() {
+            let path = e.path();
+            if path.extension().is_none_or(|x| x != "run") {
+                continue;
+            }
+            let age = e.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok());
+            if age.is_some_and(|a| a.as_millis() < SLOT_MS as u128) {
+                n += 1;
+            } else {
+                let _ = std::fs::remove_file(&path);
+            }
+        }
+        n
+    }
+
+    /// Show the run is still there (every poll).
+    pub fn touch(&self) {
+        if let Ok(f) = std::fs::OpenOptions::new().write(true).open(&self.file) {
+            let _ = f.set_modified(std::time::SystemTime::now());
+        }
+    }
+}
+
+impl Drop for Slot {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_file(&self.file);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn what_the_game_loaded_round_trips_and_is_cleared() {
+        let d = std::env::temp_dir().join(format!("ob-link-loaded-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let l = Loaded {
+            folder: "docks".into(),
+            file: "/m/docks/.editor/run/map.obmap".into(),
+            moved: 2,
+            deleted: 1,
+            added: 3,
+            races: 1,
+            collision: 4,
+            textures: vec![("/m/docks/textures/world".into(), 5), ("/m/docks/textures/car".into(), 0)],
+        };
+        assert_eq!(Loaded::parse(&l.text()), Some(l.clone()));
+        assert_eq!(Loaded::parse("nothing"), None);
+        assert!(l.words().contains("2 moved") && l.words().contains("5 texture files in 2 folders"), "{}", l.words());
+        write_loaded(&d, &l).unwrap();
+        assert_eq!(read_loaded(&d), Some(l));
+        clear(&d);
+        assert_eq!(read_loaded(&d), None, "an earlier run's answer is not kept");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn commands_and_states_round_trip() {
+        for c in [
+            Command { seq: 1, op: Op::Apply, aim: None, focus: None },
+            Command { seq: 2, op: Op::Probe, aim: None, focus: None },
+            Command { seq: 3, op: Op::Stop, aim: None, focus: None },
+            Command { seq: 8, op: Op::Loaded, aim: None, focus: None },
+            Command { seq: 4, op: Op::Restart, aim: None, focus: Some(Focus { car: Some("240SX".into()), clock: Some(600.5) }) },
+            Command { seq: 5, op: Op::Restart, aim: Some(Aim::Race("a".into())), focus: Some(Focus::default()) },
+            Command { seq: 7, op: Op::Restart, aim: Some(Aim::Race("dock_sprint".into())), focus: None },
+            Command { seq: 9, op: Op::Apply, aim: Some(Aim::At(1.5, -2.0, 3.25, 90.0)), focus: None },
+        ] {
+            assert_eq!(Command::parse(&c.line()), Some(c));
+        }
+        assert_eq!(Command::parse("seq=x op=apply"), None);
+        assert_eq!(Command::parse("seq=1 op=dance"), None);
+        let s = GameState { pid: 4, seq: 3, beat_ms: 99, ok: false, note: "no race x in this mod".into(), turns: 12 };
+        assert_eq!(GameState::parse(&s.line()), Some(s.clone()));
+        let s = GameState { note: String::new(), ok: true, ..s };
+        assert_eq!(GameState::parse(&s.line()), Some(s.clone()));
+        assert!(s.alive(99 + ALIVE_MS - 1) && !s.alive(99 + ALIVE_MS));
+    }
+
+    #[test]
+    fn files_go_through_the_folder() {
+        let d = std::env::temp_dir().join(format!("ob-link-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        assert_eq!(read_command(&d), None);
+        write_command(&d, &Command { seq: 2, op: Op::Restart, aim: None, focus: None }).unwrap();
+        assert_eq!(read_command(&d).unwrap().seq, 2);
+        write_state(&d, &GameState { pid: 1, seq: 2, beat_ms: now_ms(), ok: true, note: String::new(), turns: 0 }).unwrap();
+        assert!(read_state(&d).unwrap().alive(now_ms()));
+        clear(&d);
+        assert_eq!((read_command(&d), read_state(&d)), (None, None));
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn a_focus_checks_its_words() {
+        assert!(Focus::default().valid() && Focus::default().is_empty());
+        assert!(Focus { car: Some("RX-8".into()), clock: Some(900.0) }.valid());
+        for bad in [
+            Focus { car: Some("../x".into()), clock: None },
+            Focus { car: Some(String::new()), clock: None },
+            Focus { car: None, clock: Some(0.0) },
+            Focus { car: None, clock: Some(f32::NAN) },
+            Focus { car: None, clock: Some(MAX_CLOCK + 1.0) },
+        ] {
+            assert!(!bad.valid(), "{bad:?}");
+        }
+        let f = Focus { car: Some("350Z".into()), clock: Some(120.0) };
+        assert_eq!(f.args(), ["--map-car", "350Z", "--map-clock", "120"]);
+        assert_eq!(Command::parse("seq=1 op=restart focus=none").unwrap().focus, Some(Focus::default()));
+        assert_eq!(Command::parse("seq=1 op=restart").unwrap().focus, None, "no word: the run's own");
+    }
+
+    #[test]
+    fn the_runs_are_capped_and_a_dead_studios_slots_expire() {
+        let d = std::env::temp_dir().join(format!("ob-slots-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let a = Slot::take_in(&d, 2).unwrap();
+        let b = Slot::take_in(&d, 2).unwrap();
+        assert_eq!(Slot::live(&d), 2);
+        assert!(Slot::take_in(&d, 2).unwrap_err().contains("2 game runs"), "the third waits");
+        drop(a);
+        let c = Slot::take_in(&d, 2).expect("a place came free");
+        // A slot nobody touches for a while stops counting.
+        let old = std::time::SystemTime::now() - std::time::Duration::from_millis(SLOT_MS + 1000);
+        let f = std::fs::OpenOptions::new().write(true).open(&b.file).unwrap();
+        f.set_modified(old).unwrap();
+        assert_eq!(Slot::live(&d), 1, "the expired one is not counted");
+        b.touch();
+        assert!(Slot::take_in(&d, 2).is_ok(), "a run that was gone is not holding a place");
+        drop(c);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+}

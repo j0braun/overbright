@@ -1,0 +1,11 @@
+{
+  "command": "data.show",
+  "error": {
+    "kind": "usage",
+    "message": "--kind: no kind `rac`: use placement or race. Did you mean `race`?",
+    "reason": "bad_kind"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

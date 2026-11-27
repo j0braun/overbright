@@ -67,8 +67,21 @@ sits on one smoked slab; the footer has the version and the button legends of th
   `Model::play_args`), Support file (Save…) and the Logs folder (Open), the F3 overlay's key; a description of
   the focused row at the right, for every row. On the smallest windows (640 × 480, 150 % at 1280 × 720) the page
   scrolls, the focused row kept in view. The Mods page's map mod rows add "being edited in Studio" to a mod Studio
-  has open; a "new from Studio" mark for mods made in Studio is still open (Studio keeps no such mark yet).
+  has open, and "new from Studio" to a mod Studio made that has not been turned on yet (Studio's New mod writes
+  `.editor/new-from-studio`, `store::NEW_FROM_STUDIO`; turning the mod on in the launcher removes it). Every
+  focusable row has its help at the right (`screens::dev_help`; test `every_dev_row_has_its_help` walks the page in
+  each Studio state); the Dev renders did not change, so none were re-blessed.
   Advanced keeps the rest.
+- Mods page, Studio and apply-only (#85): **Open in Studio** (Chosen mod) starts `overbright-studio --mod <folder>`
+  (`Env::start_studio(folder, root)`, the Dev page's start with a folder) for the chosen map mod, or for a mod pack
+  whose id is the folder of a map mod (one Studio at a time; the page reads the mods again when it closes). Under
+  it, "Studio saves the mod as you work…" (auto-save note), or the open state while it runs. A refused mod pack made
+  from such a mod says "<name> can't load: <why> · Open in Studio to repair" (plain "not used" without Studio or
+  such a mod). **Apply, don't play** keeps the choices (HUD mod, texture folder, settings) and says what the game
+  will use, without starting it. New renders: `mods-studio-open`, `mods-repair`, `mods-applied`; every Mods render
+  was re-blessed (new button rows, the chip); no other page changed. Tests: `mods_page_opens_a_mod_in_studio`,
+  `studio_starts_with_the_mod_and_the_game_folder` (stand-in program), `a_new_mod_from_studio_is_marked`,
+  `apply_only_keeps_the_mods_without_starting_the_game`.
 - `storage` (`storage-portable`, `storage-custom`, `storage-missing`, `storage-copy-back`; Settings › Advanced ›
   Storage): Portable mode as a switch (on: asks, offers to copy what is kept now into `<program>/data`, writes
   `portable.txt`; off: asks, offers to copy back, removes `portable.txt`, the data folder stays; every copy
@@ -82,7 +95,7 @@ arguments (`Outcome::Restart`; the new one waits for the old one's lock)), then 
   "Copy and use it" (the plan listed first; copied on a worker by the same rules, checked, the old folder kept),
   "Use it, copy nothing" and, when files other than settings differ, "Copy, replace (backups kept)". A
   folder on a drive that is not there says so and keeps Reset. The page scrolls when the window is short.
-- `mods` (`mods-empty`, `mods-off`, `mods-conflict`, `mods-order`, `mods-remove`, `mods-map-editor-open`,
+- `mods` (`mods-empty`, `mods-off`, `mods-conflict`, `mods-order`, `mods-inside`, `mods-try-ended`, `mods-remove`, `mods-map-editor-open`,
   `mods-map-editor-failed`): Use mods; Texture packs
   (Overbright packs from `obpack`, then the imported TexMod / TexWizard packages, each with a switch; Remove is
   X / Space and asks first); a message when two packs that are on change the same textures, with Change the
@@ -91,7 +104,7 @@ arguments (`Outcome::Restart`; the new one waits for the old one's lock)), then 
   edits and changed textures under the name; Open in map editor (the chosen mod; the editor's own Open / New is the Dev page's button), Import a
   map mod… (the map and its textures, `tools::map::share::import`), Export… as a `.zip` with the mod's textures
   (`tools::map::share::export`; a mod with textures from the original game's pixels asks first, "Made from the
-  original game": Export anyway or Cancel)). The map editor (`overbright-editor`, `dirs::editor_exe` beside the launcher,
+  original game": Export anyway or Cancel)); Mod packs (`mod_packs`: the `.obpk` packs and pack folders in `mods/`, one switch each under the name with its version, what it overrules or is overruled by, and why a pack is refused; Move up / Move down change the order in `mods/order.txt`, the first line the strongest; Import… takes a `.obpk` (also through the map mod import's file list), Export a map mod… writes the chosen map mod as `<id>-<version>.obpk` (its placements, races and textures as their own files, [layering](modding/asset-format/layering.md)); Studio and `overbright-studio-cli modpack export` write the same file, and `modpack convert` makes one from an older map mod or texture pack; a pack made for another base set is shown with the base set it needs and is never mounted). Under the chosen pack: Look inside (read only: version, authors, the base set it was made for, its "affects play" tag ("Affects play: your saves record that it was on" when it changes races, placements or collision or its manifest says so, else "Looks only"; the list says `affects play` under such a pack's name; a profile save writes `<data home>/NFS Underground 2 Mods/<name>.toml`, the save sidecar of `mod_packs::sidecar`, naming the packs that were on, and loading a profile made with an affects-play pack that is off now logs a warning and changes nothing; the native profile file is not touched), what it needs, what it changes by kind with counts (read from the per-kind files, or an older `map.obmap`) and the map regions, where a converted pack came from, its credits (one line per third-party asset, from the pack's provenance), its clashes with the packs that are on, and why it is refused; `mod_packs::inside`; the same facts with each prop, race and texture in words are the edit report, `mod_packs::report_text` and `overbright-studio-cli modpack report`) and Try it once (`launcher::trial`: the game starts with that pack on for this run only, through `NFSU2_TRY_PACK`, and `mods/order.txt` is not written; the player's profiles are copied into `<app>/tries/<id>-<time>/` and `NFSU2_TRY_SAVES` makes that folder the game's data home, so saves and backups go there and the player's own are never touched; when the game ends the launcher returns to this page and names the copy, with Keep the copy and Discard the copy; Discard only removes a folder directly inside `tries/`). No pack tried: neither variable is set and saves, hashes and the mount are as before. The map editor (`overbright-editor`, `dirs::editor_exe` beside the launcher,
   `OB_EDITOR_EXE` names another) starts with `--mod <folder>` and the shown game folder as `NFSU2_ROOT`; one at a
   time: while it is open the section's controls are greyed and a line says the page waits; when it closes the
   map mods are read again (`App::poll_jobs`); a failed start or a bad exit is shown as an error line. The
@@ -222,7 +235,7 @@ shows a busy line and greys the actions meanwhile; the page takes no input while
 
 **Prerequisites, in the library**
 - `launcher.skip` (bool, native off): a row of the option table
-  (`qol/enhancements.rs`, `presets keep`, write rank 70, no deviation, no
+  (`crates/ob-settings/src/qol/enhancements.rs`, `presets keep`, write rank 70, no deviation, no
   apply). options.txt dispatches `launcher.*` keys to it
   (`frontend/settings/options_txt.rs`), so the game, which rewrites
   options.txt from its model, keeps the line. Restore Native leaves it.
@@ -298,7 +311,7 @@ device, no log file. `key=value` lines, unknown keys ignored, exit 0 (or 1
 with `error=` and `ok=0` without an adapter):
 ```
 probe=1
-version=Overbright 0.6.3 (commit unknown, linux-x86_64)
+version=Overbright 0.7.0 (commit unknown, linux-x86_64)
 adapter.name=…            adapter.backend=Vulkan   adapter.type=DiscreteGpu
 adapter.pci=1002:1234     adapter.driver=…         adapter.vram=<bytes, 0 unknown>
 gpu.class=high            (qol::classify_gpu: the presets' tiers)
@@ -636,7 +649,8 @@ for players, the shipped program names per system (`overbright` /
   31 states at 1366 × 768 with 150 % scaling (`state-<name>-1366x768@150.png`)
   against `tests/launcher/*.png` (the Saves page's `saves-*` and the Dev page's `dev-*` states also at every
   size; our own images; at most 0.05 % of pixels off by
-  more than 2), and a self-check that a changed screen fails. Re-bless:
+  more than 2), and a self-check that a changed screen fails. The Mods renders (7 sizes, 19 states) were re-blessed for the
+  "affects play" mark under a mod pack's name and the Look inside tag line; no other page changed. Re-bless:
   `OB_LAUNCHER_BLESS=1 cargo test --release --test launcher_render`, look
   at the PNGs, `optipng -o2`.
 - `tests/launcher_fresh.sh <dir with game and overbright> <X display|auto>
@@ -861,6 +875,27 @@ test, the real import path on the player's game files, broken and foreign packag
 `texture_pack::tests::launcher_texture_mods_reach_the_loader`; the renders `mods-*.png` and the states
 `mods-empty`, `mods-busy`, `mods-results`, `mods-remove`, `mods-hud-complete`, `mods-hud-incomplete`.
 
+**One list** (`screens::mod_lines`, `build_mods`): every kind of mod is a row of one list, each row a switch
+with its kind first in the line under the name (`model::ListKind`): texture packs (Overbright's own first, then the
+imported ones: the loader's order), mod packs (`.obpk`, the load order from `order.txt`, "#1" the strongest, with
+what it overrules or is overruled by and, in a warning under the row, why it is refused), the HUD mod and the map
+mods. The ids stay the kind's own (`pk…`, `mk…`, `hud`, `mp…`). With two kinds or more in the list, filter buttons
+(All, Texture packs, Mod packs, HUD, Map mods; `Mods::filter`) narrow it; the filter only hides rows, the list is
+the same. The right column names the **chosen mod** (the row last focused, `Mods::cur`) and its actions, which are
+only enabled for its kind: Move up, Move down, Look inside and Try it once for a mod pack; Remove for a texture
+pack; Forget HUD folder for the HUD mod; Open in map editor, Export… and Export as a mod pack… for a map mod.
+Under them **Mounted now** says what is on in the order the game takes it (`screens::mounted_words`; nothing when
+Use mods is off or nothing is added), then the side note. Add a mod…, Import a pack or map mod…, Add HUD mod… and
+Choose HUD folder… are under the list. The two-pack collision message of the texture packs stays under the list.
+
+The order is changed in the list too: a mod pack row is dragged to another place (a press on it moves the row
+after 6 units of travel, a lime line shows where it lands, a click without travel still switches it), or moved
+one place with Alt+Up / Alt+Down (`Key::MoveUp` / `MoveDown`) or the pad's left / right triggers; both send
+`Event::Move(row, row it takes the place of)` (`ui::Ui::reorder` lists the rows that can move; a row moves among
+its own group). A mod pack moves in `order.txt` (`modpack::move_pack` by the distance), a texture pack within its
+list; an Overbright pack and an imported pack never swap (the first always comes before). The moved row stays
+focused and chosen. Tests: `mods_one_list_with_filters_and_chosen_actions`, `mods_pack_reorder_by_keys_and_drag`.
+
 **The HUD mod from its downloads** (`hud_mod`, docs/modding/texture-packs.md "The HUD mod"): **Add HUD mod…**
 opens the folder browser (purpose `HudMod`: folders, and `.zip` / `.7z` / `.rar` files with their kind and
 size). Enter on a `.zip`, or "Use this folder", takes it (`App::hud_pick`): the part it is (HUD part:
@@ -987,6 +1022,14 @@ States for `--render`: `prepare-running`, `prepare-done`, `prepare-failed`. Test
 `launch::prepare::tests` (the lines), `launcher::prepare::tests` (the state), `the_prepare_step_is_offered_once_skippable_and_can_be_asked_for`,
 the fresh-machine walk's step p (started behind the main screen after the folder is used, its
 line, not started again, Prepare again to Done, the stamp, `prepared=1` from the probe).
+
+## Memory cap for runs the launcher starts (opt-in)
+
+With `OVERBRIGHT_RUN_MEM_CAP_MB=<MiB>` (256 to 1048576) set in the launcher's environment, the launcher looks at the
+game it started about once a second while its window polls (Linux: the game's resident memory from `/proc`; Windows: its
+working set) and stops the game when it is over the cap, with the line "the launcher stopped the game: it used N MiB,
+over the cap of M MiB" in the launcher's log and the game's last lines. Unset or out of range: no cap, and nothing is
+measured, so a normal start is as before. Studio's own test runs use `--map-mem-cap` (the game stops itself).
 
 ## Game data (your own copy)
 

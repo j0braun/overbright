@@ -6,7 +6,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
 ## Native profile saves and the Profile Manager (2026-10-29; checked against the original under Wine)
 
 Code: `crates/ob-formats/src/formats/native_save.rs` (container, payload offsets),
-`src/frontend/profiles/` (folder, list, current profile, MC texts), `Profile::from_native` / `to_native` and `NativeContext` in
+`crates/ob-menus/src/frontend/profiles/` (folder, list, current profile, MC texts), `Profile::from_native` / `to_native` and `NativeContext` in
 `career.rs`, `Settings::apply_native` / `write_native` in `options.rs`,
 `McList` / `McMessage` in `screens.rs`, `McAct` and `mc_*` in game.rs.
 Fixtures: `tests/fixtures/native_saves/*.sav` (written by SPEED2.EXE; maintainer only (private test set),
@@ -788,7 +788,7 @@ the clone does instead (`render::display`, `frontend::options`,
 
 Agreed deviations, each **opt-in**: with the defaults
 the clone behaves and renders as before (shots pixel-identical, bar the
-Display page's new last row). Code: `src/qol/` (`Enhancements`, `saves`,
+Display page's new last row). Code: `crates/ob-settings/src/qol/` (`Enhancements`, `saves`,
 `crash`, `setup`), `frontend::options` (rows, options.txt),
 `frontend::profiles::write_to`, `chase.rs`, `render::display::frame_cap`,
 `bin/game.rs` (`game_folder`, `overlay_quads`, `PerfOverlay`). Nothing here

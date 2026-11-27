@@ -1,4 +1,6 @@
 use super::*;
+use crate::qol::setup::Mark;
+use std::path::Path;
 
 /// A game folder with these files in MOVIES (empty files).
 fn install(tag: &str, files: &[&str]) -> crate::testkit::Scratch {

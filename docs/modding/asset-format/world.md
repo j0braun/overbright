@@ -738,7 +738,7 @@ follow from +0x10):
 | 0x08 | 4 | `u32` | `const` | – | 2: the version. 0x5E01A0 reads nothing else, so the importer keeps a chunk of another version in the residual and writes no sources. |
 | 0x0C | 4 | `u32` | `source_count` | – | *derived*: the number of sources. |
 
-Layout `horizon_source` (0x64 bytes, alignment 4; `src/render/native/fx/horizon_fog.rs:66`):
+Layout `horizon_source` (0x64 bytes, alignment 4; `crates/ob-render/src/render/native/fx/horizon_fog.rs:66`):
 
 | Offset | Size | Type | Field | Unit | Notes |
 |---|---|---|---|---|---|
@@ -799,7 +799,7 @@ Entry fields:
 | `id` | string `[a-z0-9][a-z0-9_-]{0,31}` | – | add | – | Local id; the item's key is `<this pack id>:<id>`. |
 | `scenery` | u32 | – | add | – | The scenery section the placement belongs to: it is drawn exactly when that scenery section is drawn (`WLD.14`). |
 | `solid` | ref solid | – | add | – | LOD A: a scoped reference (`solid:<NAME>` or `solid:0x<HASH>`), resolved in this region's unit by [meshes.md](meshes.md)'s lookup order. |
-| `lod_b`, `lod_c` | ref solid | – | no | none | Lower LODs, resolved as `solid` (none: nothing drawn at that detail, as the original). |
+| `lod_b`, `lod_c` | ref solid | – | no | none | Lower LODs, resolved as `solid` (none: nothing drawn at that detail, as the original (choice: format rule; the original's layout is in docs/formats/)). |
 | `radius_m` | f32 | m | no | half the solid's box diagonal | Bounding radius (the cull adds 6). |
 | `flags` | u16 | – | no | `0x0000` | Instance flags (§3.4.1); add only. |
 | `prop` | ref prop-kind | – | no | none | Add only: the placement is also a knock-over prop of this kind (an item key of this region, `prop-kind:<REGION>/<NAME>`). |
@@ -809,6 +809,11 @@ Entry fields:
 | `extras` | table | – | no | – | |
 
 On an original placement, `merge` may set `position`, `rotation` and `disabled` only; any other field is `MRG.3`.
+
+A pack Overbright writes from a map mod (Studio, the launcher, `modpack convert`) carries the map mod's own reference of an
+original in `extras.legacy = { section, solid, at, nth }` and no `key`, because the `<scenery>/<index>` key needs the base
+set's placement table (§4.4); an entry with `id` is an addition as written above (without `scenery`: the map mod has none).
+The game applies those entries by the reference, and refuses a pack whose entry has a `key` alone until the resolver exists.
 Coordinates lie within ±100,000 m (`WLD.12`).
 
 ```toml

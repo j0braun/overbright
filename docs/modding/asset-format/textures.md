@@ -132,8 +132,8 @@ own blend state), which is therefore a required item of every base set ([manifes
 | `world/<REGION>` | everything of a loaded region except cars: scenery, sky, roads, particles, glows, rain, reflections | world | the region's sets whose stream sections are loaded, in index order; then `global`: `GlobalB`, `GlobalB_2`, `GLOBALA`, `InGameCommon`, `InGameCommon_2`, `LOC4DYNTEX`, and `GlobalTexturesNA` (region 0) or `GlobalTexturesROW` (else) (src/world/parse.rs:35, :236, :414) |
 | `cars/<NAME>` | the car `NAME` wherever it is drawn (region, shop, scene), its shadow included | car | `cars/<NAME>` `TEXTURES`; `cars/common` `TEXTURES`; `cars/WHEELS` `TEXTURES`; then `global` `GlobalB`, `GlobalB_2` (src/car/load.rs:188, :425). Vinyl images are looked up only in `cars/<NAME>` `VINYLS` (src/car/skin.rs:138) |
 | `scenes/<NAME>` | an in-engine scene's own models (characters) | world | the scene's sets in index order (src/character.rs:509); then the `world/<REGION>` path of the loaded region [to verify] |
-| `frontend` (menus) | menus, loading screens, magazines | ui | `FrontB`, `FrontB_2`, `GlobalB`, `GlobalB_2`, `GLOBALA`, `InGameCommon`, `InGameCommon_2`, `InGameRace`, `InGameFreeRoam`, `InGameDrag`, `InGameDrift`, `HUD_CustomTextures_ALL`, `LanguageTextures`; `TRACKMAP<n>` when the screen asks for track *n* (src/frontend/assets.rs:62, :172); the magazine set of the detail level for the magazine screens (crates/ob-formats/src/formats/magazines.rs:98) |
-| `frontend` (in-game screens) | the HUD, pause and result screens | ui | as the menus, except that a texture an in-game file holds in another form than `FrontB` resolves to the in-game file's copy (src/frontend/assets.rs:153) [to verify: the original holds `FrontB` unloaded in game] |
+| `frontend` (menus) | menus, loading screens, magazines | ui | `FrontB`, `FrontB_2`, `GlobalB`, `GlobalB_2`, `GLOBALA`, `InGameCommon`, `InGameCommon_2`, `InGameRace`, `InGameFreeRoam`, `InGameDrag`, `InGameDrift`, `HUD_CustomTextures_ALL`, `LanguageTextures`; `TRACKMAP<n>` when the screen asks for track *n* (crates/ob-menus/src/frontend/assets.rs:62, :172); the magazine set of the detail level for the magazine screens (crates/ob-formats/src/formats/magazines.rs:98) |
+| `frontend` (in-game screens) | the HUD, pause and result screens | ui | as the menus, except that a texture an in-game file holds in another form than `FrontB` resolves to the in-game file's copy (crates/ob-menus/src/frontend/assets.rs:153) [to verify: the original holds `FrontB` unloaded in game] |
 | `frontend` (shops) | a shop's or garage's models and environment map | world | the shop's sets (`frontend/platforms/<X>/textures/<X>`, its faces from `<X>_2` there or from `frontend/envmaps/<X>/textures/<X>`); `GlobalB`'s glow and neon textures; `FrontB` for the names the shop asks for (src/garage.rs:570, :502) |
 
 - Sets a mod pack **adds** to a unit join that unit's part of every path, after the base set's sets (layering.md
@@ -344,7 +344,7 @@ Flip-books (water, blinking signs, the star layer): a record per animation in th
 | `anim.hash` | hash32 | – | yes | – | Record +0x18: the base hash, the key. References to this hash in the views that see the file are animated. |
 | `anim.name` | name | – | no | none | Record +0x00 (≤ 23 characters). |
 | `anim.fps` | u32 | 1/s | yes, except in `merge` entries | – | Record +0x20: frames per second. Frame `i = trunc(t · fps) mod n` (crates/ob-formats/src/formats/texture_anim.rs:35). |
-| `anim.frames` | array<ref `texture`> | – | yes, except in `merge` entries | – | The frames in order (the frame table `0x30300103`); the record's count +0x1C is their number. Each resolves in the view like any reference; a view draws the animation only when more than one frame resolves (src/render/native/world/build/textures.rs:61). |
+| `anim.frames` | array<ref `texture`> | – | yes, except in `merge` entries | – | The frames in order (the frame table `0x30300103`); the record's count +0x1C is their number. Each resolves in the view like any reference; a view draws the animation only when more than one frame resolves (crates/ob-render/src/render/native/world/build/textures.rs:61). |
 | `anim.op`, `anim.disabled` | | | mod packs | | §4. |
 
 Two records with the same base hash in one view: the later in index order applies (the world loader's rule,
@@ -473,7 +473,7 @@ texture may use any input: the engine then draws it as an RGBA texture [open: vi
 
 Today's packs select replacements by **renderer**, not by file: a world pack applies to whatever the world renderer
 draws (regions, shops, scenes; GLOBAL's textures included), a car pack to the car renderer, the HUD mod to the
-interface (src/render/enh/assets/texture_pack/mod.rs:25, roots.rs:30; src/tpf_import.rs:32). The exact mapping is
+interface (crates/ob-render/src/render/enh/assets/texture_pack/mod.rs:25, roots.rs:30; src/tpf_import.rs:32). The exact mapping is
 therefore to the `global` scope with a `draw` filter:
 
 | Today | Mounted as |

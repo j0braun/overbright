@@ -18,7 +18,7 @@ TOML. glTF 2.0 animation is offered as an export for viewing, never as stored da
 | Part-animation pivots, chunk 0x00037100, in `PARTS_ANIMATIONS.bin` | 29 × 21 matrices, 39,904 bytes | `ob.part-pivots` | `crates/ob-formats/src/formats/zam.rs:168-181` |
 | Camera tracks: 0x8003B200 route (`L4RA`, `L4RD`, `L4RG.BUN`), 0x8003B201 generic (`InGameRace`, `InGameDrag`, `InGameDrift`, `InGameFreeRoam.bun`), 0x8003B202 typed (`InGameCommon.bun`; its JDLZ twin `.lzc` holds the same) | 9 chunks, 210 groups, 486 tracks, 1,146 entries, 174,840 bytes (twin counted) | `ob.camera-tracks` | `crates/ob-formats/src/formats/camera_tracks.rs:141`, `src/shop_scene.rs:241`, the replay director (docs/formats/movies-replays.md) |
 | Scene headers, chunk 0x80037020 (0x37030 header, 0x37040 characters), one per NIS bundle | 42 scenes, 410 characters, 70,340 bytes | `ob.scene` | `src/shop_scene.rs:149-176`, `src/character.rs:496-511` |
-| Event tracks `NIS/Scene_<NAME>_EvtTrk.txt` | 35 files, 452 events, 34,097 bytes | `ob.scene-events` | `src/shop_scene.rs:546`, `src/shop_scene/{wheels,effects,audio}.rs`, `src/render/native/fx/effect_controller.rs:90` |
+| Event tracks `NIS/Scene_<NAME>_EvtTrk.txt` | 35 files, 452 events, 34,097 bytes | `ob.scene-events` | `src/shop_scene.rs:546`, `src/shop_scene/{wheels,effects,audio}.rs`, `crates/ob-render/src/render/native/fx/effect_controller.rs:90` |
 | The scene table, chunk 0x80037050 in `GLOBAL/InGameCommon.bun` (0x37060, 0x37070) | 1, 22,236 bytes | `ob.scene-table` | `src/shop_scene.rs:373-420` (0x37070 only) |
 
 Not on this page: the world-animation trees and instances (0x37080 / 0x37090) that play bank channels on scenery
@@ -412,7 +412,7 @@ The event track, a text file the original parses at run time (0x432D00). Schema:
 | `schema` | string | – | yes | – | `ob.scene-events/1.0` |
 | `event` | array<table> | – | yes | – | The track's `EVENT:` lines in file order. |
 | `event.frame` | `token` | frame (1/30 s) | yes | – | The line's second word. |
-| `event.kind` | string | – | yes | – | The third word, as written: any word of 1–200 characters without whitespace (always a string, whatever its form). The reference install's tracks use `CAR_AUDIO_PATTERN`, `SEQ_CAR_NITRO`, `CAR_TRIGGER_EFFECT`, `SCREEN_FLASH`, `CAR_HYDRAULIC_EXTEND`, `CAR_HYDRAULIC_BOUNCE`, `SEQ_CAR_BURNOUT`, `WORLD_MESSAGE`, `SEQ_CAR_TORQUE`, `CAR_BURNOUT_ADDITIVE`, `CAR_BRAKE_LOCK`; the engine also reads `CAR_ENGINE_TORQUE`. Unknown kinds are kept and ignored, as the original's consumers ignore them. |
+| `event.kind` | string | – | yes | – | The third word, as written: any word of 1–200 characters without whitespace (always a string, whatever its form). The reference install's tracks use `CAR_AUDIO_PATTERN`, `SEQ_CAR_NITRO`, `CAR_TRIGGER_EFFECT`, `SCREEN_FLASH`, `CAR_HYDRAULIC_EXTEND`, `CAR_HYDRAULIC_BOUNCE`, `SEQ_CAR_BURNOUT`, `WORLD_MESSAGE`, `SEQ_CAR_TORQUE`, `CAR_BURNOUT_ADDITIVE`, `CAR_BRAKE_LOCK`; the engine also reads `CAR_ENGINE_TORQUE`. Unknown kinds are kept and ignored, as the original (choice: format rule; the original's layout is in docs/formats/)'s consumers ignore them. |
 | `event.args` | array<`token`> | – | no | `[]` | The remaining words. At most 16. |
 | `event.index`, `event.op`, `event.disabled` | – | – | no | – | Packs (§4). |
 

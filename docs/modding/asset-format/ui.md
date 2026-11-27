@@ -19,10 +19,10 @@ Schemas: [`fe-package`](schemas/fe-package.schema.json), [`font`](schemas/font.s
 
 | Original | Reference install | Kind here | Engine reader today |
 |---|---|---|---|
-| FEng packages: chunk 0x30203 (plain) and 0x30210 (u32 hash, then a JDLZ or HUFF block) in `FRONTEND/FrontB.lzc` (137), `GLOBAL/GlobalB.lzc` (19), `GLOBAL/GLOBALA.BUN` (2), `GLOBAL/InGameCommon.lzc` (27), `GLOBAL/InGameRace.bun` (13), `InGameFreeRoam.bun` (1), `InGameDrag.bun` (14), `InGameDrift.bun` (14), `InGamePerformanceTuning.bun` (9) | 236 chunks (215 JDLZ, 6 HUFF, 15 plain), 206 distinct names; the 30 repeated copies are byte-identical (measured) | `ob.fe-package` | `src/frontend/feng/parse.rs:193` |
-| Fonts: chunk 0x30201 in `GLOBAL/GLOBALA.BUN` (1) and in every `LANGUAGES/<Lang>.bin` (6 or 7 each) | 87 chunks, 377,872 bytes, 15 distinct fonts | `ob.font` | `src/frontend/feng/font.rs:55` |
-| The front-end asset set: which files the engine merges, in which order | 12 files (`asset_files(language)`: 11 shared, then the active language's text file) | rules, §3.3 | `src/frontend/assets.rs` |
-| HUD: packages, element tables, custom-gauge pictures | 4 single-player HUD packages, 8 split-screen ones, `HUD_World_Loading` | §3.4 (no kind of its own) | `src/frontend/hud/mod.rs:50` |
+| FEng packages: chunk 0x30203 (plain) and 0x30210 (u32 hash, then a JDLZ or HUFF block) in `FRONTEND/FrontB.lzc` (137), `GLOBAL/GlobalB.lzc` (19), `GLOBAL/GLOBALA.BUN` (2), `GLOBAL/InGameCommon.lzc` (27), `GLOBAL/InGameRace.bun` (13), `InGameFreeRoam.bun` (1), `InGameDrag.bun` (14), `InGameDrift.bun` (14), `InGamePerformanceTuning.bun` (9) | 236 chunks (215 JDLZ, 6 HUFF, 15 plain), 206 distinct names; the 30 repeated copies are byte-identical (measured) | `ob.fe-package` | `crates/ob-menus/src/frontend/feng/parse.rs:193` |
+| Fonts: chunk 0x30201 in `GLOBAL/GLOBALA.BUN` (1) and in every `LANGUAGES/<Lang>.bin` (6 or 7 each) | 87 chunks, 377,872 bytes, 15 distinct fonts | `ob.font` | `crates/ob-menus/src/frontend/feng/font.rs:55` |
+| The front-end asset set: which files the engine merges, in which order | 12 files (`asset_files(language)`: 11 shared, then the active language's text file) | rules, §3.3 | `crates/ob-menus/src/frontend/assets.rs` |
+| HUD: packages, element tables, custom-gauge pictures | 4 single-player HUD packages, 8 split-screen ones, `HUD_World_Loading` | §3.4 (no kind of its own) | `crates/ob-menus/src/frontend/hud/mod.rs:50` |
 | Garage platforms `FRONTEND/PLATFORMS/*.BIN`, environment maps `FRONTEND/ENVMAPS/*.bin` | 8 + 2 files | units, §3.5 | `src/garage.rs:570`, `crates/ob-formats/src/formats/magazines.rs:88` |
 
 `GLOBAL/InGameCommon.bun` holds exactly the unpacked content of `InGameCommon.lzc` (measured) and is not read by
@@ -39,7 +39,7 @@ Not on this page:
   (`ob.track-maps`).
 - Data no kind owns yet, kept byte for byte in the residual ([README.md](README.md) §3, "Not yet owned by a
   kind"): the collision-audio stitch records (0x8003B500), the named car light setups (0x3B700 in `FrontB.lzc`,
-  `src/render/native/car/lighting.rs:40`) and the particle effect descriptions (0x35021) in `Showroom.BIN`.
+  `crates/ob-render/src/render/native/car/lighting.rs:40`) and the particle effect descriptions (0x35021) in `Showroom.BIN`.
   `Showroom.BIN`'s placed emitters (0x35020, `src/particles/mod.rs`) are kept with them until a page takes them:
   [world.md](world.md) §3.4.6 decodes the emitters of regions only.
 - Strings, credits and every other text: [text.md](text.md). Menu behaviour (which screen does what): engine code
@@ -66,10 +66,10 @@ text/<language>/
 
 | Key | Item | Notes |
 |---|---|---|
-| `fe-package:<NAME>` | a package | `NAME` without `.fng`, case as stored; the engine's package map uses the same key (`src/frontend/assets.rs:134`). |
+| `fe-package:<NAME>` | a package | `NAME` without `.fng`, case as stored; the engine's package map uses the same key (`crates/ob-menus/src/frontend/assets.rs:134`). |
 | `fe-object:<NAME>/0xID` | an object of a package | `ID` = the object's `id` (`OP` word 0) as 8 upper-case hex digits. Used by references and by the layering extension point (§4). |
-| `font:<name>` | a font | Matched without case, by `fe_hash` of the name (`crates/ob-formats/src/formats/hash.rs:158`), as the engine looks fonts up (`src/frontend/assets.rs:218`). Resolution order: the active language's `fonts/`, then `frontend/ui/fonts/` (§3.3). |
-| `fe-platform:<NAME>` | the unit `frontend/platforms/<NAME>/` | `NAME` = the original file's stem (`Showroom`); the engine's table names (`SHOWROOM`, `src/garage.rs:52`) match it without case, as the original's file lookup does (a file-name key, conventions §6.3, `CONV.13`). |
+| `font:<name>` | a font | Matched without case, by `fe_hash` of the name (`crates/ob-formats/src/formats/hash.rs:158`), as the engine looks fonts up (`crates/ob-menus/src/frontend/assets.rs:218`). Resolution order: the active language's `fonts/`, then `frontend/ui/fonts/` (§3.3). |
+| `fe-platform:<NAME>` | the unit `frontend/platforms/<NAME>/` | `NAME` = the original file's stem (`Showroom`); the engine's table names (`SHOWROOM`, `src/garage.rs:52`) match it without case, as the original (choice: format rule; the original's layout is in docs/formats/)'s file lookup does (a file-name key, conventions §6.3, `CONV.13`). |
 | `fe-envmap:<NAME>` | the unit `frontend/envmaps/<NAME>/` | Named by magazine records (`crates/ob-formats/src/formats/magazines.rs:77`). |
 
 Object name hashes repeat inside 209 of the 236 package chunks (library instances share names); the `id` never
@@ -130,7 +130,7 @@ MsgR, PkgR:  ( Mi MC (Ri Ru Rt)* )*
 
 | Field | Type | Unit | Req. | Default | Meaning |
 |---|---|---|---|---|---|
-| `name` | string ≤ 255, printable ASCII | – | yes | – | The file name as authored (`MENU_BACK.tga`, `ConduitMdITC_TT21i.ffn`). Textures and fonts are found by `upper_hash` of the name without its extension (`src/frontend/assets.rs:212`, `:218`). |
+| `name` | string ≤ 255, printable ASCII | – | yes | – | The file name as authored (`MENU_BACK.tga`, `ConduitMdITC_TT21i.ffn`). Textures and fonts are found by `upper_hash` of the name without its extension (`crates/ob-menus/src/frontend/assets.rs:212`, `:218`). |
 | `kind` | enum | – | yes | – | `untextured` (0), `texture` (1), `font` (2), `movie` (4, **inferred** from the `.avi` names). |
 | `hash` | hash32 | – | yes | – | `RsRq` word 0. For `untextured` it is `bin_hash` of the upper-case name; for the other kinds the derivation is **open** (228 of 2,978 match). Not read by Overbright. |
 
@@ -140,7 +140,7 @@ MsgR, PkgR:  ( Mi MC (Ri Ru Rt)* )*
 |---|---|---|---|---|---|
 | `id` | u32 | – | yes | – | `OP` word 0; the object's key (`fe-object:`). Events and focus refer to objects by it. |
 | `name_hash` | hash32 | – | yes | – | `Oh`: `fe_hash` of the object's name (the screens find objects by it, `crates/ob-formats/src/formats/hash.rs:158`). |
-| `name` | string ≤ 63, printable ASCII | – | no | – | The name when known (Overbright's name list, `src/frontend/fe_ids.rs`); `fe_hash(name)` MUST equal `name_hash` (`UI.10`). Informational. |
+| `name` | string ≤ 63, printable ASCII | – | no | – | The name when known (Overbright's name list, `crates/ob-menus/src/frontend/fe_ids.rs`); `fe_hash(name)` MUST equal `name_hash` (`UI.10`). Informational. |
 | `kind` | enum | – | yes | – | `Ot`: `image` 1, `string` 2, `model` 3, `list` 4, `group` 5, `code_list` 6, `movie` 7, `effect` 8, `colored_image` 9, `anim_image` 10, `simple_image` 11, `multi_image` 12. |
 | `flags` | u32 | – | no | 0 | `OP` word 2. Bit 0 hidden at run time, 0x10000000 a button, 0x100000 a library instance, bit 31 a skipped group (docs/formats/front-end.md "Object"). |
 | `resource` | u32 | – | yes | – | `OP` word 3: index into `resource` (every shipped object has one; groups point at the untextured request). |
@@ -175,7 +175,7 @@ no negative steps). So, normatively, and only for these fields:
 - `color_bgra` and `corner_colors_bgra` are the stored `i32` words in the stored order (blue, green, red, alpha),
   not `color` strings; `rotation` is the stored quaternion (x, y, z, w), not a `mat3`. The same holds for the
   `base` and `delta` values of tracks (`track[]` below).
-- Writers MUST write them as the original's words; readers MUST NOT convert them before the scripts run, and
+- Writers MUST write them as the original (choice: format rule; the original's layout is in docs/formats/)'s words; readers MUST NOT convert them before the scripts run, and
   refuse any other form (a `color` string, a matrix, Euler angles) with `UI.16`. Tools MAY show them as
   `#RRGGBBAA` colours and angles.
 
@@ -183,10 +183,10 @@ no negative steps). So, normatively, and only for these fields:
 
 | Field | Type | Unit | Req. | Default | Meaning |
 |---|---|---|---|---|---|
-| `text` | string ≤ 4,096 | – | yes | – | `St`, the text as authored (UTF-16 in the original; no shipped text has a surrogate), written as a basic string with escapes (conventions §3.2). The engine draws the screen's own text, else the label's string, else this text (`src/frontend/feng/layout/mod.rs:285`; docs/formats/front-end.md "Layout" for the original's flag). |
+| `text` | string ≤ 4,096 | – | yes | – | `St`, the text as authored (UTF-16 in the original; no shipped text has a surrogate), written as a basic string with escapes (conventions §3.2). The engine draws the screen's own text, else the label's string, else this text (`crates/ob-menus/src/frontend/feng/layout/mod.rs:285`; docs/formats/front-end.md "Layout" for the original's flag). |
 | `label_hash` | hash32 | – | yes | – | `SH`: the label looked up in the active language ([text.md](text.md) §3.8). |
 | `label` | string `[A-Za-z0-9_]{1,63}` | – | no | – | The label name when known (from the labels table, [text.md](text.md) §2). |
-| `justify` | u32 | – | no | 0 | `Sj` (`src/frontend/feng/text.rs:74`): 1 centres lines on the origin, 2 ends them there, 4 centres the block vertically, 8 ends it there. |
+| `justify` | u32 | – | no | 0 | `Sj` (`crates/ob-menus/src/frontend/feng/text.rs:74`): 1 centres lines on the origin, 2 ends them there, 4 centres the block vertically, 8 ends it there. |
 | `leading` | i32 | px | no | 0 | `Sl`. |
 | `wrap_width` | u32 | px | no | 0 | `Sw`. |
 | `sb` | u32 | – | yes | – | `Sb`. **Open**: values 0x10–0x1000, which look like a text buffer size [guess]; not read by Overbright. |
@@ -197,7 +197,7 @@ no negative steps). So, normatively, and only for these fields:
 |---|---|---|---|---|---|
 | `name_hash` | hash32 | – | yes | – | `Sh` word 0, `bin_hash` of the name (`INIT` = `0x001744B3`). Unique per object (measured): the script's key. |
 | `name` | string ≤ 63 | – | no | – | The name when known; `fe_hash(name)` MUST equal `name_hash`. |
-| `length_ms` | u32 | ms (package clock) | yes | – | `Sh` word 1. The package clock runs 1.2 × real time (`src/frontend/feng/script.rs:30`). |
+| `length_ms` | u32 | ms (package clock) | yes | – | `Sh` word 1. The package clock runs 1.2 × real time (`crates/ob-menus/src/frontend/feng/script.rs:30`). |
 | `flags` | u32 | – | no | 0 | `Sh` word 2; `flags & 3` is the end mode (0 hold, 1 loop, 2 ping-pong). |
 | `chain` | hash32 | – | no | absent | `Sc`: the script of the same object that runs when this one ends. Absent = no `Sc` tag. |
 | `events` | array<event> | – | no | absent | `EV`, in order. Absent = no `EV` tag. |
@@ -333,7 +333,7 @@ shipped pairs).
 | `texture` | name | – | yes | – | The glyph page's texture name; it resolves to `texture:` + `upper_hash(texture)` ([textures.md](textures.md); the shipped pages are in `LANGUAGES/LanguageTextures.bin`). |
 | `line_height_px` | i32 | px | yes | – | Read by the renderer (0x51BDC0). |
 | `flags` | u32 | – | no | 0x00040009 | See the layout. |
-| `inv_texture_width`, `inv_texture_height` | f32 | 1/px | yes | – | The reader takes 1 / value, 256 when not positive (`src/frontend/feng/font.rs:65`). |
+| `inv_texture_width`, `inv_texture_height` | f32 | 1/px | yes | – | The reader takes 1 / value, 256 when not positive (`crates/ob-menus/src/frontend/feng/font.rs:65`). |
 | `u_0x04` … `u_0x48` | as the layout | – | no | the shipped constant shown in the layout, else 0 | Open words. |
 | `u_0x4c` | array<u32>[13] | – | no | zeros | Open words. |
 | `tail` | bytes | – | no | `"hex:"` | Open. |
@@ -346,7 +346,7 @@ Example: [`examples/ui/frontend/ui/fonts/demo_font.toml`](examples/ui/frontend/u
 
 ### 3.3 The front-end asset set (normative for readers)
 
-The engine builds one front-end asset set at start (`src/frontend/assets.rs:83`). With the base set alone it MUST
+The engine builds one front-end asset set at start (`crates/ob-menus/src/frontend/assets.rs:83`). With the base set alone it MUST
 get exactly what it gets from the original files today:
 
 1. **Packages**: every `fe-package` item, keyed by name without `.fng`. Today the first file in `asset_files` (`frontend::assets`)
@@ -355,14 +355,14 @@ get exactly what it gets from the original files today:
    `GlobalB.lzc`, `GLOBALA.BUN`, `InGameCommon.lzc`, the four `InGame*.bun`, `InGamePerformanceTuning.bun`,
    `HUD_CustomTextures_ALL.bin`, `LanguageTextures.bin`): the first set holding a name wins, except that an in-game
    set's copy that differs in blend, size or pixels is kept under the alias `rotl(hash, 16) ^ 0x1A6E5EED`
-   (`src/frontend/assets.rs:18`, `:145`). The set order and the in-game flag are therefore data the texture sets
+   (`crates/ob-menus/src/frontend/assets.rs:18`, `:145`). The set order and the in-game flag are therefore data the texture sets
    MUST keep.
 3. **Fonts**: the shared fonts, then the active language's fonts; a language font replaces a shared one with the
-   same `fe_hash` (today `English.bin`'s fonts are read after `GLOBALA.BUN`'s, `src/frontend/assets.rs:162`).
+   same `fe_hash` (today `English.bin`'s fonts are read after `GLOBALA.BUN`'s, `crates/ob-menus/src/frontend/assets.rs:162`).
 4. **Strings**: the active language's table with the fallback of [text.md](text.md) §3.8.
 5. **Resources** resolve by `upper_hash` of the name without extension: textures among the merged sets, fonts
    among the merged fonts. A font that resolves to nothing falls back to *any* loaded font in the engine today
-   (`src/frontend/assets.rs:220`); see §10 and the risks.
+   (`crates/ob-menus/src/frontend/assets.rs:220`); see §10 and the risks.
 
 ### 3.4 The HUD: what is data and what is engine
 
@@ -370,17 +370,17 @@ get exactly what it gets from the original files today:
 |---|---|---|
 | Every HUD object's position, size, colour, rotation, texture rectangle, show/hide/flash scripts, label and font | FEng packages (this page): `HUD_SingleRace` (`InGameRace`, `InGameFreeRoam`), `HUD_Short_Track` (`InGameRace`), `HUD_Drag`, `HUD_Drift`, `2PHudTop`/`2PHudBot` and their `_DRAG`, `_DRIFT`, `_OUTRUN` forms, `HUD_World_Loading` | Native positions are package data, not code. |
 | Pictures: gauges, needles, the custom-gauge sets | texture sets ([textures.md](textures.md)): the in-game sets and `GLOBAL/HUD_CustomTextures_00…10`, `_ALL` | |
-| Which package a race mode uses | engine code: `src/frontend/hud/mod.rs:56` | |
-| Which objects make up each HUD element and its feature mask; screen offsets such as the custom-gauge highlight's (21, 130) | engine code: `src/frontend/hud/elements.rs:53`, `src/frontend/custom_hud.rs:33` (constants traced from the executable; [engine-tables.md](engine-tables.md)) | |
+| Which package a race mode uses | engine code: `crates/ob-menus/src/frontend/hud/mod.rs:56` | |
+| Which objects make up each HUD element and its feature mask; screen offsets such as the custom-gauge highlight's (21, 130) | engine code: `crates/ob-menus/src/frontend/hud/elements.rs:53`, `crates/ob-menus/src/frontend/custom_hud.rs:33` (constants traced from the executable; [engine-tables.md](engine-tables.md)) | |
 | The minimap's calibration per track | career data ([career.md](career.md)) | The HUD mod changes these (§4). |
-| Placement on screens wider than 4:3 | engine code: `src/frontend/enh/widescreen.rs:38` | An Overbright rule; nothing moves at 4:3. |
+| Placement on screens wider than 4:3 | engine code: `crates/ob-menus/src/frontend/enh/widescreen.rs:38` | An Overbright rule; nothing moves at 4:3. |
 
 HUD layout as data with anchors is an extension point (§9), not part of 1.0.
 
 ### 3.5 Garage platforms and environment maps
 
 Front-end data whose items are stored by other pages. Each is a sub-unit of `frontend/` that the engine loads
-whole, as the original loads the whole file:
+whole, as the original (choice: format rule; the original's layout is in docs/formats/) loads the whole file:
 
 | Unit | Original | Bytes | Contents (measured) | Read by |
 |---|---|---|---|---|
@@ -422,9 +422,9 @@ residual records it.
 - **The HUD mod** (today's registry, layering.md §7) is mounted as the legacy pack `hud-mod`: its pictures are
   texture overrides by hash (595 HUD and 115 map pictures, `src/hud_mod.rs:45`); its map calibration rows
   (`map-overrides.tsv`: `TrackMapCalibrationOffsetX/Y`, `TrackMapCalibrationZoomIn`, `MenuMapZoomOffsetX/Y`,
-  `MenuMapZoomWidth` per track number, `src/frontend/enh/map_pack.rs:8`) become field merges of the career data's
+  `MenuMapZoomWidth` per track number, `crates/ob-menus/src/frontend/enh/map_pack.rs:8`) become field merges of the career data's
   track records ([career.md](career.md)), applied only for tracks whose map picture the pack also replaces (the
-  rule of `src/frontend/enh/map_pack.rs:41`). Off unless the player enables it, as today.
+  rule of `crates/ob-menus/src/frontend/enh/map_pack.rs:41`). Off unless the player enables it, as today.
 
 ## 5. Import
 
@@ -432,7 +432,7 @@ residual records it.
 chunks, and for each 0x30203 / 0x30210 chunk:
 
 1. 0x30210: check the u32 against `bin_hash` of the upper-case package name (true for all 221) and unpack the JDLZ
-   or HUFF block (`src/frontend/assets.rs:43`).
+   or HUFF block (`crates/ob-menus/src/frontend/assets.rs:43`).
 2. Decode the tag tree into the model of §3.1. Check the canonical tag order, every constant and every derived
    value (sizes, counts, `TypS`, `Butn`, `OP` word 1, `MC`, the `Sh` track count, the minimal zero padding of
    `PkHd`, `RsNm` and `St`, `Kd`'s first time word). Fill `label` from the labels table and `name` from
@@ -470,7 +470,7 @@ the importer makes the units of §3.5.
 
 Gates ([parity.md](parity.md) §3), baselines recorded from the original files first: every menu and HUD shot
 (`--shot main|career|explore|race|qrstart|drift|drag|…` and the options pages) at every resolution of the matrix;
-the Credits screen; a test that hashes each package's `Package` model (`src/frontend/feng/model.rs:177`), each
+the Credits screen; a test that hashes each package's `Package` model (`crates/ob-menus/src/frontend/feng/model.rs:177`), each
 `Font` and the string map.
 
 ## 7. Cooked form
@@ -527,7 +527,7 @@ each); it is reported for the base set and not an error.
 ## 10. Open points
 
 - `Sb` (`text.sb`): the docs describe alignment flags under `Sb` while the reader takes alignment from `Sj`
-  (`src/frontend/feng/text.rs:74`); the stored `Sb` values look like buffer sizes [guess]. To trace.
+  (`crates/ob-menus/src/frontend/feng/text.rs:74`); the stored `Sb` values look like buffer sizes [guess]. To trace.
 - `PkHd` word 3, the `Targ` words, the resource `hash` of textured, font and movie requests, resource kind 4
   (**inferred** "movie").
 - The open font words (`u_0x04`, `u_0x08`, `u_0x10`, `u_0x12`, `u_0x30`, `u_0x34`, the trailing 32-byte record in

@@ -557,6 +557,102 @@
       "words": "pack export"
     },
     {
+      "command": "modpack.export",
+      "flags": [
+        {
+          "flag": "--to",
+          "label": "Export to: a .obpk file, or a folder",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--version",
+          "label": "Pack version (default 1.0.0)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--licence",
+          "label": "SPDX licence; without one the pack stays on this computer",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--derived-ok",
+          "label": "Share textures made from the original game's pixels",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "run",
+      "summary": "Export the mod as a mod pack file (.obpk): its placements, races and textures as the asset format's own files",
+      "words": "modpack export"
+    },
+    {
+      "command": "modpack.convert",
+      "flags": [
+        {
+          "flag": "--from",
+          "label": "The map mod or texture pack: a folder or .zip",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--to",
+          "label": "Write to: a .obpk file, or a folder",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--id",
+          "label": "Pack id (default: made from the name)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--version",
+          "label": "Pack version (default 1.0.0)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--licence",
+          "label": "SPDX licence; without one the pack stays on this computer",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--derived-ok",
+          "label": "Convert textures made from the original game's pixels",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "run",
+      "summary": "Convert a plain map mod or a texture pack (a folder or .zip) to a mod pack file (.obpk)",
+      "words": "modpack convert"
+    },
+    {
+      "command": "modpack.report",
+      "flags": [
+        {
+          "flag": "--pack",
+          "label": "A .obpk file or pack folder, or the id of an installed pack",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--to",
+          "label": "Also write the report to this text file",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "What a mod pack changes compared with the game, in words: its props, races, textures, credits and clashes",
+      "words": "modpack report"
+    },
+    {
       "command": "pack.repair",
       "flags": [],
       "kind": "edit",
@@ -657,6 +753,496 @@
       "kind": "read",
       "summary": "The mod's textures and work files, with where their pixels started",
       "words": "looks list"
+    },
+    {
+      "command": "props.solids",
+      "flags": [
+        {
+          "flag": "--filter",
+          "label": "Words the name has (all of them, any case)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--category",
+          "label": "Only one category: knock-over, barriers, signs, street, trees or all (default all)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "List the region's placeable solids (the prop browser's list), by name, with where they are placed",
+      "words": "props solids"
+    },
+    {
+      "command": "race.tracks",
+      "flags": [],
+      "kind": "read",
+      "summary": "List the region's base tracks a race can be on (number and name)",
+      "words": "race tracks"
+    },
+    {
+      "command": "looks.find",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "Words of the name, or the hash (0x1A2B3C4D)",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "Find the region's world textures by name or hash, with where each is used (words after the command or --text)",
+      "words": "looks find"
+    },
+    {
+      "command": "game.find",
+      "flags": [],
+      "kind": "read",
+      "summary": "Show which game folder the tool uses and why (--game, NFSU2_ROOT or the launcher)",
+      "words": "game find"
+    },
+    {
+      "command": "collision.show",
+      "flags": [
+        {
+          "flag": "--mode",
+          "label": "off, invisible or all (default all)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "What the collision layer shows in a mode (off, invisible barriers or all collision), counted as the World view draws it; with --mod the mod's removed and drawn collision applies",
+      "words": "collision show"
+    },
+    {
+      "command": "runs.list",
+      "flags": [],
+      "kind": "read",
+      "summary": "The mod's kept runs (simulations and recordings), newest first, as the Runs workspace lists them",
+      "words": "runs list"
+    },
+    {
+      "command": "runs.show",
+      "flags": [
+        {
+          "flag": "--run",
+          "label": "The run's name (`runs list`)",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "Open a run: its race, seed, how it ended, the results and the problems it found",
+      "words": "runs show"
+    },
+    {
+      "command": "runs.telemetry",
+      "flags": [
+        {
+          "flag": "--run",
+          "label": "The run's name (`runs list`)",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--car",
+          "label": "Car number (default: the player's slot, 0)",
+          "needed": false,
+          "type": "u32"
+        }
+      ],
+      "kind": "read",
+      "summary": "One car's telemetry in a run: speed over time, distance from the racing line, its events, and the gear, rpm and pedals of a run recorded with the drive channels",
+      "words": "runs telemetry"
+    },
+    {
+      "command": "runs.compare",
+      "flags": [
+        {
+          "flag": "--run",
+          "label": "The run's name (`runs list`)",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--with",
+          "label": "The run to compare it with",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--car",
+          "label": "Car number (default 0)",
+          "needed": false,
+          "type": "u32"
+        }
+      ],
+      "kind": "read",
+      "summary": "Compare two runs: where they part and when a car is over a metre from where the first has it",
+      "words": "runs compare"
+    },
+    {
+      "command": "runs.rename",
+      "flags": [
+        {
+          "flag": "--run",
+          "label": "The run's name (`runs list`)",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--to",
+          "label": "The new name",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "run",
+      "summary": "Rename a run (never over another run)",
+      "words": "runs rename"
+    },
+    {
+      "command": "runs.delete",
+      "flags": [
+        {
+          "flag": "--run",
+          "label": "The run's name (`runs list`)",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "destructive",
+      "summary": "Delete a run file",
+      "words": "runs delete"
+    },
+    {
+      "command": "data.kinds",
+      "flags": [],
+      "kind": "read",
+      "summary": "The kinds of records the Data grid shows, with their columns and how many rows the mod's view has",
+      "words": "data kinds"
+    },
+    {
+      "command": "data.show",
+      "flags": [
+        {
+          "flag": "--kind",
+          "label": "The kind: placement or race",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--search",
+          "label": "Keep rows where any cell has all these words",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--filter",
+          "label": "Keep rows whose column has the text: `column=text`",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--sort",
+          "label": "Sort by this column (smallest first)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--desc",
+          "label": "Largest first",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "read",
+      "summary": "One kind's table as the Data grid shows it, with where each value comes from",
+      "words": "data show"
+    },
+    {
+      "command": "data.set",
+      "flags": [
+        {
+          "flag": "--kind",
+          "label": "The kind: placement or race",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--row",
+          "label": "The row's key, as `data show` gives it",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--field",
+          "label": "The column's field",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--value",
+          "label": "The value, as typed into the cell",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Write one cell of the Data grid as one undo step (the cell as the grid takes it typed)",
+      "words": "data set"
+    },
+    {
+      "command": "data.export",
+      "flags": [
+        {
+          "flag": "--kind",
+          "label": "The kind: placement or race",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--to",
+          "label": "The CSV file to write (never inside the game's folder)",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--search",
+          "label": "Keep rows where any cell has all these words",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--filter",
+          "label": "Keep rows whose column has the text: `column=text`",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--sort",
+          "label": "Sort by this column (smallest first)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--desc",
+          "label": "Largest first",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "run",
+      "summary": "Write one kind's table as a CSV file, as `data show` narrows it: a `row` column with each row's key, then the columns by field",
+      "words": "data export"
+    },
+    {
+      "command": "data.import",
+      "flags": [
+        {
+          "flag": "--kind",
+          "label": "The kind: placement or race",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--from",
+          "label": "The CSV file to read",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "edit",
+      "summary": "Bring a CSV file (as `data export` writes it) back as cell edits, each checked like `data set`, as one undo step; refuses the whole file when a cell is refused",
+      "words": "data import"
+    },
+    {
+      "command": "browser.search",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "Words of the name, a hash (0x1A2B3C4D) or section:N",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--kind",
+          "label": "all, models, textures, sounds or strings (default all)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--category",
+          "label": "Models only: knock-over, barriers, signs, street, trees or all",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--textures",
+          "label": "Textures only: any, in-use, unused, animated or large",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "Search the region's models and textures by name, hash or `section:N`, as the Browser workspace does",
+      "words": "browser search"
+    },
+    {
+      "command": "browser.sounds",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "Words of the bank's path or the sound's name (all must be in it)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "List and search the game's sounds (sound bank events) by bank or name, as the Browser's Sounds chip does",
+      "words": "browser sounds"
+    },
+    {
+      "command": "browser.strings",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "Words of the text, a hash (0x1A2B3C4D) or a label (IND_GRAPHICS_BODY)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--language",
+          "label": "The language file (default English)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "List and search a language file's lines by words, 0x hash or label, as the Browser's Strings chip does",
+      "words": "browser strings"
+    },
+    {
+      "command": "browser.wav",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "The sound's name (all words, any case), with words of its bank when two share a name",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--to",
+          "label": "The folder to write (default the mod's .editor/reference; never inside the game's folder)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "run",
+      "summary": "Write a sound as a WAV file (marked as from the game files, local-only)",
+      "words": "browser wav"
+    },
+    {
+      "command": "browser.mesh",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "The model's name (all words, any case) or hash",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "A model's geometry in numbers (vertices, triangles, size, parts), as the Browser's model viewer shows it",
+      "words": "browser mesh"
+    },
+    {
+      "command": "browser.area",
+      "flags": [
+        {
+          "flag": "--at",
+          "label": "The centre as x,y,z in the game's metres (Z up), as the camera's place shows",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--radius",
+          "label": "Metres around it, 1 to 300 (default 60)",
+          "needed": false,
+          "type": "f32"
+        },
+        {
+          "flag": "--to",
+          "label": "The folder to write (default the mod's .editor/reference; never inside the game's folder)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "run",
+      "summary": "Write the area around a point (the camera) as one glTF reference (marked as from the game files, local-only)",
+      "words": "browser area"
+    },
+    {
+      "command": "browser.used",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "Its name (all words, any case) or hash",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "Where a model or texture is used: its placements, sections, textures or models (the Browser's used by)",
+      "words": "browser used"
+    },
+    {
+      "command": "browser.export",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "The model's name (all words, any case) or hash",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--to",
+          "label": "The folder to write (default the mod's .editor/reference; never inside the game's folder)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "run",
+      "summary": "Write a model as a glTF reference for an outside 3D program (marked as from the game files, local-only)",
+      "words": "browser export"
+    },
+    {
+      "command": "browser.import",
+      "flags": [
+        {
+          "flag": "--file",
+          "label": "The edited .gltf (with its .bin beside it)",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--model",
+          "label": "The model it is for (default the one the file says it was exported from)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--own",
+          "label": "The model is entirely your own work: shared with the mod, without the game's pictures",
+          "needed": false,
+          "type": "bool"
+        }
+      ],
+      "kind": "run",
+      "summary": "Bring an edited glTF back as a mod model, mapped onto the original model's parts; refuses what cannot be mapped",
+      "words": "browser import"
     },
     {
       "command": "checks.run",

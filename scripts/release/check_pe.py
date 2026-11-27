@@ -21,7 +21,7 @@ ALLOWED = {
     "imm32.dll", "dwmapi.dll", "uxtheme.dll", "winmm.dll", "comctl32.dll", "shlwapi.dll", "setupapi.dll",
     "hid.dll", "cfgmgr32.dll", "propsys.dll", "dinput8.dll", "xinput1_4.dll", "dxgi.dll", "d3d12.dll",
     "d3dcompiler_47.dll", "opengl32.dll", "version.dll", "powrprof.dll", "secur32.dll", "crypt32.dll",
-    "ksuser.dll", "avrt.dll", "mmdevapi.dll", "synchronization.dll", "dbghelp.dll", "winhttp.dll",
+    "ksuser.dll", "avrt.dll", "mmdevapi.dll", "synchronization.dll", "dbghelp.dll", "winhttp.dll", "psapi.dll",
 }
 ALLOWED_PREFIXES = ("api-ms-win-", "ext-ms-win-")
 SUBSYSTEMS = {2: "GUI", 3: "console"}

@@ -1,0 +1,40 @@
+{
+  "all": {
+    "barriers": 0,
+    "floors": 0,
+    "floors_not_ground": 0,
+    "invisible": 0,
+    "visible": 0
+  },
+  "command": "collision.show",
+  "counts": [
+    {
+      "count": 0,
+      "what": "Invisible walls"
+    },
+    {
+      "count": 0,
+      "what": "Race and career barriers"
+    },
+    {
+      "count": 0,
+      "what": "Walls behind scenery"
+    },
+    {
+      "count": 0,
+      "what": "Road floors"
+    },
+    {
+      "count": 0,
+      "what": "Floors that are not ground"
+    }
+  ],
+  "exit": 0,
+  "faces_read": 0,
+  "format": 1,
+  "label": "All collision",
+  "mod": null,
+  "mode": "all",
+  "ok": true,
+  "region": "L4RA"
+}

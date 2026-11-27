@@ -1,0 +1,56 @@
+[package]
+name = "ob-assets"
+version.workspace = true
+edition.workspace = true
+description = "Overbright's asset layer: the world, cars and their records, game data, texture packs and mods, the map tools."
+license.workspace = true
+publish = false
+build = "build.rs"
+# Hands its build id to the crates above it (build_support/build_id.rs).
+links = "ob_assets"
+
+# What the game reads from the player's files and the packs and mods laid over them (`world`, `car` and the
+# records a car installs: `handling`, `performance`, `tuning`, `part_anim`, `narrow`, `nitrous`, `race`; the
+# game's data, the front end's parsers, the texture packs and mods, the map tools' world side). On the layers
+# below it only; no window or audio crate, checked by scripts/checks/crate_layers.sh.
+[dependencies]
+ob-core = { path = "../ob-core" }
+ob-formats = { path = "../ob-formats" }
+ob-map = { path = "../ob-map" }
+ob-settings = { path = "../ob-settings" }
+ob-asset-format = { path = "../ob-asset-format" }
+anyhow.workspace = true
+block_compression.workspace = true
+bytemuck.workspace = true
+env_logger.workspace = true
+glam.workspace = true
+image.workspace = true
+log.workspace = true
+lzma-rs.workspace = true
+memmap2.workspace = true
+miniz_oxide.workspace = true
+profiling.workspace = true
+rayon.workspace = true
+semver.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sha2.workspace = true
+toml.workspace = true
+wgpu.workspace = true
+xxhash-rust.workspace = true
+
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
+[dev-dependencies]
+# The test kit (crates/ob-testkit, docs/developing/testing.md).
+ob-testkit = { path = "../ob-testkit" }
+# The lower crates' test helpers (their `dev-harness` hooks), on for this crate's own test build only.
+ob-core = { path = "../ob-core", features = ["dev-harness"] }
+ob-formats = { path = "../ob-formats", features = ["dev-harness"] }
+ob-map = { path = "../ob-map", features = ["dev-harness"] }
+ob-settings = { path = "../ob-settings", features = ["dev-harness"] }
+
+[features]
+# The developer harness's hooks (the root package's `dev-harness` turns it on).
+dev-harness = ["ob-core/dev-harness", "ob-formats/dev-harness", "ob-map/dev-harness", "ob-settings/dev-harness"]

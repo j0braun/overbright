@@ -35,6 +35,8 @@ pub(crate) fn drive_intro_route(game: &mut Game, verbose: bool) -> Result<(f32, 
     anyhow::ensure!(lot_box.is_some(), "the intro's car lot");
     let mut last = game.here().context("the car")?.0;
     let (mut metres, mut stalled, mut reverse) = (0.0f32, 0.0f32, 0.0f32);
+    // Stalls in a row (no real speed between them): each backs up longer, so a slow car in the way is left behind.
+    let mut stalls = 0u32;
     let mut near_end = false;
     for frame in 0..(600.0 / DT) as u32 {
         // The car lot's marker under the car: the Engage key (0x5EB050).
@@ -67,8 +69,12 @@ pub(crate) fn drive_intro_route(game: &mut Game, verbose: bool) -> Result<(f32, 
             steer = a.sin().atan2(a.cos());
         }
         stalled = if speed < 1.0 && reverse <= 0.0 { stalled + DT } else { 0.0 };
+        if speed > 8.0 {
+            stalls = 0;
+        }
         if stalled > 1.5 {
-            reverse = 1.5;
+            stalls += 1;
+            reverse = 1.5 + 0.75 * stalls.min(6) as f32;
             stalled = 0.0;
             if verbose {
                 eprintln!(

@@ -16,9 +16,9 @@ license.workspace = true
 # here builds only the game, the editor, their tools and the public examples; `cargo check --release
 # -p devprobes` (scripts/checks/devprobes.sh) keeps the probes compiling.
 [workspace]
-members = [".", "crates/ob-core", "crates/ob-formats", "crates/ob-asset-format", "crates/ob-map", "crates/ob-look", "crates/ob-studio", "crates/ob-studio-gui", "crates/ob-testkit"]
+members = [".", "crates/ob-core", "crates/ob-formats", "crates/ob-asset-format", "crates/ob-map", "crates/ob-settings", "crates/ob-assets", "crates/ob-sim", "crates/ob-audio", "crates/ob-render", "crates/ob-menus", "crates/ob-look", "crates/ob-studio", "crates/ob-studio-gui", "crates/ob-testkit"]
 exclude = ["fuzz"]
-default-members = [".", "crates/ob-core", "crates/ob-formats", "crates/ob-asset-format", "crates/ob-map", "crates/ob-look", "crates/ob-studio", "crates/ob-studio-gui"]
+default-members = [".", "crates/ob-core", "crates/ob-formats", "crates/ob-asset-format", "crates/ob-map", "crates/ob-settings", "crates/ob-assets", "crates/ob-sim", "crates/ob-audio", "crates/ob-render", "crates/ob-menus", "crates/ob-look", "crates/ob-studio", "crates/ob-studio-gui"]
 
 # The versions every package of the workspace takes (`dep.workspace = true` in its manifest), so the
 # library's crates, the game and the leaf crates build against one copy of each.
@@ -50,7 +50,7 @@ proptest = { version = "1", default-features = false, features = ["std"] }
 
 # One version for every package of the workspace (the release's).
 [workspace.package]
-version = "0.6.3"
+version = "0.7.0"
 edition = "2024"
 license = "GPL-3.0-or-later"
 
@@ -61,6 +61,18 @@ ob-formats = { path = "crates/ob-formats" }
 # The map data (crates/ob-map: map mod files, edit operations, races, the simulation record), re-exported at
 # its old paths under `tools::map`.
 ob-map = { path = "crates/ob-map" }
+# The settings layer (crates/ob-settings: the settings store `qol`, the extras' and pad options), re-exported at its old paths.
+ob-settings = { path = "crates/ob-settings" }
+# The asset layer (crates/ob-assets: the world, the cars and the records a car installs, the game data, the pack loader and the texture mods, the map tools' world side), re-exported at its old paths.
+ob-assets = { path = "crates/ob-assets" }
+# The simulation layer (crates/ob-sim: the driving physics, the AI, contacts, weather, opponents, the scenes' per-tick rules), re-exported at its old paths.
+ob-sim = { path = "crates/ob-sim" }
+# The audio layer (crates/ob-audio: the sound banks, the engine and car voices, the music and speech, the mix map and the mixer), re-exported at its old path.
+ob-audio = { path = "crates/ob-audio" }
+# The render layer (crates/ob-render: the GPU renderer and its shaders, the sky, the rear-view mirror, the GPU timing scopes, the monitor facts), re-exported at its old paths.
+ob-render = { path = "crates/ob-render" }
+# The menus layer (crates/ob-menus: the front end, the career, the performance overlay), re-exported at its old paths.
+ob-menus = { path = "crates/ob-menus" }
 # The look shared by the launcher, the map editor and Studio (crates/ob-look), re-exported at `launch::theme`.
 ob-look = { path = "crates/ob-look" }
 # The asset format: the base set the game reads through by default once a verified import exists
@@ -70,6 +82,7 @@ ob-asset-format = { path = "crates/ob-asset-format" }
 anyhow.workspace = true
 bytemuck.workspace = true
 glam.workspace = true
+semver.workspace = true
 wgpu.workspace = true
 winit.workspace = true
 pollster.workspace = true
@@ -125,6 +138,7 @@ features = [
     "Win32_Devices_HumanInterfaceDevice",
     "Win32_Foundation",
     "Win32_System_LibraryLoader",
+    "Win32_System_ProcessStatus",
     "Win32_UI_WindowsAndMessaging",
 ]
 
@@ -148,7 +162,7 @@ mimalloc = ["dep:mimalloc"]
 # error. The checks, the gate, perf.sh and pgo.sh build with it:
 # `cargo build --release --features dev-harness`; the game's tests need it
 # too (`cargo test --release --features dev-harness`).
-dev-harness = ["ob-core/dev-harness", "ob-formats/dev-harness", "ob-map/dev-harness", "ob-look/dev-harness"]
+dev-harness = ["ob-core/dev-harness", "ob-formats/dev-harness", "ob-map/dev-harness", "ob-settings/dev-harness", "ob-assets/dev-harness", "ob-sim/dev-harness", "ob-audio/dev-harness", "ob-render/dev-harness", "ob-menus/dev-harness", "ob-look/dev-harness"]
 
 # Integration tests that use the developer harness's library aids
 # (`frontend::drawn_texts`): built only with `dev-harness`.

@@ -1,4 +1,7 @@
-use super::*;
+use crate::formats::collision::FLAG_TALL;
+use crate::world::*;
+use glam::{Mat4, Vec3};
+use std::collections::{HashMap, HashSet};
 use crate::tools::map::{CollisionEdit, MapMod, PropEdit};
 
 fn l4ra() -> World {
@@ -432,4 +435,27 @@ fn a_car_stands_on_drawn_ground() {
     let (low, high) = (rest(&plain), rest(&w));
     eprintln!("on the plaza {low:.3}, on the drawn ground {high:.3}");
     assert!((high - low - up).abs() < 0.08, "{low} → {high}");
+}
+
+/// The faces a mod's edits write are listed with what wrote them: a drawn wall's are `Drawn`, and each is a face
+/// the world's packs hold now (the collision view marks them apart from the original's by their corners).
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn written_faces_are_marked_with_their_origin() {
+    let mut w = l4ra();
+    assert!(w.map_overlay.collision.marks.is_empty());
+    let m = MapMod { collision: vec![drawn_wall()], ..Default::default() };
+    assert!(w.reapply_map_mod("L4RA", "test", &m));
+    let marks = &w.map_overlay.collision.marks;
+    assert!(marks.len() >= 4, "{marks:?}");
+    assert!(marks.iter().all(|(o, _)| *o == CollisionOrigin::Drawn));
+    let held: HashSet<Vec<[i32; 3]>> = w
+        .ground
+        .listed_faces()
+        .map(|f| face_key(&f.vertices[..f.corners.clamp(3, 4)]))
+        .collect();
+    assert!(marks.iter().all(|(_, k)| held.contains(k)), "a marked face is not in the packs as read back");
+    // Taking the edit back leaves none.
+    assert!(w.reapply_map_mod("L4RA", "test", &MapMod::default()));
+    assert!(w.map_overlay.collision.marks.is_empty());
 }

@@ -9,6 +9,7 @@ use anyhow::{Context as _, Result};
 
 use crate::tools::map::history::{self, History};
 use crate::tools::map::{MapMod, PropEdit, store};
+use super::words;
 
 /// How the mod's work stands on the disk.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -71,7 +72,7 @@ impl ModSummary {
     /// Home's "Changes" row.
     pub fn changes_text(&self) -> String {
         if self.changes() == 0 {
-            return "None yet · the original everywhere".into();
+            return words::NONE_YET_THE_ORIGINAL_EVERYWHERE.into();
         }
         let mut parts = vec![];
         for (n, one, many) in [
@@ -134,6 +135,9 @@ pub fn summary(maps: &Path, folder: &str) -> Result<ModSummary> {
         Err(e) => {
             let mut why = format!("{} does not read: {e}", store::FILE);
             if !ob_studio::cli::repairs(text).is_empty() {
+                for f in ob_studio::writer_bugs::check(text, h.saved_by().as_ref()) {
+                    why.push_str(&format!(". {}", f.sentence()));
+                }
                 why.push_str(&format!(". {}", ob_studio::cli::repair_hint(&s.dir)));
             }
             s.saved = Saved::Error(why)

@@ -26,7 +26,7 @@ parsers cited; the addresses are the reference executable's.
 `GLOBAL/GlobalB.lzc` is a JDLZ-compressed copy of the same chunk file: in the reference install its unwrapped
 content is byte for byte `GLOBALB.BUN`. Overbright reads car types, parts and presets from `GLOBALB.BUN` and the
 career container (with its own copy of the car types, for the makes and SUV flags) from `GlobalB.lzc`
-(src/frontend/career/data.rs:252, :361, :417). Both files map to the same items (§5.1).
+(crates/ob-menus/src/frontend/career/data.rs:252, :361, :417). Both files map to the same items (§5.1).
 
 **Not on this page.** The car meshes (`GEOMETRY.BIN`, shared part groups, rims by brand): [meshes.md](meshes.md).
 All pixels, including the vinyl images of `VINYLS.BIN` and the shared `CARS/TEXTURES.BIN`:
@@ -442,7 +442,7 @@ The part database is a set of pools that refer to each other by index (crates/ob
 a string (their name), an attribute list and a model; lists point at attributes; models point at strings. The
 engine consumes the pools as they are (`PartDb`), and two of its walks depend on positions inside them: the slot
 search returns parts in database order (0x61B990), and a part's owned-bit in the native save is its position among
-the parts that walk returns (src/frontend/career/native_map/context.rs:161). So the format keeps every pool in its
+the parts that walk returns (crates/ob-menus/src/frontend/career/native_map/context.rs:161). So the format keeps every pool in its
 original order and with its original indices (**pool form**): each table below is one child chunk, record by
 record. Tools show the resolved view (a part with its name, attributes and solids); the file stays in pool form.
 
@@ -573,7 +573,7 @@ Example: `examples/cars/costs.toml`.
 | `package` | array<table> | – | base sets | – | Career chunk 0x34A15, records `perf_package` (30), in order; key (`category`, `level`). Fields `category` (u32: 0 weight, 1 transmission, 2 nitrous, 3 engine, 4 turbo, 5 suspension, 6 brakes, 7 ECU, 8 tyres, 9 aerodynamics), `level` (u32, 1–3), `part`. |
 | `package[].part` | array<table> ≤ 4 | – | no | `[]` | Records `perf_part`; a keyed list, key `id`. Fields `id` (u32, 0–0x43), `name` (hash32: a bare hash of a `string` in the active language, conventions §6.6), `price` (u32, $), `brands` (array<hash32> ≤ 8), `gains` (array<f32>[4], −1 none), `replaces` (array<u32> ≤ 5, performance part ids), `requires` (array<u32> ≤ 2, likewise). All **verified** (docs/formats/cars-1.md "Data and parts"). |
 | `tuning_unlock` | array<table> | – | base sets | – | Career chunk 0x34A1A, records `tuning_unlock` (62), in order; key (`part`, `param`). Fields as in the layout; `range` and `display` are array<f32>[2]. **verified** (src/tuning/mod.rs:1–12). |
-| `bounds` | array<f32>[30] | – | base sets | – | GLOBALB 0x34A32. One table with two readers: the shops' stat bars (all 30, src/frontend/career/data.rs:443) and the AI (+0x28/+0x2C rating bounds, +0x30…+0x6C handling-score normalisers, +0x70/+0x74 skill spread; src/opponents.rs:120). **verified** |
+| `bounds` | array<f32>[30] | – | base sets | – | GLOBALB 0x34A32. One table with two readers: the shops' stat bars (all 30, crates/ob-menus/src/frontend/career/data.rs:443) and the AI (+0x28/+0x2C rating bounds, +0x30…+0x6C handling-score normalisers, +0x70/+0x74 skill spread; src/opponents.rs:120). **verified** |
 | `class_curve` | map<`"0"`–`"3"`, table> | – | base sets | – | GLOBALB 0x34A33, one `class_curve` record per performance class 0 (fastest) to 3: `top_speed_mps` (f32), `u_0x04` (array<f32>[2]), `accel` (array<f32>[64]). **verified** (0x5A78F0). |
 | `extras` | table | – | no | – | conventions §9. |
 
@@ -706,9 +706,9 @@ vinyl part at them through `TEXTURE` (§4.3); adding vinyl *parts* waits with ad
 | What | Data (this page) | Engine constant (built into the program) |
 |---|---|---|
 | Region | the base set's `[base] region` ([manifest.md](manifest.md)) | the detection rule the importer runs (crates/ob-core/src/region.rs:55) |
-| Car lot | record `lot_flags` bit 1, `geometry_path`, `kind_code`; unlocks ([career.md](career.md)) | lot exclusions by region (CIVIC, RSX / CORSA, PEUGOT106; src/frontend/career/lists.rs:7) |
+| Car lot | record `lot_flags` bit 1, `geometry_path`, `kind_code`; unlocks ([career.md](career.md)) | lot exclusions by region (CIVIC, RSX / CORSA, PEUGOT106; crates/ob-menus/src/frontend/career/lists.rs:7) |
 | Quick Race | as the lot | always-offered types by region (lists.rs:12); cheat cars |
-| Random opponents | AI upgrade presets, `bounds` | pools by region: region 0 `opponent_cars` (an engine table), region 6 `OPPONENT_CARS_ALT`, SUVs `OPPONENT_SUVS` (src/frontend/career/events.rs:147, :151) |
+| Random opponents | AI upgrade presets, `bounds` | pools by region: region 0 `opponent_cars` (an engine table), region 6 `OPPONENT_CARS_ALT`, SUVs `OPPONENT_SUVS` (crates/ob-menus/src/frontend/career/events.rs:147, :151) |
 | Traffic | `kind_code` = 2, `traffic_caps`, `skin_count`, `skin_table` | – (zones come with the tracks, [roads-ai.md](roads-ai.md)) |
 | AI looks | parts, presets | part chances, vinyl colour sets, paint matches (src/ai_looks.rs:28, :52, :63) |
 | Part exclusions | attributes `EXCLUDE_UG1`, `EXCLUDE_UG2`, `EXCLUDE_SUV` | which groups apply them (crates/ob-formats/src/formats/parts.rs:34–39) |
@@ -879,7 +879,7 @@ The career container's other children, and the chunk headers of every container,
 ### 5.3 GLOBALB.BUN and GlobalB.lzc
 
 Overbright today reads the car records from both files (physics, parts and presets from `GLOBALB.BUN`; the lot's
-makes and the SUV flags from `GlobalB.lzc`, src/frontend/career/data.rs:361, :417). They are identical in the
+makes and the SUV flags from `GlobalB.lzc`, crates/ob-menus/src/frontend/career/data.rs:361, :417). They are identical in the
 reference install, and the importer proves it chunk for chunk. If an install differs (a modified game), the
 importer takes `GLOBALB.BUN`'s car, part and preset tables and `GlobalB.lzc`'s career container, records the
 difference, and marks the edition `custom` (`CRS.11`); after the move both readers use the same items. Which file

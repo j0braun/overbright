@@ -57,6 +57,25 @@ expect() {
   else BAD+=("$name"); echo "BAD  $name: expected $want, got rc $rc (log $O/$name.log):"; tail -5 "$O/$name.log" | sed 's/^/       /'; fi
 }
 
+# ---- evidence.sh: a claim row without a tag fails ----------------------------------------------------------------
+ev_tree() { # DIR: a copy of the docs and the allow list the check reads
+  mkdir -p "$1/docs/original/coverage" "$1/docs/playing" "$1/scripts/checks"
+  cp "$REPO"/docs/original/coverage/*.md "$1/docs/original/coverage/"
+  cp "$REPO/docs/playing/native-deviations.md" "$1/docs/playing/"
+  cp "$REPO/scripts/checks/evidence-allow.txt" "$1/scripts/checks/"
+}
+ev_tree "$O/ev-good"
+expect pass evidence-good "$HERE/evidence.sh" "$O/ev-good"
+ev_tree "$O/ev-cov"
+printf '\n| Address | Name | What it does | Ours | Status | Evidence | Risk |\n|---|---|---|---|---|---|---|\n| 0x999999 | — | a planted claim | — | **PORTED** | looks right | low |\n' >> "$O/ev-cov/docs/original/coverage/racer-ai.md"
+expect fail evidence-untagged-coverage-row "$HERE/evidence.sh" "$O/ev-cov"
+ev_tree "$O/ev-dev"
+sed -i '0,/| choice |$/s//| |/' "$O/ev-dev/docs/playing/native-deviations.md"
+expect fail evidence-untagged-deviation-row "$HERE/evidence.sh" "$O/ev-dev"
+ev_tree "$O/ev-prose"
+printf '\nThe planted rule works exactly like the original does.\n' >> "$O/ev-prose/docs/playing/native-deviations.md"
+expect fail evidence-untagged-prose-claim "$HERE/evidence.sh" "$O/ev-prose"
+
 # ---- perf.sh parity ------------------------------------------------------------
 # parity CASE BASE_FAULTS NEW_FAULTS [ENV…]: the parity gates on two stubs.
 parity() {
@@ -124,6 +143,31 @@ expect pass rate-differs-counted rate_rc rate-differs-counted 1 ratedep
 # The image classes count ("images@CLASS fail"); with them reported a difference is exit 3.
 expect pass rate-images-counted rate_rc rate-images-counted 1 rateimg
 expect pass rate-images-report-only rate_rc_report rate-images-report-only 3 rateimg
+# The image check's evidence: a planted 1-pixel difference is printed (class, rate, tick, count, max diff, box, pixel
+# values) and the reference, the frame and a diff PNG are kept in the folder RATE_EVIDENCE_DIR names (not the real one).
+rate_evidence() {
+  local d="$O/rate-evidence-case"; rm -rf "$d"; mkdir -p "$d/ref" "$d/120" "$d/evid"
+  python3 -I - "$HERE/../perf" "$d" << 'PY' || return 1
+import sys
+sys.path.insert(0, sys.argv[1])
+import rateimg
+d = sys.argv[2]
+rows = [bytes([10, 20, 30] * 8) for _ in range(8)]
+rateimg.write_png(d + '/ref/tick-000006.png', 8, 8, rows)
+rows[3] = bytes([10, 20, 30] * 5 + [11, 20, 30] + [10, 20, 30] * 2)
+rateimg.write_png(d + '/120/tick-000006.png', 8, 8, rows)
+PY
+  RATE_EVIDENCE_DIR="$d/evid" python3 -I "$HERE/../perf/rateimg.py" "$PIXDIFF" step "$d/ref" "120=$d/120" > "$d/out" 2> "$d/err"
+  [ $? = 1 ] || { echo "rc is not 1"; return 1; }
+  local f; f=$(ls -d "$d"/evid/*/ 2> /dev/null | head -1); [ -n "$f" ] || { echo "no evidence folder"; return 1; }
+  grep -q "evidence ${f%/}" "$d/out" || { echo "the line does not name the folder"; return 1; }
+  grep -q "class step, 120 Hz, tick-000006: 1 px differ, max channel diff 1, bbox x 5..5 y 3..3" "$d/err" || { echo "detail line missing"; cat "$d/err"; return 1; }
+  grep -q '(5,3) ref (10, 20, 30) got (11, 20, 30)' "$d/err" || { echo "pixel values missing"; return 1; }
+  for n in step-120hz-tick-000006-ref.png step-120hz-tick-000006.png step-120hz-tick-000006-diff.png; do
+    [ -s "$f$n" ] || { echo "missing $n"; return 1; }
+  done
+}
+expect pass rate-image-evidence rate_evidence
 # A jittered run that ends short of the others counts (the runs end on a tick count at every schedule).
 expect pass rate-jitter-short-counted rate_rc rate-jitter-short-counted 1 jittershort
 expect fail rate-run-fails rate rate-run-fails rc:firstrace
@@ -342,6 +386,19 @@ expect fail wineenv-window-wayland wsenv wineenv-window-wayland '/^  env -u WAYL
 expect fail wineenv-headless-unguarded wsenv wineenv-headless-unguarded '/^  W "\${WENV\[@\]}"/s/ NFSU2_HEADLESS_ONLY=1//'
 expect fail wineenv-window-heard wsenv wineenv-window-heard '/^  env -u WAYLAND_DISPLAY/s/ NFSU2_AUDIO_HOST=none//'
 
+# A failed step keeps its evidence outside the gate folder (WINE_EVIDENCE_DIR: a temp folder here): log, work
+# folder, timing; only the 20 newest folders stay.
+wsevid() {
+  local c=$1 e="$O/$1/evid"; rm -rf "$e"; mkdir -p "$e"
+  for i in $(seq 22); do mkdir -p "$e/20200101-0000$(printf %02d $i)-old-x"; done
+  WINE_EVIDENCE_DIR="$e" WINE_EVIDENCE_FAKE=1 wsenv "$c" "" > "$O/$c.out" 2>&1
+  local d; d=$(ls -1d "$e"/*-fake_step 2> /dev/null | head -1)
+  [ -n "$d" ] && grep -q '^step=fake_step' "$d/timing.txt" && grep -q 'fake log' "$d/fake_step.log" \
+    && grep -q 'fake screen' "$d/fake_step_dir/screen.txt" && [ -f "$d/fake_step_dir/a.png" ] \
+    && [ "$(ls -1d "$e"/*/ | wc -l)" = 20 ] && [ ! -d "$e/20200101-000001-old-x" ] && [ -d "$e/20200101-000022-old-x" ]
+}
+expect pass wineenv-evidence-kept wsevid wineenv-evidence-kept
+
 # ---- a check whose default input is a private fixture (halo.sh: the finished-career save) ----------------------
 # In a tree without the private set (a copy of the script, lib/ linked) and no OB_PRIVATE: exit 3 with the SKIP line
 # naming the set. With the save in $OB_PRIVATE the check runs: a bench that fails then fails it (exit 2).
@@ -367,25 +424,102 @@ expect fail halo-runs-with-private-set halo_private halo-runs-with-private-set
 # QoL read, global state) fails.
 layering() {
   local c=$1 what=${2:-} t="$O/$1"
-  mkdir -p "$t/scripts/checks" "$t/src/render/native" "$t/src/bin/game/hud"
+  mkdir -p "$t/scripts/checks" "$t/crates/ob-render/src/render/native" "$t/src/bin/game/hud"
   cp "$HERE/layering.sh" "$t/scripts/checks/"
-  printf '# list\nsrc/render/native/a.rs\tlet x = crate::qol::hdr_active();\nsrc/render/native/a.rs\tfn t() { crate::qol::Enhancements::default().apply(); }\n' > "$t/scripts/checks/layering-settings-allow.txt"
-  printf '# list\nqol\tsrc/render/native/a.rs\tlet x = crate::qol::hdr_active();\twhy\nstate\tsrc/render/native/a.rs\tstatic N: AtomicU8 = AtomicU8::new(0);\twhy\n' > "$t/scripts/checks/layering-allow.txt"
-  printf 'fn f() {\n    let x = crate::qol::hdr_active();\n}\nstatic N: AtomicU8 = AtomicU8::new(0);\n#[cfg(test)]\nmod tests {\n    fn t() { crate::qol::Enhancements::default().apply(); }\n}\n' > "$t/src/render/native/a.rs"
+  printf '# list\ncrates/ob-render/src/render/native/a.rs\tlet x = crate::qol::hdr_active();\ncrates/ob-render/src/render/native/a.rs\tfn t() { crate::qol::Enhancements::default().apply(); }\n' > "$t/scripts/checks/layering-settings-allow.txt"
+  printf '# list\nqol\tcrates/ob-render/src/render/native/a.rs\tlet x = crate::qol::hdr_active();\twhy\nstate\tcrates/ob-render/src/render/native/a.rs\tstatic N: AtomicU8 = AtomicU8::new(0);\twhy\n' > "$t/scripts/checks/layering-allow.txt"
+  printf 'fn f() {\n    let x = crate::qol::hdr_active();\n}\nstatic N: AtomicU8 = AtomicU8::new(0);\n#[cfg(test)]\nmod tests {\n    fn t() { crate::qol::Enhancements::default().apply(); }\n}\n' > "$t/crates/ob-render/src/render/native/a.rs"
   printf '#[cfg(all(test, feature = "dev-harness"))]\nmod tests;\n#[cfg(feature = "dev-harness")]\nuse crate::dev::x;\n' > "$t/src/bin/game/hud/mod.rs"
   printf 'fn t() { crate::dev::state_hash::v(); }\n' > "$t/src/bin/game/hud/tests.rs"
   case $what in
     harness) printf 'fn g() { dev::shot::list(); }\n' >> "$t/src/bin/game/hud/mod.rs" ;;
     test-mod) printf 'mod tests;\n' > "$t/src/bin/game/hud/mod.rs" ;;
-    settings) printf 'fn h() { crate::render::RenderOptions::in_force(); }\n' >> "$t/src/render/native/a.rs" ;;
-    enh) printf 'use crate::render::enh::x;\n' >> "$t/src/render/native/a.rs" ;;
-    qol) printf 'fn h() { let y = crate::qol::hdr_active(); }\n' >> "$t/src/render/native/a.rs" ;;
-    state) printf 'static M: Mutex<u8> = Mutex::new(0);\n' >> "$t/src/render/native/a.rs" ;;
+    settings) printf 'fn h() { crate::render::RenderOptions::in_force(); }\n' >> "$t/crates/ob-render/src/render/native/a.rs" ;;
+    enh) printf 'use crate::render::enh::x;\n' >> "$t/crates/ob-render/src/render/native/a.rs" ;;
+    qol) printf 'fn h() { let y = crate::qol::hdr_active(); }\n' >> "$t/crates/ob-render/src/render/native/a.rs" ;;
+    state) printf 'static M: Mutex<u8> = Mutex::new(0);\n' >> "$t/crates/ob-render/src/render/native/a.rs" ;;
   esac
   bash "$t/scripts/checks/layering.sh" "$t"
 }
 expect pass layering-good layering layering-good
 for w in harness test-mod settings enh qol state; do expect fail "layering-new-$w" layering "layering-new-$w" "$w"; done
+
+# ---- stray_opens.sh (the stray-open lint) ----------------------------------------------------------------------
+# A small tree: a listed count passes; a new file with a direct open, one more open in a listed file, a list line
+# above the file's count, and test code (not counted) behave as the lint says.
+stray_opens() {
+  local c=$1 what=${2:-} t="$O/$1"
+  mkdir -p "$t/scripts/checks" "$t/src"
+  cp "$HERE/stray_opens.sh" "$HERE/stray_opens.py" "$t/scripts/checks/"
+  printf 'fn f() { let _ = std::fs::read("a"); }\n// std::fs::read("c")\n#[cfg(test)]\nmod t { fn g() { std::fs::read("b"); } }\n' > "$t/src/a.rs"
+  printf '# list\nsrc/a.rs\t1\town data\n' > "$t/scripts/checks/stray-opens.txt"
+  case $what in
+    new-file) printf 'fn f() { let _ = std::fs::File::open("a"); }\n' > "$t/src/b.rs" ;;
+    more) printf 'fn h() { let _ = std::fs::read_dir("a"); }\n' | cat - "$t/src/a.rs" > "$t/src/a2.rs" && mv "$t/src/a2.rs" "$t/src/a.rs" ;;
+    stale) printf '# list\nsrc/a.rs\t2\town data\n' > "$t/scripts/checks/stray-opens.txt" ;;
+    noreason) printf '# list\nsrc/a.rs\t1\t\n' > "$t/scripts/checks/stray-opens.txt" ;;
+  esac
+  bash "$t/scripts/checks/stray_opens.sh" "$t"
+}
+expect pass stray-opens-good stray_opens stray-opens-good
+for w in new-file more stale noreason; do expect fail "stray-opens-$w" stray_opens "stray-opens-$w" "$w"; done
+
+# ---- studio_checks.sh (the Studio preview's budget, lint and registry-coverage checks) ---------------------------
+# A small tree with the files the checks read: a registry of two commands, the docs naming both, a test naming both, a
+# crate with one dependency (budget 2), clean production code. Each case breaks one thing.
+studio_tree() {
+  local t=$1 s=$t/crates/ob-studio
+  rm -rf "$t"; mkdir -p "$t/scripts/checks" "$s/src" "$s/tests" "$t/docs/modding" "$t/crates/dep/src"
+  cp "$HERE/studio_checks.sh" "$HERE/studio_checks.py" "$t/scripts/checks/"
+  printf '# s\nbudget ob-studio 2\n' > "$t/scripts/checks/studio-checks.txt"
+  printf 'pub const COMMANDS: &[Command] = &[\n  Command { name: "props.move", kind: K, args: &[] },\n  Command { name: "pack.create", kind: K, args: &[] },\n];\n' > "$s/src/registry.rs"
+  printf 'pub fn f() { let _ = 1; }\n' > "$s/src/lib.rs"
+  printf '`props move` and `pack create`\n' > "$t/docs/modding/studio-cli.md"
+  printf '#[test] fn t() { run(&["props", "move"]); run(&["pack", "create"]); }\n' > "$s/tests/cli.rs"
+  printf '[workspace]\nmembers = ["crates/ob-studio", "crates/dep"]\nresolver = "2"\n' > "$t/Cargo.toml"
+  printf '[package]\nname = "ob-studio"\nversion = "0.1.0"\nedition = "2021"\n[dependencies]\ndep = { path = "../dep" }\n' > "$s/Cargo.toml"
+  printf '[package]\nname = "dep"\nversion = "0.1.0"\nedition = "2021"\n' > "$t/crates/dep/Cargo.toml"
+  : > "$t/crates/dep/src/lib.rs"
+  (cd "$t" && CARGO_TARGET_DIR="$t/target" cargo generate-lockfile --offline > /dev/null 2>&1)
+}
+studio_checks() {
+  local c=$1 what=${2:-} t="$O/$1" s="$O/$1/crates/ob-studio"
+  studio_tree "$t"
+  case $what in
+    todo) printf 'pub fn g() { todo!() }\n' >> "$s/src/lib.rs" ;;
+    print) printf 'pub fn g() { println!("x"); }\n' >> "$s/src/lib.rs" ;;
+    stale-print-ok) printf 'print-ok crates/ob-studio/src/lib.rs says why\n' >> "$t/scripts/checks/studio-checks.txt" ;;
+    budget) printf '[package]\nname = "dep2"\nversion = "0.1.0"\nedition = "2021"\n' > /dev/null
+            mkdir -p "$t/crates/dep2/src"; : > "$t/crates/dep2/src/lib.rs"
+            printf '[package]\nname = "dep2"\nversion = "0.1.0"\nedition = "2021"\n' > "$t/crates/dep2/Cargo.toml"
+            printf '\ndep2 = { path = "../dep2" }\n' >> "$s/Cargo.toml"
+            sed -i 's|"crates/dep"\]|"crates/dep", "crates/dep2"]|' "$t/Cargo.toml"
+            (cd "$t" && cargo generate-lockfile --offline > /dev/null 2>&1) ;;
+    loose-budget) printf '# s\nbudget ob-studio 9\n' > "$t/scripts/checks/studio-checks.txt" ;;
+    undocumented) printf '`props move`\n' > "$t/docs/modding/studio-cli.md" ;;
+    untested) printf '#[test] fn t() { run(&["props", "move"]); }\n' > "$s/tests/cli.rs" ;;
+    new-command) sed -i 's|^\];|  Command { name: "props.spin", kind: K, args: \&[] },\n];|' "$s/src/registry.rs"
+                 printf '`props spin`\n' >> "$t/docs/modding/studio-cli.md" ;;
+  esac
+  CARGO_TARGET_DIR="$t/target" bash "$t/scripts/checks/studio_checks.sh" "$t"
+}
+expect pass studio-checks-good studio_checks studio-checks-good
+for w in todo print stale-print-ok budget loose-budget undocumented untested new-command; do
+  expect fail "studio-checks-$w" studio_checks "studio-checks-$w" "$w"; done
+
+# ---- wasm32.sh (the packages on the `wasm` line build for the web) -------------------------------------------------
+wasm32() {
+  local t="$O/$1"; rm -rf "$t"; mkdir -p "$t/src"
+  printf '[package]\nname = "w"\nversion = "0.1.0"\nedition = "2021"\n' > "$t/Cargo.toml"
+  printf 'wasm w\n' > "$t/crate-layers.txt"
+  if [ "${2:-}" = bad ]; then printf '#[cfg(target_arch = "wasm32")] compile_error!("not for the web");\n' > "$t/src/lib.rs"; else : > "$t/src/lib.rs"; fi
+  (cd "$t" && CARGO_TARGET_DIR="$t/target" cargo generate-lockfile --offline > /dev/null 2>&1)
+  CARGO_TARGET_DIR="$t/target" bash "$HERE/wasm32.sh" "$t" "$t/crate-layers.txt"
+}
+if rustup target list --installed 2> /dev/null | grep -qx wasm32-unknown-unknown; then
+  expect pass wasm32-good wasm32 wasm32-good
+  expect fail wasm32-breaks wasm32 wasm32-breaks bad
+else echo "wasm32 cases: skipped (target not installed)"; fi
 
 # ---- cases of the maintainer's own release tools (selfcheck.d/*.sh, sourced here; not in public checkouts) -------
 rel_cases=0
@@ -406,24 +540,34 @@ expect fail player-new-log player player-new-log '/p/data/logs/game-20260101-100
 expect fail player-log-gone player player-log-gone
 expect fail player-other-file-grew player player-other-file-grew '/p/data/logs/game-20260101-100000.log\tf\t500\t2.0' '/p/data/options.txt\tf\t5\t3.0'
 
-# A game that uses the player's folders is seen (ck_player_games, ck_player_watch); one with its own cache folder is not.
-# The stand-in is a copy of sleep named game.
+# A game or Studio that uses the player's folders is seen (ck_player_games, ck_player_watch); one with its own cache or
+# data folder, or under a fake home (a test's portable-mode run), is not. The stand-in is a copy of sleep with the
+# program's name; $2 is that name (default game).
 player_game() {
-  local d="$O/player-game-$1" pid rc=0
-  rm -rf "$d"; mkdir -p "$d"; cp "$(command -v sleep)" "$d/game"
-  if [ "$1" = own-cache ]; then NFSU2_CACHE_DIR="$d/cache" "$d/game" 20 & pid=$!
-  else env -u NFSU2_CACHE_DIR "$d/game" 20 & pid=$!; fi
+  local n=${2:-game} d="$O/player-game-$1-${2:-game}" pid rc=0
+  rm -rf "$d"; mkdir -p "$d"; cp "$(command -v sleep)" "$d/$n"
+  case $1 in
+    own-cache) NFSU2_CACHE_DIR="$d/cache" "$d/$n" 20 & pid=$! ;;
+    own-data) env -u NFSU2_CACHE_DIR NFSU2_DATA_DIR="$d/data" "$d/$n" 20 & pid=$! ;;
+    fake-home) env -u NFSU2_CACHE_DIR HOME="$d/home" "$d/$n" 20 & pid=$! ;;
+    *) env -u NFSU2_CACHE_DIR "$d/$n" 20 & pid=$! ;;
+  esac
   ( . "$HERE/../lib/common.sh"
     ck_player_watch "$d/seen.txt"; sleep 1
-    for _ in 1 2 3 4 5 6 7 8; do grep -qxF "$d/game" "$d/seen.txt" && break; sleep 0.5; done
+    for _ in 1 2 3 4 5 6 7 8; do grep -qxF "$d/$n" "$d/seen.txt" && break; sleep 0.5; done
     ck_player_watch_stop
     now=$(ck_player_games)
-    grep -qxF "$d/game" <<< "$now" && grep -qxF "$d/game" "$d/seen.txt" ) || rc=1
+    grep -qxF "$d/$n" <<< "$now" && grep -qxF "$d/$n" "$d/seen.txt" ) || rc=1
   kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
   return $rc
 }
 expect pass player-game-seen player_game players-folders
+expect pass player-studio-seen player_game players-folders overbright-studio
+expect pass player-editor-seen player_game players-folders overbright-editor
 expect fail player-game-with-own-cache-not-seen player_game own-cache
+expect fail player-game-with-own-data-not-seen player_game own-data
+expect fail player-game-under-a-fake-home-not-seen player_game fake-home
+expect fail player-studio-with-own-data-not-seen player_game own-data overbright-studio
 
 echo
 if [ ${#BAD[@]} = 0 ]; then echo "SELFCHECK: PASS ($N cases)"; exit 0; fi

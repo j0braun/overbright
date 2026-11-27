@@ -34,99 +34,33 @@ mod testkit_tests {
     }
 }
 
-pub mod ai;
 pub mod asset_layer;
-pub mod ai_looks;
-pub mod carfx_pops;
-pub mod track_camera;
-pub mod audio;
-pub mod car;
-pub mod character;
-pub mod chase;
-pub mod collision;
-pub mod contact;
-pub mod drift;
-pub mod style;
-pub mod drive;
-pub mod event_camera;
-pub mod difficulty;
-pub mod dyno;
-pub mod fog;
-pub mod latency;
-pub mod extras;
-pub mod replay_cams;
-pub mod racer_reset;
-pub mod interpolate;
 #[cfg(feature = "mimalloc")]
 pub mod allocator;
-pub mod frontend;
-pub mod garage;
-pub mod part_anim;
-pub mod glow;
-pub mod ground;
-pub mod narrow;
-pub mod nitrous;
-pub mod opponents;
-pub mod outrun;
-pub mod pad;
-pub mod particles;
-pub mod performance;
-pub mod photo;
 pub mod qol;
-pub mod race;
-pub mod rear_view;
-pub mod screen_flash;
-pub mod screen_tint;
-pub mod sky;
-pub mod smackable;
-pub mod standings;
-pub mod tuning;
-pub mod handling;
-pub mod hydraulics;
-pub mod horizon_fog;
-pub mod motion_blur;
-pub mod melo;
-pub mod model_fixes;
-pub mod car_smooth;
-pub mod movie;
-pub mod game_assets;
-pub mod render;
-pub mod neon_quality;
-pub mod surface_maps;
-pub mod rng_sites;
-pub mod upscale;
-pub mod upscale_pack;
-pub mod tpf_import;
-pub mod texture_mods;
-pub mod texwizard_import;
-pub mod hud_mod;
-pub mod shadow;
-pub mod shop_scene;
-pub mod weather;
-pub mod world;
+pub use ob_render::{rear_view, render, sky};
+#[cfg(test)]
+mod render_tests;
 // The opt-in modding tools (texture and map editors; docs/modding/texture-editor.md).
 pub mod tools;
 // The one interface Studio's crates use into this library (crates/ob-studio, crates/ob-studio-gui).
 pub mod studio_api;
 // Overbright's own texture-pack format (docs/modding/texture-packs.md).
-pub mod obpack;
 // Quality tooling (docs/playing/mark-spot.md).
 /// The launcher (`overbright`, docs/launcher.md).
 pub mod launcher;
 /// The game↔launcher contract (probe and prepare formats, the error
 /// kinds, the shared look's tokens): what the game names of the launcher.
 pub mod launch;
-pub mod mark_spot;
 
 /// The library's build id (build_support/build_id.rs): the asset caches its
 /// code makes are named and checked by it.
 pub const BUILD_ID: cache::BuildId = cache::BuildId::from_hex(env!("OB_BUILD_ID"));
 
 
-pub mod hd_ui_pack;
 
-// Performance overlay (docs/notes/performance/overlay.md).
-pub mod overlay;
+// The menus layer, crates/ob-menus: the front end and the performance overlay at their old paths.
+pub use ob_menus::{frontend, overlay};
 
 // The bottom layer, crates/ob-core (ARCHITECTURE.md "Layers"): its modules
 // at their old paths. The parts of `cache`, `diag`, `platform` and `prof`
@@ -137,6 +71,25 @@ pub use ob_core::{
     region,
 };
 pub use ob_core::{input, race_mode};
+// The asset layer, crates/ob-assets (ARCHITECTURE.md "Layers"): its modules at their old paths. The parts that need
+// the menus, the renderer or the simulation (`game_assets`' and `world`'s tests, `tools::map::assets`, the pack
+// loader's tests, the effect controller, the surface maps' GPU code) stay here, beside the re-exported rest.
+pub mod game_assets;
+pub mod world;
+pub use ob_assets::{
+    car, car_smooth, character, collision, fog, glow, ground, handling, hd_ui_pack, horizon_fog, hud_mod, mod_packs,
+    model_fixes, motion_blur, movie, narrow, neon_quality, nitrous, obpack, part_anim, particles, performance, race,
+    shadow, surface_maps, texture_mods, texwizard_import, tpf_import, tuning, upscale, upscale_pack,
+};
+// The settings store and the extras' options, crates/ob-settings (`qol::setup` is the asset crate's).
+pub use ob_settings::extras;
+// The simulation layer, crates/ob-sim: its modules at their old paths (the audio cues' data it posts, `audio::car::
+// pushes`, `audio::car::scripted`, `audio::world::impacts`, and the effect controller are re-exported where they were).
+pub use ob_sim::{
+    ai, ai_looks, carfx_pops, track_camera, chase, contact, drift, style, drive, event_camera, difficulty, dyno, latency, replay_cams, racer_reset, interpolate, garage, opponents, outrun, pad, photo, smackable, standings, hydraulics, weather, mark_spot, rng_sites, shop_scene, melo, screen_flash, screen_tint,
+};
+// The audio layer, crates/ob-audio: the `audio` module at its old path.
+pub use ob_audio::audio;
 pub use ob_core::{env_parsed, env_set, env_value, env_value_os, game_root, persist, persist_enum, unique_tag};
 
 // The file-format parsers and the engine's tables (docs/original/exe-tables.md),
@@ -161,25 +114,11 @@ pub mod diag {
 pub mod platform {
     pub use ob_core::platform::*;
     pub mod icon;
-    pub mod monitor;
+    pub use ob_render::platform::monitor;
 }
 
-/// Timings (`ob_core::prof`) and the GPU's.
+/// Timings (`ob_core::prof`) and the GPU's (crates/ob-render).
 pub mod prof {
     pub use ob_core::prof::*;
-    /// GPU time per part of the frame, from timestamp queries (the bench
-    /// turns them on; a no-op otherwise, and on devices without
-    /// [`gpu::FEATURES`]). `gpu::mark(encoder, "x")` writes a timestamp
-    /// after the commands recorded so far: the time since the previous mark
-    /// goes to "x". Each encoder of a frame starts with a mark of its own
-    /// ([`gpu::GAP`]), so the GPU's wait between submissions is not charged
-    /// to a part.
-    ///
-    /// The read-back never stalls the frame: each frame's marks go to one of
-    /// [`gpu::RING`] query sets, resolved and copied after the frame's last
-    /// submission ([`gpu::end_frame`]) and mapped asynchronously; a frame is
-    /// read when its map has completed, a few frames later (`device.poll`
-    /// without waiting). Only when the ring comes round to a set still being
-    /// read does it wait, for that set alone.
-    pub mod gpu;
+    pub use ob_render::prof::gpu;
 }
