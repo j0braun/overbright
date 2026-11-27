@@ -1780,6 +1780,7 @@ dependencies = [
  "miniz_oxide 0.8.9",
  "ob-asset-format",
  "ob-assets",
+ "ob-audio",
  "ob-core",
  "ob-formats",
  "ob-look",
@@ -1921,6 +1922,20 @@ dependencies = [
  "toml",
  "wgpu",
  "xxhash-rust",
+]
+
+[[package]]
+name = "ob-audio"
+version = "0.6.3"
+dependencies = [
+ "cpal",
+ "glam",
+ "log",
+ "ob-assets",
+ "ob-core",
+ "ob-formats",
+ "ob-sim",
+ "ob-testkit",
 ]
 
 [[package]]

@@ -7,12 +7,12 @@ crate ob-core crates/ob-core/src
 crate ob-formats crates/ob-formats/src
 crate ob-map crates/ob-map/src
 crate ob-settings crates/ob-settings/src
-# The middle layers (settings, assets, simulation, audio, render, menus) are still modules of the library; the
-# check keeps their references pointing down until they move into crates of their own. Audio, render and the
-# menus are listed in a line (audio, then render, then the menus), so a reference up that line is refused too.
+# The middle layers (render, menus) are still modules of the library; the check keeps their references pointing
+# down until they move into crates of their own. Render and the menus are listed in a line (render, then the
+# menus), so a reference up that line is refused too.
 crate ob-assets crates/ob-assets/src
 crate ob-sim crates/ob-sim/src
-crate ob-audio src
+crate ob-audio crates/ob-audio/src
 crate ob-render src
 crate ob-frontend src
 crate nfsu2 src
@@ -191,6 +191,7 @@ package ob-map
 package ob-settings
 package ob-assets
 package ob-sim
+package ob-audio
 package nfsu2
 package ob-studio
 package ob-studio-gui
@@ -204,6 +205,7 @@ forbid ob-map wgpu winit cpal egui
 forbid ob-settings winit cpal egui
 forbid ob-assets winit cpal egui
 forbid ob-sim winit cpal egui
+forbid ob-audio winit egui
 forbid ob-look wgpu winit cpal egui
 forbid nfsu2 egui
 forbid ob-studio egui
