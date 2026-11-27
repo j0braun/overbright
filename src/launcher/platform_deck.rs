@@ -285,7 +285,12 @@ pub fn pad_view_held() -> bool {
         while g.next_event().is_some() {}
         std::thread::sleep(Duration::from_millis(10));
     }
-    g.gamepads().any(|(_, p)| pad_says_held(&|b| p.is_pressed(b)))
+    // A pad that reports more buttons held than a hand presses is not read
+    // correctly (`pad_filter::MAX_HELD`): it holds nothing.
+    g.gamepads().any(|(_, p)| {
+        p.state().buttons().filter(|(_, d)| d.is_pressed()).count() <= super::pad_filter::MAX_HELD
+            && pad_says_held(&|b| p.is_pressed(b))
+    })
 }
 
 /// The buttons that count as "held at start".

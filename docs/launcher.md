@@ -272,7 +272,12 @@ shows a busy line and greys the actions meanwhile; the page takes no input while
   by click.
   Gamepad (gilrs directly; the game's `pad::host` maps to game actions, not
   menu keys): d-pad / left stick move, A / Start use, B back, LB / RB =
-  Shift+Tab / Tab.
+  Shift+Tab / Tab. What a pad reports in its first 500 ms after it connects
+  is its state, not a press (a button held then counts once let go and
+  pressed again), and a pad that reports more than three buttons held at
+  once is not read correctly (a wired Switch Pro Controller on Windows
+  without its driver): its input is ignored until they are let go, and the
+  log says so (`launcher::pad_filter`).
 - Scale: unit u = min(w/960, h/720), at least 0.75 × the display scale
   (body text ≥ 14 px at 100 %); content at most 1100 u wide, centred; a
   screen that does not fit is rebuilt smaller down to that floor, then the
