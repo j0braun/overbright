@@ -17,6 +17,8 @@ pub const DIR: &str = "link";
 pub const COMMAND: &str = "command.txt";
 /// The game's file: its state.
 pub const STATE: &str = "game.txt";
+/// The game's file: what it loaded for the run (written only when asked, [`Op::Loaded`]).
+pub const LOADED: &str = "loaded.txt";
 /// How long the game's last sign of life counts as connected (it writes one
 /// about twice a second).
 pub const ALIVE_MS: u64 = 3000;
@@ -59,6 +61,8 @@ pub enum Op {
     Probe,
     /// End the run (a headless simulation has no window to close).
     Stop,
+    /// Opt-in probe: the game writes what it loaded for the run ([`Loaded`], `loaded.txt`) and answers.
+    Loaded,
 }
 
 impl Op {
@@ -68,6 +72,7 @@ impl Op {
             Op::Restart => "restart",
             Op::Probe => "probe",
             Op::Stop => "stop",
+            Op::Loaded => "loaded",
         }
     }
 }
@@ -169,6 +174,7 @@ impl Command {
                         "restart" => Some(Op::Restart),
                         "probe" => Some(Op::Probe),
                         "stop" => Some(Op::Stop),
+                        "loaded" => Some(Op::Loaded),
                         _ => None,
                     }
                 }
@@ -270,11 +276,92 @@ pub fn read_state(dir: &Path) -> Option<GameState> {
     GameState::parse(&std::fs::read_to_string(dir.join(STATE)).ok()?)
 }
 
+/// What the game loaded for a test run (the "what did the game load" probe): the mod it applies, where it read
+/// it from, how much of it, and the texture folders it looks into.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct Loaded {
+    pub folder: String,
+    /// The file the mod was read from (the unsaved layer for a Studio run).
+    pub file: String,
+    pub moved: usize,
+    pub deleted: usize,
+    pub added: usize,
+    pub races: usize,
+    pub collision: usize,
+    /// Texture folders in use (world, then car) with their file counts.
+    pub textures: Vec<(String, usize)>,
+}
+
+impl Loaded {
+    /// `mod=x file=… moved=1 deleted=0 added=2 races=1 collision=0` then a `texture=<n> <folder>` line each.
+    pub fn text(&self) -> String {
+        let one = |s: &str| s.replace(['\n', '\r'], " ");
+        let mut t = format!(
+            "mod={}\nfile={}\nmoved={}\ndeleted={}\nadded={}\nraces={}\ncollision={}\n",
+            one(&self.folder), one(&self.file), self.moved, self.deleted, self.added, self.races, self.collision
+        );
+        for (d, n) in &self.textures {
+            t += &format!("texture={n} {}\n", one(d));
+        }
+        t
+    }
+
+    pub fn parse(text: &str) -> Option<Loaded> {
+        let mut l = Loaded::default();
+        let mut seen = false;
+        for (k, v) in text.lines().filter_map(|x| x.split_once('=')) {
+            let n = || v.parse::<usize>().unwrap_or(0);
+            match k {
+                "mod" => (l.folder, seen) = (v.to_string(), true),
+                "file" => l.file = v.to_string(),
+                "moved" => l.moved = n(),
+                "deleted" => l.deleted = n(),
+                "added" => l.added = n(),
+                "races" => l.races = n(),
+                "collision" => l.collision = n(),
+                "texture" => {
+                    let (c, d) = v.split_once(' ')?;
+                    l.textures.push((d.to_string(), c.parse().ok()?));
+                }
+                _ => {}
+            }
+        }
+        seen.then_some(l)
+    }
+
+    /// One line for the status bar.
+    pub fn words(&self) -> String {
+        let files: usize = self.textures.iter().map(|t| t.1).sum();
+        format!(
+            "The game loaded `{}`: {} moved, {} deleted, {} added props, {} races, {} collision edits, {} texture files in {} folders",
+            self.folder, self.moved, self.deleted, self.added, self.races, self.collision, files, self.textures.len()
+        )
+    }
+}
+
+pub fn write_loaded(dir: &Path, l: &Loaded) -> std::io::Result<()> {
+    crate::platform::fs::write_atomic(&dir.join(LOADED), l.text().as_bytes(), false)
+}
+
+pub fn read_loaded(dir: &Path) -> Option<Loaded> {
+    Loaded::parse(&std::fs::read_to_string(dir.join(LOADED)).ok()?)
+}
+
+/// Remove the layer of `folder` once no run of the data folder `dir` (the maps folder) is open any more, so no
+/// stale unsaved copy lies about. True: it was removed.
+pub fn drop_layer_when_idle(dir: &Path, folder: &str) -> bool {
+    if Slot::live(&Slot::dir(dir)) > 0 {
+        return false;
+    }
+    std::fs::remove_file(super::store::run_file(dir, folder)).is_ok()
+}
+
 /// Clear the folder's files before a run starts (a leftover state of an
 /// earlier game must not read as a connected one).
 pub fn clear(dir: &Path) {
     let _ = std::fs::remove_file(dir.join(COMMAND));
     let _ = std::fs::remove_file(dir.join(STATE));
+    let _ = std::fs::remove_file(dir.join(LOADED));
 }
 
 /// One of the few places for a running game (a test window or a
@@ -357,11 +444,36 @@ mod tests {
     use super::*;
 
     #[test]
+    fn what_the_game_loaded_round_trips_and_is_cleared() {
+        let d = std::env::temp_dir().join(format!("ob-link-loaded-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let l = Loaded {
+            folder: "docks".into(),
+            file: "/m/docks/.editor/run/map.obmap".into(),
+            moved: 2,
+            deleted: 1,
+            added: 3,
+            races: 1,
+            collision: 4,
+            textures: vec![("/m/docks/textures/world".into(), 5), ("/m/docks/textures/car".into(), 0)],
+        };
+        assert_eq!(Loaded::parse(&l.text()), Some(l.clone()));
+        assert_eq!(Loaded::parse("nothing"), None);
+        assert!(l.words().contains("2 moved") && l.words().contains("5 texture files in 2 folders"), "{}", l.words());
+        write_loaded(&d, &l).unwrap();
+        assert_eq!(read_loaded(&d), Some(l));
+        clear(&d);
+        assert_eq!(read_loaded(&d), None, "an earlier run's answer is not kept");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
     fn commands_and_states_round_trip() {
         for c in [
             Command { seq: 1, op: Op::Apply, aim: None, focus: None },
             Command { seq: 2, op: Op::Probe, aim: None, focus: None },
             Command { seq: 3, op: Op::Stop, aim: None, focus: None },
+            Command { seq: 8, op: Op::Loaded, aim: None, focus: None },
             Command { seq: 4, op: Op::Restart, aim: None, focus: Some(Focus { car: Some("240SX".into()), clock: Some(600.5) }) },
             Command { seq: 5, op: Op::Restart, aim: Some(Aim::Race("a".into())), focus: Some(Focus::default()) },
             Command { seq: 7, op: Op::Restart, aim: Some(Aim::Race("dock_sprint".into())), focus: None },

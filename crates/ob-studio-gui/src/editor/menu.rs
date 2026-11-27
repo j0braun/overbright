@@ -98,11 +98,15 @@ pub enum Command {
     RestartTest,
     /// Drive to record: a test run whose drive is kept as a run (Runs).
     RecordDrive,
+    /// Test race with the selected props' edits left out of the test layer, for this one run.
+    TestWithout,
+    /// Ask the open test game what it loaded (the opt-in probe).
+    WhatLoaded,
 }
 
 impl Command {
     /// Every command, for the test that each one has a taker.
-    pub const ALL: [Command; 14] = [
+    pub const ALL: [Command; 16] = [
         Command::Duplicate,
         Command::Delete,
         Command::RemoveWall,
@@ -117,6 +121,8 @@ impl Command {
         Command::DriveHere,
         Command::RestartTest,
         Command::RecordDrive,
+        Command::TestWithout,
+        Command::WhatLoaded,
     ];
 
     /// What the menu item says when hovered (the test modes say who
@@ -146,6 +152,7 @@ impl Command {
                 Some("Select a prop first")
             }
             Command::Delete if s.mode == Mode::Races && s.point.is_none() => Some("Select a race point first"),
+            Command::TestWithout if s.selection.is_empty() => Some("Select the props to leave out first"),
             Command::RemoveWall => match &s.wall {
                 None => Some("Select a wall first (View ▸ Collision shows them)"),
                 Some(p) if super::collision::is_barrier(p) => {
@@ -769,6 +776,8 @@ pub fn race_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     command(ui, s, "Drive here", "Shift+F5", Command::DriveHere);
     command(ui, s, "Restart race", "Ctrl+F5", Command::RestartTest);
     command(ui, s, "Drive to record", "", Command::RecordDrive);
+    command(ui, s, "Test without selected props", "", Command::TestWithout);
+    command(ui, s, "What the game loaded", "", Command::WhatLoaded);
     ui.separator();
     let why = s.is_none().then_some("Open a map mod first");
     if item_why(ui, "Test car and clock…", "", why) {
@@ -1447,7 +1456,7 @@ mod tests {
                     });
                     s.point = Some(RacePoint { part: RacePart::Checkpoint, index: 0 });
                     s.maps = match c {
-                        Command::TestRace | Command::DriveHere | Command::RecordDrive => not_a_folder.clone(),
+                        Command::TestRace | Command::DriveHere | Command::RecordDrive | Command::TestWithout => not_a_folder.clone(),
                         _ => dir.path().join("maps"),
                     };
                     if c.unavailable(s).is_some() {
@@ -1458,9 +1467,11 @@ mod tests {
                     let _ = app.frame(raw());
                     assert!(app.untaken.is_empty(), "{c:?} not taken in {mode:?} / {view:?}");
                     let s = app.state.as_ref().unwrap();
-                    if matches!(c, Command::TestRace | Command::DriveHere | Command::RecordDrive) {
+                    if matches!(c, Command::TestRace | Command::DriveHere | Command::RecordDrive | Command::TestWithout) {
                         assert!(
-                            s.status.starts_with("The run copy was not written") || s.status.starts_with("Cannot test"),
+                            s.status.starts_with("The run copy was not written")
+                                || s.status.starts_with("Cannot test")
+                                || s.status.starts_with("Nothing to leave out"),
                             "{c:?}: {}",
                             s.status
                         );

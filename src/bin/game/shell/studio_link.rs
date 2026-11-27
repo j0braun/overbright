@@ -42,7 +42,45 @@ fn current_mod() -> Option<(String, nfsu2::tools::map::MapMod)> {
     nfsu2::tools::map::active().first().cloned()
 }
 
+/// Files under `dir`, counted (the textures a run looks into).
+fn files_under(dir: &std::path::Path) -> usize {
+    let Ok(rd) = std::fs::read_dir(dir) else { return 0 };
+    rd.flatten().map(|e| if e.path().is_dir() { files_under(&e.path()) } else { 1 }).sum()
+}
+
+/// What this run loaded (the opt-in probe, `Op::Loaded`).
+fn loaded() -> link::Loaded {
+    use nfsu2::tools::map::PropEdit;
+    let mut l = link::Loaded::default();
+    if let Some((folder, m)) = current_mod() {
+        l.folder = folder;
+        l.races = m.races.len();
+        l.collision = m.collision.len();
+        for e in &m.props {
+            match e {
+                PropEdit::Move { .. } => l.moved += 1,
+                PropEdit::Delete { .. } => l.deleted += 1,
+                PropEdit::Add { .. } => l.added += 1,
+            }
+        }
+    }
+    if let Some(o) = nfsu2::tools::map::only() {
+        l.file = o.path(&nfsu2::tools::map::store::maps_dir()).display().to_string();
+    }
+    for car in [false, true] {
+        for d in nfsu2::tools::map::texture_roots(car) {
+            l.textures.push((d.display().to_string(), files_under(&d)));
+        }
+    }
+    l
+}
+
 impl Link {
+    /// Write what the run loaded (`loaded.txt`) for Studio.
+    fn answer_loaded(&mut self) -> Result<(), String> {
+        link::write_loaded(&self.dir, &loaded()).map_err(|e| format!("what was loaded could not be written: {e}"))
+    }
+
     pub(crate) fn new(dir: std::path::PathBuf) -> Link {
         log::info!("map test: Studio link {}", dir.display());
         let mut l = Link { dir, seen: 0, polled: std::time::Instant::now(), beat: std::time::Instant::now(), ok: true, note: String::new(), turns: 0, known: current_mod().map(|m| m.1), done: String::new(), cap: None };
@@ -93,6 +131,11 @@ impl Link {
                 self.finish(Ok(()), c.seq);
                 return c.op == Op::Stop;
             }
+            Op::Loaded => {
+                let r = self.answer_loaded();
+                self.finish(r, c.seq);
+                return false;
+            }
             Op::Apply | Op::Restart => {}
         }
         let r = apply(game, test, &c, &mut self.known, &mut self.done);
@@ -115,6 +158,7 @@ impl Link {
         let Some(c) = self.next() else { return false };
         let r = match c.op {
             Op::Probe | Op::Stop => Ok(()),
+            Op::Loaded => self.answer_loaded(),
             Op::Apply | Op::Restart => Err("a simulation is not started over; start another".to_string()),
         };
         self.finish(r, c.seq);
@@ -251,6 +295,22 @@ mod tests {
         }
         let mut l = Link::new(d.clone());
         assert!(!l.poll_headless(), "no cap, no stop");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// The opt-in probe: asked, the run writes what it loaded; nothing is written otherwise.
+    #[test]
+    fn the_run_says_what_it_loaded_only_when_asked() {
+        let d = std::env::temp_dir().join(format!("ob-link-loaded-run-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        let mut l = Link::new(d.clone());
+        send(&d, 1, Op::Probe);
+        assert!(!l.poll_headless());
+        assert!(link::read_loaded(&d).is_none(), "a probe does not write it");
+        send(&d, 2, Op::Loaded);
+        assert!(!l.poll_headless());
+        assert!(link::read_state(&d).unwrap().ok);
+        assert!(link::read_loaded(&d).is_some(), "asked, written");
         let _ = std::fs::remove_dir_all(&d);
     }
 

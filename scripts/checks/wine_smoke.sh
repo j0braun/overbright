@@ -44,6 +44,9 @@
 #               present, MESA_VK_WSI_DEBUG=sw: Xvfb has no DRI3): reads the monitor and its modes (a display
 #               mode without its fields must not stop it, docs/notes/graphics/resolutions.md), starts and reaches the title
 #               screen ("boot: the title screen"; Enter skips the boot movies), no panic line
+#   w_link      Studio's link: `game.exe --simulate-world --studio-link` on a map mod made here; the files are written as
+#               Studio writes them: a probe and the opt-in "what did the game load" question are answered (game.txt,
+#               loaded.txt) and a stop ends the run, no panic line
 #   l_play      the launcher with "Start the game directly" set starts game.exe beside it: the game's own log
 #               (in the launcher's data folder) reaches the title screen, no panic line in either log
 # The map editor (overbright-editor.exe beside the build's game: $WINE_EDITOR, else dist/windows/overbright-editor.exe;
@@ -259,6 +262,53 @@ check_window() { # EXE
   local snd; snd=$(sound_lines "$O/w_window.log" "$O"/tmp/w_window/logs/game-*.log)
   local ok=ok; [ "$TITLE" = 1 ] && [ "$BAD" = 0 ] && [ "$snd" = 0 ] || ok=no
   result w_window $ok "$(( $(date +%s) - t )) s: title screen $([ "$TITLE" = 1 ] && echo reached || echo NOT reached), panic=$BAD, sound device lines=$snd; $(grep -m1 -oE 'monitor Some.*Resolution list rebuilt' "$O/w_window.log" | cut -c1-90)"
+}
+# check_link EXE: Studio's link (docs/modding/map-editor.md, "The test window stays open") under Wine: a headless
+# simulation of a map mod made here is started with `--studio-link`; the files in the link folder are written by this
+# script as Studio writes them (`command.txt`) and read as Studio reads them (`game.txt`, `loaded.txt`): a probe is
+# answered, the opt-in "what did the game load" question is answered with a `loaded.txt`, and a stop ends the run.
+# The link is plain files, so there is no pipe to check; what Wine can break is the atomic rename and the file times.
+link_send() { # DIR SEQ OP: one command, through a temporary file as Studio writes it
+  printf 'seq=%s op=%s\n' "$2" "$3" > "$1/command.tmp" && mv -f "$1/command.tmp" "$1/command.txt"
+}
+link_wait() { # DIR SEQ SECS: until game.txt says it dealt with command SEQ
+  local i
+  for ((i = 0; i < $3 * 2; i++)); do
+    grep -q " seq=$2 .* ok=yes" "$1/game.txt" 2> /dev/null && return 0
+    sleep 0.5
+  done
+  return 1
+}
+check_link() { # EXE
+  local d="$O/tmp/w_link"; rm -rf "$d"; mkdir -p "$d/data/maps/smoke" "$d/link"
+  printf 'overbright-map 1\nname = Wine link\n' > "$d/data/maps/smoke/map.obmap"
+  local t=$(date +%s) ok=ok why=""
+  W NFSU2_ROOT="$ROOT_W" NFSU2_DATA_DIR="$(wp "$d/data")" TMP="$(wp "$d")" TEMP="$(wp "$d")" NFSU2_NO_PADS=1 NFSU2_HEADLESS_ONLY=1 \
+    RUST_LOG="${RUST_LOG:-info},naga=warn,wgpu_hal=warn,wgpu_core=warn" \
+    timeout 240 wine "$1" --map-mod smoke --map-at -220.79,-1577.06,13.61,0 --simulate-world --sim-seconds 86400 --stream "$(wp "$d/out.run")" \
+    --studio-link "$(wp "$d/link")" --map-mem-cap 8192 > "$O/w_link.log" 2>&1 &
+  local pid=$!
+  # The game is up when its state file says so (the world load comes first).
+  local i
+  for ((i = 0; i < 240; i++)); do [ -s "$d/link/game.txt" ] && break; kill -0 $pid 2> /dev/null || break; sleep 1; done
+  if [ ! -s "$d/link/game.txt" ]; then ok=no; why="no game.txt: the game did not come up under Wine ($(grep -v MESA "$O/w_link.log" | tail -1 | cut -c1-100))"; fi
+  if [ $ok = ok ]; then
+    link_send "$d/link" 1 probe; link_wait "$d/link" 1 20 || { ok=no; why="the probe was not answered"; }
+  fi
+  if [ $ok = ok ]; then
+    link_send "$d/link" 2 loaded; link_wait "$d/link" 2 20 && grep -q '^mod=smoke' "$d/link/loaded.txt" 2> /dev/null \
+      || { ok=no; why="the loaded probe was not answered"; }
+  fi
+  if [ $ok = ok ]; then
+    link_send "$d/link" 3 stop
+    for ((i = 0; i < 60; i++)); do kill -0 $pid 2> /dev/null || break; sleep 1; done
+    kill -0 $pid 2> /dev/null && { ok=no; why="the run did not end on stop"; }
+  fi
+  WINEPREFIX="$O/prefix" wineserver -k > /dev/null 2>&1
+  wait $pid 2> /dev/null
+  BAD=$(ck_bad "$O/w_link.log")
+  [ "$BAD" = 0 ] || { ok=no; why="$why panic=$BAD"; }
+  result w_link $ok "$(( $(date +%s) - t )) s: probe, loaded and stop over the link${why:+: $why}"
 }
 # check_play LAUNCHER_EXE: the launcher with "Start the game directly" set starts the game beside it, as a
 # player's double-click does: the game's own log (in the launcher's data folder) reaches the title screen.
@@ -543,6 +593,7 @@ say "private set $PRIV as $PRIV_W"
 
 if [ "$SELFCHECK" = 0 ]; then
   check_window "$O/exe/game.exe"
+  check_link "$O/exe/game.exe"
   check_harness "$O/exe/game.exe"
   check_version "$O/exe/game.exe"
   check_game "$O/exe/game.exe" "$ROOT_W"

@@ -1,18 +1,21 @@
 # Overbright Studio
 
 > **Preview.** Studio's window, `overbright-studio`, is the shell the map editor and the later workspaces move
-> into. This version has the shell, Home, the map editor as the World and Races workspaces, the Changes page and the
-> Mod page.
+> into. This version has the shell, Home, the map editor as the World and Races workspaces, the Browser, Runs, the
+> Changes and Data pages and the Mod page.
 > `overbright-editor` ([Map editor](map-editor.md)) still opens the same editor in a window of its own. For starting
 > Studio and what this preview leaves out, see [Getting started with Studio](studio-start.md).
 
 ```
 overbright-studio [--mod <name|folder>] [--maps <dir>]
 overbright-studio --shot out.png [--size WxH] [--scale F] [--mod <folder>] [--maps <dir>]
-                  [--workspace home|world|races|mod|settings|changes] [--input mouse|keyboard|xbox|playstation|deck]
+                  [--workspace home|world|races|browser|runs|mod|settings|changes|data] [--input mouse|keyboard|xbox|playstation|deck]
                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning]
                   [--find] [--address] [--select N] [--row N] [--places] [--job WORDS]
                   [--right-tab inspector|history|help] [--new-mod NAME] [--tutorial N] [--race-tutorial N]
+                  [--collision off|invisible|all]
+                  [--search WORDS] [--kind models|textures|sounds|strings]
+                  [--run FILE] [--compare FILE] [--car N] [--at FRAME]
 overbright-studio --version
 ```
 
@@ -24,7 +27,10 @@ typed. `--files` folds the Mod page's Files open, `--warning` shows its "Made fr
 `--tutorial N` shows *Your first mod* at step N (1 to 5; 6 is the last card), `--race-tutorial N` *Make your first
 race* at step N (1 to 6; 7 is the last card). `--row N` focuses the focused
 area's N-th control, `--places` opens the places under ← (after World and Mod), `--job WORDS` shows a running
-job, `--right-tab` picks the right dock's tab. The game folder is
+job, `--right-tab` picks the right dock's tab. `--collision` sets World's collision layer. On Browser, `--search` types
+words into the field, `--kind` picks the chip and `--select N` focuses the N-th result. On Runs, `--run` opens a run
+file of the mod's runs folder, `--compare` compares it with another, `--car` picks the telemetry car and `--at` seeks
+to a frame. The game folder is
 `NFSU2_ROOT`, else the one the launcher kept.
 
 ## The window

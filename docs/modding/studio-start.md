@@ -33,6 +33,11 @@ If the launcher says Studio's program is not beside it, unpack the whole downloa
   the race tools. It is the same editor `overbright-editor` opens.
 - **Changes** (Ctrl+D): every value your mod changes, beside the original, and which mod wins where two give the
   same value, textures you painted included. *Reset* gives a value back.
+- **Browser** (Ctrl+4): search the game's models, textures, sounds and strings, see where each is used, look at a
+  model's picture and mesh, play a sound, and export a model, a sound or an area for an outside program. Studio
+  never writes into the game's folder.
+- **Runs** (Ctrl+5): the mod's recorded runs, played back with their telemetry, and two runs compared.
+- **Data** (Ctrl+G): the mod's props and races as a table, a cell changed with one undo step.
 - **Mod** (Ctrl+0): the mod's name, author and description, whether it is on in your game, what a shared copy
   holds, whether it is ready to share, and **Export** to one `.zip`.
 - **Automatic saving** with a history to undo and redo: the status bar says when your work is saved.
