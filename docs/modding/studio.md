@@ -272,6 +272,46 @@ are not in it yet.
 
 **How Runs' output is checked.** `studio::runs_tests` draws the page at the six matrix sizes for the mouse, keys and pad, opens and compares runs in the editor's playback, checks the telemetry against the run file and keeps the list honest after a rename or delete; a run recorded in the game is the same with recording on or off (the frame-rate and parity checks).
 
+## The game link
+
+Studio's test game (`game --studio-link <mod folder>/.editor/link`; the protocol and the status words are in the map
+editor's [test window section](map-editor.md#testing-a-race)) takes in everything a mod holds while it runs. The
+rule: an edit goes into the running world in place where the game can do that without changing play; where it cannot,
+the run starts over behind the loading screen and the status bar says why ("Game: reloaded: the race under test
+changed"). Nothing happens without the link: a game started without the flag never looks at the folder.
+
+| What the mod holds | When it changes in a linked run | Status bar |
+|---|---|---|
+| Props (moved, deleted, added) | Applied live: the world's placements are derived again from original and mod; the renderer, the knock-over props and the lamps' emitters follow. An added or removed prop makes the world renderer again (no load). | "Game: applied live" |
+| Collision (removed faces, drawn walls and ground) | Applied live, by the writer a load uses. | "Game: applied live" |
+| Races: a race that is not the run's own, or any race in a free-roam run | Applied live: the other races are not part of the world. | "Game: applied live" |
+| Races: the run's own race (start, route, grid) | Reload: the run starts over with the edited race. | "Game: reloaded: the race under test changed" |
+| Textures (`looks.toml`, `textures/world`, `textures/car`) | Applied live by the pack watcher a Studio test run always has (`--looks-live`): a new, changed or removed file shows within a second, no reload ([limits](pack-hot-reload.md#limits-open)). | none (the pictures change) |
+| The test car and clock (Race ▸ Test car and clock…) | Reload: the car and the world clock are made at the start. | "Game: reloaded: the car or clock changed" |
+| A new aim (Test race, Drive here, F5) | Reload with the new race or spot. | "Game: reloaded: a new start was asked" |
+| Mod name, author, description | Nothing to do: they are not part of play. | "Game: nothing changed in the world" |
+| Packs of the player (texture packs, the HUD mod) | Not part of the mod. With Reload Packs When Changed on they apply live ([Reload Packs When Changed](pack-hot-reload.md)); with it off they are read when the world or the car loads. | none |
+| Car and handling data, sounds, strings | A mod cannot hold them yet, so there is nothing to reload. They come with the engine tables and asset layers ([asset format](asset-format/README.md)); tables never change while a process runs, so they will need a reload. | none |
+
+A change the game cannot take (a file that does not read, a car it does not have) leaves the run as it was and the
+status bar says why.
+
+**Changes made outside Studio.** Studio looks at the mod's files about once a second while the mod is open (a poll, no
+extra process), so a program that writes them is noticed whether Studio has focus or not: another editor writing
+`map.obmap` or `looks.toml`, a paint program saving `textures/world/<HASH>.png`, `git checkout` or a sync. Each file
+that changed becomes one step of the mod's history, "Outside change: map.obmap", which the status bar shows and Undo
+takes back; a change to the same item that Studio has not saved yet keeps the file's version and Undo brings yours
+back. A texture file taken in this way is kept by its content and named in `looks.toml`; one that Studio did not know
+counts as made from the game's pixels (so Studio warns before you share it); a half-written or broken picture is left
+until it changes again, and a removed file removes its entry. The step reaches the running game like any other: the map
+goes over the link, the texture files are seen by the pack watcher. Undo writes the earlier texture back. A mod open in
+another program of Studio is read-only here and follows that program's steps.
+
+**How the link is checked.** `live_apply` (a linked headless run: an edit applied in place is the fresh load of the
+edited mod; the races apply in place or start the run over with the reason; after a start over the run is the fresh
+start's at 30, 60, 120 and 200 fps), `history::tests` and `looks::tests` (each outside file one step, undone alone) and
+the editor's `an_outside_write_is_an_undoable_step` and `an_outside_texture_file_is_an_undoable_step`.
+
 ## Data
 
 Ctrl+G (or `ob://<mod id>/@data`) opens the Data page over World; Esc goes back. It shows one kind of record at a

@@ -375,8 +375,19 @@ impl TestPlay {
             write_run_copy(s)?;
             // A reload still owed stays one (this command takes its place).
             let owed = self.reloading && self.game.as_ref().is_none_or(|g| g.seq < self.work);
-            // Props and collision go into the running world; the races start the run over.
-            reloading = owed || s.session.map.races != self.sent.races;
+            // Props, collision and the other races go into the running world; the run's own race, a new aim
+            // and a new car or clock start the run over.
+            if let Some(a) = &aim {
+                self.target = match a {
+                    Aim::Race(id) => Target::Race(id.clone()),
+                    Aim::At(x, y, z, h) => Target::At(Vec3::new(*x, *y, *z), *h),
+                };
+            }
+            let own = |m: &MapMod| match &self.target {
+                Target::Race(id) => m.races.iter().find(|r| &r.id == id).cloned(),
+                Target::At(..) => None,
+            };
+            reloading = owed || aim.is_some() || own(&s.session.map) != own(&self.sent) || self.focus_sent != s.run_focus;
             self.sent = s.session.map.clone();
         }
         let focus = (self.focus_sent != s.run_focus).then(|| s.run_focus.clone());
@@ -1231,10 +1242,10 @@ mod tests {
         test.send(&s, Op::Apply, None).unwrap();
         assert_eq!(test.link_words(), GAME_APPLYING);
         said(2);
-        // A race changed: the game starts the run over (reloads the world); the probe does not wait over it.
+        // A race added while the run is not that race: applied in place; the probe does not wait over it.
         s.session.map.races.push(crate::tools::map::CustomRace::new("r2", 1, crate::tools::map::RaceKind::Sprint));
         test.send(&s, Op::Apply, None).unwrap();
-        assert_eq!(test.link_words(), GAME_RELOADING);
+        assert_eq!(test.link_words(), GAME_APPLYING);
         test.probe_due().unwrap();
         assert_eq!(link::read_command(&linkdir).unwrap().op, Op::Apply, "a probe never goes over a command not read");
         said(3);
@@ -1244,13 +1255,29 @@ mod tests {
         test.send(&s, Op::Apply, None).unwrap();
         assert_eq!(test.link_words(), GAME_APPLYING);
         said(4);
+        // The run's own race changed (or a new aim): the game starts the run over.
+        test.send(&s, Op::Apply, Some(Aim::Race("r2".into()))).unwrap();
+        assert_eq!(test.link_words(), GAME_RELOADING, "a new aim");
+        said(5);
+        assert_eq!(test.link_words(), GAME_CONNECTED);
+        s.session.map.races.push(crate::tools::map::CustomRace::new("r3", 1, crate::tools::map::RaceKind::Sprint));
+        s.session.map.races[1].name = "Edited".into();
+        test.send(&s, Op::Apply, None).unwrap();
+        assert_eq!(test.link_words(), GAME_APPLYING, "another race than the run's");
+        said(6);
+        assert_eq!(test.link_words(), GAME_CONNECTED);
+        s.session.map.races[0].name = "Edited".into();
+        test.send(&s, Op::Apply, None).unwrap();
+        assert_eq!(test.link_words(), GAME_RELOADING, "the run's own race");
+        said(7);
+        assert_eq!(test.link_words(), GAME_CONNECTED);
         // The focus goes with the next command, once.
         assert!(!test.changed(&s));
         s.run_focus = link::Focus { car: Some("240SX".into()), clock: Some(600.0) };
         assert!(test.changed(&s), "a new focus starts the run over");
         test.send(&s, Op::Apply, None).unwrap();
         assert_eq!(link::read_command(&linkdir).unwrap().focus, Some(s.run_focus.clone()));
-        said(5);
+        said(8);
         assert!(!test.changed(&s));
         test.send(&s, Op::Restart, None).unwrap();
         assert_eq!(link::read_command(&linkdir).unwrap().focus, None, "sent once");

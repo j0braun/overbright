@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::sync::Arc;
 
-use super::work::{Imported, Workbench, materialize};
+use super::work::{Imported, PackWatch, Workbench, materialize};
 use super::*;
 use crate::history::{History, disk};
 
@@ -276,5 +276,54 @@ fn a_half_written_file_is_never_taken_in_whatever_the_length() {
     let saved = w.poll().pop().unwrap().unwrap();
     assert_eq!(saved.png, full, "the whole file is taken in, exactly once");
     assert!(w.poll().is_empty());
+    let _ = std::fs::remove_dir_all(dir.parent().unwrap());
+}
+
+/// A texture file another program writes (a paint program, a checkout) is one step each, named by its file;
+/// undo takes it back and the pack data follows the list again.
+#[test]
+fn a_texture_file_written_outside_is_one_undoable_step() {
+    let dir = mod_dir("outside");
+    let edir = dir.join(".editor");
+    let mut h = history(&dir);
+    let mut w = Workbench::open(&dir, &edir);
+    let f = w.start(&Looks::default(), ROAD, &fake(), false).unwrap();
+    std::fs::write(w.path(&f), png(200)).unwrap();
+    let _ = w.poll();
+    let saved = w.poll().pop().unwrap().unwrap();
+    w.import(&mut h, "paint", &saved).unwrap();
+    let pack = dir.join(PACK_DIR).join(ROAD.pack_file());
+    let mut watch = PackWatch::new(&dir);
+    assert!(watch.take(&mut h, &dir, &edir).unwrap().is_empty(), "nothing changed");
+    // Another paint program writes the pack file, and a new one appears; a broken one is left alone.
+    std::thread::sleep(std::time::Duration::from_millis(20));
+    std::fs::write(&pack, png(77)).unwrap();
+    let new = dir.join(PACK_DIR).join(WALL.pack_file());
+    std::fs::write(&new, png(33)).unwrap();
+    std::fs::create_dir_all(dir.join(PACK_DIR).join("car")).unwrap();
+    std::fs::write(dir.join(PACK_DIR).join("car/00000001.png"), b"not a png").unwrap();
+    let made = watch.take(&mut h, &dir, &edir).unwrap();
+    assert_eq!(made.len(), 2, "{made:?}");
+    assert!(made.contains(&crate::history::outside_label("textures/world/1A2B3C4D.png")), "{made:?}");
+    let looks = Looks::parse(h.doc(FILE).unwrap()).unwrap();
+    assert_eq!(looks.entries[&ROAD].image, image_hash(&png(77)));
+    assert_eq!(looks.entries[&WALL].origin, Origin::Game, "a texture first seen here counts as derived");
+    assert!(!looks.entries.contains_key(&TextureId::new(Domain::Car, 1)));
+    assert!(watch.take(&mut h, &dir, &edir).unwrap().is_empty(), "taken in once");
+    // Undo the last step (the road): the pack data follows the list.
+    assert_eq!(h.steps().last().unwrap().author, crate::history::OUTSIDE);
+    h.undo("test").unwrap();
+    materialize(&dir, &edir, &Looks::parse(h.doc(FILE).unwrap()).unwrap()).unwrap();
+    assert_eq!(first_pixel(&pack), 200, "the image the step before named");
+    assert!(new.exists());
+    h.undo("test").unwrap();
+    materialize(&dir, &edir, &Looks::parse(h.doc(FILE).unwrap()).unwrap()).unwrap();
+    assert!(!new.exists(), "the new texture left the pack");
+    // A removed file: its entry goes, as one step.
+    let mut watch = PackWatch::new(&dir);
+    std::fs::remove_file(&pack).unwrap();
+    let made = watch.take(&mut h, &dir, &edir).unwrap();
+    assert_eq!(made.len(), 1);
+    assert!(!Looks::parse(h.doc(FILE).unwrap_or_default()).unwrap().entries.contains_key(&ROAD));
     let _ = std::fs::remove_dir_all(dir.parent().unwrap());
 }
