@@ -88,16 +88,24 @@ pub struct Check {
     /// The spot to show (x, y; the panel puts it on the ground).
     pub at: Option<Vec2>,
     pub fix: Option<Fix>,
+    /// The drawn wall or ground the entry names (its id): Show selects it.
+    pub wall: Option<String>,
 }
 
 impl Check {
     fn new(level: Level, race: usize, text: String) -> Check {
-        Check { level, ok: false, text, race: Some(race), point: None, at: None, fix: None }
+        Check { level, ok: false, text, race: Some(race), point: None, at: None, fix: None, wall: None }
     }
 
     /// An entry of the mod as a whole (its drawn and removed collision), not of one race.
-    pub(crate) fn general(level: Level, text: String, at: Vec2) -> Check {
-        Check { level, ok: false, text, race: None, point: None, at: Some(at), fix: None }
+    pub fn general(level: Level, text: String, at: Vec2) -> Check {
+        Check { level, ok: false, text, race: None, point: None, at: Some(at), fix: None, wall: None }
+    }
+
+    /// Name the drawn wall or ground the entry is about.
+    pub fn wall(mut self, id: &str) -> Check {
+        self.wall = Some(id.to_string());
+        self
     }
 
     fn at(mut self, at: Vec2, point: Option<RacePoint>) -> Check {
@@ -415,7 +423,7 @@ pub fn race_checks(
         for e in &map.collision {
             let CollisionEdit::Wall { id, from, to, .. } = e else { continue };
             if let Some(at) = crossing(line, from.truncate(), to.truncate()) {
-                out.push(warn(format!("the drawn wall {id} crosses the route; the cars run into it")).at(at, None));
+                out.push(warn(format!("the drawn wall {id} crosses the route; the cars run into it")).at(at, None).wall(id));
             }
         }
     }
@@ -533,7 +541,7 @@ pub fn collision_checks(
                 }
                 None => format!("The drawn wall {id} has no floor under one end; cars may drive under it"),
             };
-            out.push(Check::general(Level::Warning, text, p.truncate()));
+            out.push(Check::general(Level::Warning, text, p.truncate()).wall(id));
         }
     }
     for p in unmatched {
@@ -566,7 +574,8 @@ pub fn collision_checks(
                 "The drawn {what} {id} is partly outside the region's collision area; the game leaves that part out"
             ),
             p.truncate(),
-        ));
+        )
+        .wall(&id));
     }
     out
 }
@@ -778,5 +787,8 @@ mod floor_tests {
         );
         assert!(c.iter().all(|c| c.level == Level::Warning && c.race.is_none() && c.at.is_some()));
         assert_eq!(c[2].at, Some(Vec2::new(5.0, 5.0)), "Show goes to the removed wall");
+        // The entries about a drawn wall or ground name it, so Show selects it; the removed wall has none to name.
+        let named: Vec<Option<&str>> = c.iter().map(|c| c.wall.as_deref()).collect();
+        assert_eq!(named, vec![Some("wall-2"), Some("wall-3"), None, Some("ground-1")]);
     }
 }

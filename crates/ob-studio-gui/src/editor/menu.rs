@@ -46,6 +46,8 @@ pub enum Action {
     Tool(Tool),
     /// View ▸ Roads: the road network over the top view.
     Roads,
+    /// View ▸ Show nearest road: mark the road nearest the selection (else the camera) and go to it.
+    ShowNearestRoad,
     Tab(&'static str),
     Controls,
     /// Help ▸ How to test your race.
@@ -673,11 +675,14 @@ pub fn view_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     {
         out.push(Action::Roads);
     }
+    let none = if open { None } else { Some("Open a map mod first") };
+    if item_why(ui, "Show nearest road", "", none) {
+        out.push(Action::ShowNearestRoad);
+    }
     ui.separator();
     let s = app.state.as_ref();
     command(ui, s, "Frame selection", "F", Command::FrameSelection);
     command(ui, s, "Reset camera", "", Command::ResetCamera);
-    let none = if open { None } else { Some("Open a map mod first") };
     if item_why(ui, "Top view", "T", none) {
         out.push(Action::Goal(super::views::Goal::Top));
     }

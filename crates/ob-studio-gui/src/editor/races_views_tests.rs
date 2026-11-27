@@ -203,7 +203,8 @@ fn place_and_drag(view: &str) {
     // New race's rule is not in play here; C arms Checkpoint; a click beside the road adds checkpoint 3.
     frame(&mut a, key(egui::Key::C).to_vec());
     assert_eq!(a.panels.races.borrow().tool, RaceTool::Checkpoint, "{view}: C arms Checkpoint");
-    click(&mut a, Vec2::new(390.0, -3.0));
+    // (Far enough from the finish clicked below: in Top a click within 12 points of a point picks it.)
+    click(&mut a, Vec2::new(300.0, -3.0));
     let cps = race(&a).checkpoints.clone();
     assert_eq!(
         cps.len(),
@@ -212,11 +213,11 @@ fn place_and_drag(view: &str) {
         a.state.as_ref().unwrap().status,
         crate::editor::viewport::top_view(&a.ctx)
     );
-    assert!(cps[2].y.abs() < 0.01 && (cps[2].x - 390.0).abs() < 2.0 * snap_m, "{view}: {cps:?}");
+    assert!(cps[2].y.abs() < 0.01 && (cps[2].x - 300.0).abs() < 2.0 * snap_m, "{view}: {cps:?}");
     assert_eq!(undo_label(&a), Some("Add checkpoint 3"), "{view}");
     // X arms Finish.
     frame(&mut a, key(egui::Key::X).to_vec());
-    click(&mut a, Vec2::new(395.0, 2.0));
+    click(&mut a, Vec2::new(335.0, 2.0));
     let fi = race(&a).finish.expect("a finish line");
     assert!(fi.position.y.abs() < 0.01 && (fi.position.z - FLOOR_Z).abs() < 0.05, "{view}: {fi:?}");
     let placed = race(&a).clone();

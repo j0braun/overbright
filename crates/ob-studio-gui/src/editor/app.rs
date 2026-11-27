@@ -841,6 +841,8 @@ mod parts {
                 return false;
             }
             let Some(at) = over.and_then(|p| race_ground(s, ctx, rect, p)) else { return false };
+            let radius = crate::editor::races::pick_radius(crate::editor::viewport::top_view(ctx));
+            r.pick_m = Some(radius);
             let armed = s.mode == Mode::Races && r.tool != crate::editor::races::Tool::Select;
             if armed {
                 r.click(s, at, mods.shift, mods.alt);
@@ -856,7 +858,7 @@ mod parts {
                         .map
                         .races
                         .get(k)
-                        .and_then(|race| crate::editor::races::pick(race, at.truncate(), crate::editor::races::PICK_M))
+                        .and_then(|race| crate::editor::races::pick(race, at.truncate(), radius))
                         .map(|p| (k, p))
                 })
                 .next();
@@ -1614,6 +1616,11 @@ impl App {
             A::Roads => {
                 if let Some(s) = self.state.as_mut() {
                     s.roads = !s.roads;
+                }
+            }
+            A::ShowNearestRoad => {
+                if let Some(s) = self.state.as_mut() {
+                    super::roads::show_nearest(s);
                 }
             }
             A::Tab(t) => self.tab = t,

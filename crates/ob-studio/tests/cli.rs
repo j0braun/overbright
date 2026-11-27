@@ -81,6 +81,7 @@ fn env() -> Env {
                 nets: HashMap::from([(4001, straight())]),
                 free_roam: Vec::new(),
                 places: Vec::new(),
+                routes: HashMap::new(),
             })
         }),
         poll: Duration::from_millis(5),

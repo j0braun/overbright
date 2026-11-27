@@ -103,6 +103,7 @@ pub fn tree(races: &mut Races, s: &mut EditorState, ui: &mut egui::Ui) {
                 point: p,
                 at: Some(at),
                 fix: None,
+                wall: None,
             };
             validate::show(s, &c);
         }

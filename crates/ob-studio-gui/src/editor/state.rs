@@ -67,6 +67,8 @@ pub struct EditorState {
     pub focus: Focus,
     /// The road network over the top view (View ▸ Roads).
     pub roads: bool,
+    /// The road View ▸ Show nearest road found (drawn with the roads).
+    pub nearest_road: Option<super::roads::NearestRoad>,
     /// The collision layer over the view (View ▸ Collision).
     pub collision: super::collision::Show,
     /// What colours the collision layer (View ▸ Collision ▸ By kind / By surface).
@@ -142,6 +144,7 @@ impl EditorState {
             mode: Mode::Props,
             focus: Focus::Both,
             roads: true,
+            nearest_road: None,
             collision: super::collision::Show::Off,
             collision_colour: super::collision::Colour::Kind,
             race_barriers: false,
