@@ -95,7 +95,7 @@ The rest of this page is for developers.
 capture, and the `--photo` check). Hooks in `src/bin/game.rs` (`Game::photo`, `act`, `key`, `update_world`,
 `pad_frame`, `draw` → `draw_frame`, the post chain's target, `blur_and_dof`),
 `crates/ob-render/src/render/enh/post/blur_dof.rs` (`set_photo_dof`, `dof_wanted`, `photo_band`), `src/qol/`
-(`photo_mode`), `src/frontend/options/` (the row), `src/frontend/screens/` (the menu item and the label
+(`photo_mode`), `crates/ob-menus/src/frontend/options/` (the row), `crates/ob-menus/src/frontend/screens/` (the menu item and the label
 fallback).
 
 ### Tests

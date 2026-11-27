@@ -1785,6 +1785,7 @@ dependencies = [
  "ob-formats",
  "ob-look",
  "ob-map",
+ "ob-menus",
  "ob-render",
  "ob-settings",
  "ob-sim",
@@ -1990,6 +1991,26 @@ dependencies = [
  "serde",
  "serde_json",
  "toml",
+]
+
+[[package]]
+name = "ob-menus"
+version = "0.6.3"
+dependencies = [
+ "anyhow",
+ "glam",
+ "libc",
+ "log",
+ "ob-assets",
+ "ob-audio",
+ "ob-core",
+ "ob-formats",
+ "ob-map",
+ "ob-render",
+ "ob-settings",
+ "ob-sim",
+ "ob-testkit",
+ "wgpu",
 ]
 
 [[package]]

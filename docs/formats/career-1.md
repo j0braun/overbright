@@ -289,7 +289,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   item's byte +0x1F × 1.1 + 127.5, 255) and, when the item's +0x21 is
   set, its size = (f × 0.000117647054 + 0.97) × its base size +0x24 /
   +0x28 (0x50CB00), so 0.985–1.0 of it).
-* **Graphics shop** (all in the clone; `src/frontend/graphics/`):
+* **Graphics shop** (all in the clone; `crates/ob-menus/src/frontend/graphics/`):
   UI_ChoosePaintCategory (0x55A410 → 0x5571C0, options 0x548210): Paint
   (0x6A4C46A6, icon 0x550681A4; option +0x48/+0x4C = 2/0), Vinyls
   (0x78DEEA1C, 0x55778E5A; 0/1), Decals (0x4E933E83, 0xDA1DAE54; 1/2;

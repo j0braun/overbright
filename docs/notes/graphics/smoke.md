@@ -310,7 +310,7 @@ new label id.** the Cinematic smoke work's billboard look stays reachable for co
 | `crates/ob-render/src/render/smoke_cinematic.rs` / `.wgsl` | The Cinematic smoke work's tier: its simulation (native births → puffs) unchanged except steam; draws through `SmokeVolume` |
 | `src/bin/game.rs` | hooks: the player's underglow colour (`shadow::neon_rgb`, the smoke integration) and the frame's fog (`FogState::drawn`, the smoke integration) into the smoke's `View` |
 | `src/fog.rs`, `src/shadow.rs`, `crates/ob-render/src/render/postfx.rs` | The smoke integration: `FogState::drawn`; `neon_rgb`; the multisampled scene readable with Cinematic |
-| `src/frontend/graphics_table.rs` | the tier's help text and cost |
+| `crates/ob-menus/src/frontend/graphics_table.rs` | the tier's help text and cost |
 
 ### The reusable module (`render::volume_fx`)
 

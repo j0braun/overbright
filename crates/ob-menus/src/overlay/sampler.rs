@@ -260,7 +260,7 @@ mod tests {
 
     #[test]
     fn a_sample_of_the_fixture_tree() {
-        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/overlay/root");
+        let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/overlay/root");
         let src = Sources::discover(&root, Some((0x1002, 0x7001)));
         let started = Instant::now();
         let mut prev = Prev::default();

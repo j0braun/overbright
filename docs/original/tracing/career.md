@@ -55,7 +55,7 @@ Sub-chunk 0x34A13 is skipped by the loader.
 Editor constraints that follow: more than one goal overlaps the opponents; the marker name and its hash
 must change together; the name's hash is the event's identity for unlocks, messages and the stage end.
 
-## Rules (all verified, ported in `src/frontend/career/`)
+## Rules (all verified, ported in `crates/ob-menus/src/frontend/career/`)
 
 | Rule | Where | Docs |
 |---|---|---|

@@ -37,7 +37,6 @@ mod testkit_tests {
 pub mod asset_layer;
 #[cfg(feature = "mimalloc")]
 pub mod allocator;
-pub mod frontend;
 pub mod qol;
 pub use ob_render::{rear_view, render, sky};
 #[cfg(test)]
@@ -60,8 +59,8 @@ pub const BUILD_ID: cache::BuildId = cache::BuildId::from_hex(env!("OB_BUILD_ID"
 
 
 
-// Performance overlay (docs/notes/performance/overlay.md).
-pub mod overlay;
+// The menus layer, crates/ob-menus: the front end and the performance overlay at their old paths.
+pub use ob_menus::{frontend, overlay};
 
 // The bottom layer, crates/ob-core (ARCHITECTURE.md "Layers"): its modules
 // at their old paths. The parts of `cache`, `diag`, `platform` and `prof`

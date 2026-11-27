@@ -140,7 +140,7 @@ with a new drive's barriers (checked in the code; the water by a data test):
 | `crates/ob-render/src/render/mod.rs` | hooks: `WorldCore::ambient_draw`, `WorldRenderer::{ambient, ensure_ambient, draw_ambient}`, the plan in `plan_views`, the draw in `draw_pass_faded` |
 | `crates/ob-render/src/render/volume_fx.rs` | additive: `set_coarser`, COPY_SRC on the particle buffer |
 | `src/bin/game.rs` | hooks: `ensure_ambient` before `water_prepare` (window and shot), `draw_ambient` after the Cinematic smoke (3 sites), `ambient_detail::push_car` in `glow_quads`' per-car closure |
-| `src/qol/`, `src/frontend/options/`, `src/frontend/graphics_table.rs` | the row |
+| `src/qol/`, `crates/ob-menus/src/frontend/options/`, `crates/ob-menus/src/frontend/graphics_table.rs` | the row |
 | the maintainer's probe `ambient_census` | texture census (vent candidates; `NEAR=x,y` the textures round a spot) |
 
 Diagnostics: `NFSU2_AMBIENT_STATS=1` (placement, nearest vents / lamps, per-second instance / moved / grit counts),

@@ -47,6 +47,12 @@ features = [
 [dev-dependencies]
 # The test kit (crates/ob-testkit, docs/developing/testing.md).
 ob-testkit = { path = "../ob-testkit" }
+# The lower crates' test helpers (their `dev-harness` hooks), on for this crate's own test build only.
+ob-core = { path = "../ob-core", features = ["dev-harness"] }
+ob-formats = { path = "../ob-formats", features = ["dev-harness"] }
+ob-map = { path = "../ob-map", features = ["dev-harness"] }
+ob-settings = { path = "../ob-settings", features = ["dev-harness"] }
+ob-assets = { path = "../ob-assets", features = ["dev-harness"] }
 
 [features]
 # The developer harness's hooks (the root package's `dev-harness` turns it on).

@@ -95,7 +95,7 @@ Minimal's box lies inside Standard's at the same corner and scale, over at
 most as many of the HUD's pixels. At 21:9 the panel keeps to the 16:9
 area the HUD uses.
 
-## Sources (Linux; `src/overlay/system/sources.rs`)
+## Sources (Linux; `crates/ob-menus/src/overlay/system/sources.rs`)
 
 | metric | source | the reference desktop (reference desktop GPU + reference integrated GPU) |
 |---|---|---|
@@ -120,7 +120,7 @@ A metric that is not readable shows "n/a" and logs an empty CSV field.
 Not covered: the game's I/O split by kind (cache / packs / streaming)
 needs loader hooks (**open**); VRR "low framerate compensation" state.
 
-## CSV log (`src/overlay/csv.rs`)
+## CSV log (`crates/ob-menus/src/overlay/csv.rs`)
 
 `<data home>/overbright/perf/overbright-<UTC time>.csv` (or
 `$NFSU2_PERF_CSV`), one row per sample (4 Hz), flushed each row. Columns:
@@ -161,7 +161,7 @@ needed). Frame columns are the draw thread's figures at its last refresh
 
 ## Code
 
-`src/overlay/{mod,stats,sources,sampler,csv,nvml}.rs`; fixtures
+`crates/ob-menus/src/overlay/{mod,stats,sources,sampler,csv,nvml}.rs`; fixtures
 `tests/fixtures/overlay/root/` (a small hand-written /proc + /sys tree:
 two AMD cards, k10temp, nvme hwmon, cpufreq, diskstats with partitions,
 zram and loop). Hooks: `frontend/options.rs` (Settings `overlay` field,

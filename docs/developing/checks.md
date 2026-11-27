@@ -24,6 +24,7 @@ scripts/checks/layering.sh [repo]               # the render layers (core/native
 scripts/checks/stray_opens.sh [repo]            # the stray-open lint: no direct `std::fs` open of a path in production code beyond the counts of stray-opens.txt (a game file is read through `game_fs`, which the asset layer answers); in fast and full
 scripts/checks/studio_checks.sh [repo] [part]    # Studio's dependency budget, lint and registry coverage ("Studio checks"; in fast and full)
 scripts/checks/wasm32.sh [repo]                  # the packages on crate-layers.txt's `wasm` line build for wasm32 (part of crate_layers.sh; WASM32_REQUIRED=1 fails where the target is missing)
+scripts/checks/crate_tests.sh [repo]                 # every crate's own unit tests, one crate at a time (`cargo test -p <crate> --lib`; catches tests that only pass with another crate's dev-harness unified in; run by hand and in the nightly set, not in fast)
 scripts/checks/soak_images.sh <game> <outdir> [runs]   # the gate's image dumps N times with one binary (run-to-run flakes; "Image soak")
 scripts/checks/fuzz.sh                           # the fuzz smoke: every parser target on mutated inputs (docs/developing/fuzzing.md; FUZZ_SECS, FUZZ_ITERS, FUZZ_ONLY)
 scripts/checks/release_check.sh [outdir]          # the shipping binary (no dev-harness): no harness strings, harness flags give the usage error

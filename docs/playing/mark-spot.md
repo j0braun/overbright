@@ -4,7 +4,7 @@ Not native: an opt-in report aid (QoL family). Code: `src/mark_spot.rs`
 (the report), `src/bin/game/enh/mark.rs` (what the game sees), hooks in
 `src/bin/game.rs` (`Game::key`, the `--shot` explore arm), the setting in
 `crates/ob-settings/src/extras.rs` (`Extras::mark_spot`, options.txt `enh.mark_spot N`) and
-the row in `src/frontend/options/`.
+the row in `crates/ob-menus/src/frontend/options/`.
 
 ## Setting
 

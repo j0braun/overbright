@@ -1299,7 +1299,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
   0x30-byte records from A = (buf + 0x17) & ~0xF; registered for tag 0x34146
   at 0x77E720, with 0x5D84E0 as its third argument), so track 4000's marker
   comes from that file. The clone's
-  free_roam_start (src/frontend/career/) reads the same file,
+  free_roam_start (crates/ob-menus/src/frontend/career/) reads the same file,
   TRACKS/ROUTESL4RA/TrackPosMarkersFreeRoam.bin. **Inferred**: the generic
   loader passes the file to 0x5D8480 by its chunk tag (not traced through
   0x57CF00). **Verified**: 0x5D8530 and 0x5D85E0 keep only records whose
