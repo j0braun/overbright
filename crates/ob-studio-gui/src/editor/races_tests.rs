@@ -153,6 +153,15 @@ fn clicks_place_snapped_points_as_undo_steps() {
     // A click on a point picks it; dragging moves it, one step on release.
     races.click(&mut s, Vec3::new(21.0, 1.0, 0.0), false, false);
     assert_eq!(s.point, cp(0));
+    // Esc during a drag puts the point back and leaves no step.
+    let (before, label) = (s.session.map.races[0].checkpoints[0], s.session.undo.undo_label().map(String::from));
+    races.drag(&mut s, Vec3::new(50.0, 3.0, 0.0), false);
+    assert_ne!(s.session.map.races[0].checkpoints[0], before);
+    races.cancel_drag(&mut s);
+    races.release(&mut s);
+    assert_eq!(s.session.map.races[0].checkpoints[0], before);
+    assert_eq!(s.session.undo.undo_label().map(String::from), label);
+    races.click(&mut s, Vec3::new(21.0, 1.0, 0.0), false, false);
     races.drag(&mut s, Vec3::new(50.0, 3.0, 0.0), false);
     races.release(&mut s);
     assert_eq!(s.session.map.races[0].checkpoints[0], Vec2::new(50.0, 0.0));
