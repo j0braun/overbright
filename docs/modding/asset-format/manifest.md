@@ -78,7 +78,7 @@ import = "import.toml"
 <!-- generated:fields pack -->
 | Field | Type | Req. | Default | Meaning |
 |---|---|---|---|---|
-| `format` | u32 | yes in format 2 | – | 2. A reader refuses a higher format (`MAN.1`). A file without `format` is read as a format-1 manifest by the legacy rules of §6, not as a format-2 file missing a field. |
+| `format` | u32 | yes in format 2 | – | 2 or 3. A writer declares the lowest format that reads its file (3 only when `items` is used; versioning.md §1). A reader refuses a higher format (`MAN.1`). A file without `format` is read as a format-1 manifest by the legacy rules of §6, not as a format-2 file missing a field. |
 | `kind` | enum `base`, `mod` | yes | – | What the pack is ([layering.md](layering.md) §1). |
 | `id` | packId | yes | – | Unique id (conventions §6.1). For a folder pack it SHOULD equal the folder name; for `<id>-<version>.obpk` it MUST equal the file name's id part (`MAN.2`). |
 | `name` | string ≤ 80 | yes | – | Display name. |
@@ -96,6 +96,7 @@ import = "import.toml"
 | `extensions_used` | array<string> | no | `[]` | Extensions the pack's files use (conventions §9). |
 | `extensions_required` | array<string> | no | `[]` | Subset of `extensions_used` a reader MUST know (`CONV.14`). |
 | `extensions_safe_to_copy` | array<string> | no | `[]` | Subset of `extensions_used` whose data a tool that does not know them may keep when it rewrites an item (conventions §9); an extension not listed is not safe to copy. |
+| `items` | logicalPath | no | – | Format 3. The pack's per-item fingerprints: the file (normally `items.toml`) listing every other file of the pack with its `xxh3-128` digest, so a changed, missing or added item is named exactly (§4.2). Absent in older packs, which load and try out as before; only in format 3 (`MAN.10`). |
 | `[game]` | table | no | – | What the pack was made against. |
 | `game.bases` | array<string> | no | `["*"]` | Base set ids it supports, `*` wildcards allowed (`nfsu2-pc12-*`). The game refuses a pack whose list has no match for the base set in use, or that names a base set when no imported copy is in use, and says which it was made for; a pack that is on but refused is not mounted at all. Any reference or guard that does not match refuses it too (conventions §11: the whole pack, with the stale items listed). |
 | `game.fingerprint` | array<sha256> | no | – | Digests that identify the copy of the game the pack was made for (`sha256:<hex>`, the import record's `source.identity`; Overbright's exporter writes it beside `bases`). A non-empty list the base set in use is not on is refused like a base set mismatch. Format-1 files may list digests of key original files, which are read and shown. |
@@ -144,6 +145,31 @@ a credit line. It travels inside the `.obpk`, and the merge and export checks re
 shares packs; authors are responsible for what they share, and the editor warns when an item started from the
 original (even a repaint traced over it may still count as derived).
 
+### 4.2 Per-item fingerprints (format 3)
+
+A format-3 mod pack lists, in the file its `items` field names (normally `items.toml`), every other file of the pack
+except `pack.toml`, itself and `.studio/` with its `xxh3-128` digest (conventions §7):
+
+```text
+schema = "ob.items/1.0"
+
+[items]
+"map.obmap" = "xxh3-128:0123456789abcdef0123456789abcdef"
+"races/docks-sprint.toml" = "xxh3-128:fedcba9876543210fedcba9876543210"
+```
+
+Paths are sorted; the file is deterministic, so the same files always give the same bytes. A reader compares the
+pack's files with the list and reports each item as **changed** (other bytes), **missing** or **not listed**
+("Look inside" shows them; nothing is refused or repaired because of a difference: the fingerprints say what changed,
+the content digest of §4 still identifies the pack). The items file is at most 4 MiB; a damaged one is refused
+(`MAN.10`).
+
+Compatibility ([versioning.md](versioning.md) P.2, P.4): packs without `items` (every format-2 pack) are read exactly
+as before and report no fingerprints; they load and try out unchanged, and a reader never writes the field into them.
+Only new packs written by Overbright 0.7 or newer carry it, and they declare `format = 3`; a format-2 file that
+holds `items` is refused (`MAN.10`), and an older Overbright refuses a format-3 pack with `MAN.1` ("newer than this
+Overbright reads") instead of misreading it.
+
 ## 5. Required-items profile
 
 The engine cannot run without certain items: the menu packages it opens by name, its fonts, the car and part
@@ -187,4 +213,5 @@ A `pack.toml` without `format` or with `format = 1` is read as a legacy texture 
 | MAN.7 | A dependency, optional or conflict entry names the pack itself, or a version requirement does not parse. |
 | MAN.8 | `pack.toml` larger than 64 KiB (as today, `src/obpack/manifest.rs` `MAX_BYTES`). |
 | MAN.9 | `extensions_required` not a subset of `extensions_used`. |
+| MAN.10 | `items` in a format-2 file; the items file missing, over 4 MiB, not TOML, or listing a path or digest that does not parse (format 3). |
 <!-- /generated -->

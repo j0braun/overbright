@@ -165,6 +165,7 @@ rules! {
     Man7 "MAN.7" "manifest.md" r#"A dependency, optional or conflict entry names the pack itself, or a version requirement does not parse."#;
     Man8 "MAN.8" "manifest.md" r#"`pack.toml` larger than 64 KiB (as today, `src/obpack/manifest.rs` `MAX_BYTES`)."#;
     Man9 "MAN.9" "manifest.md" r#"`extensions_required` not a subset of `extensions_used`."#;
+    Man10 "MAN.10" "manifest.md" r#"`items` in a format-2 file; the items file missing, over 4 MiB, not TOML, or listing a path or digest that does not parse (format 3)."#;
     Msh1 "MSH.1" "meshes.md" r#"A mesh file outside the profile (§3.1): not glTF 2.0, more or fewer than one buffer or scene, a data URI, a `.bin` of another stem, `OB_` names in `extensionsRequired`, no `OB_solid_list.schema` or one of another kind, an `OB_` extension in `extensionsUsed` without its `version` in the root `extensions` (or a root entry for one not used), no `OB_Z_UP` root or another rotation, a property the profile excludes."#;
     Msh2 "MSH.2" "meshes.md" r#"A child of `OB_Z_UP` without `OB_solid`, or a child of a solid node without `OB_marker`."#;
     Msh3 "MSH.3" "meshes.md" r#"Vertex data off its layout: wrong stride, attribute offset, component type or `normalized`; a view not 16-aligned; an attribute missing or extra for the layout."#;

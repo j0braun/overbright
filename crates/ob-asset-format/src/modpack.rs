@@ -493,5 +493,8 @@ pub fn remove(dir: &Path, id: &str) -> Result<(), String> {
     .map_err(|e| format!("{id}: {e}"))
 }
 
+mod items;
+pub use items::{ITEMS_FILE, ItemReport, items_text, parse_items, verify as verify_items};
+
 #[cfg(test)]
 mod tests;

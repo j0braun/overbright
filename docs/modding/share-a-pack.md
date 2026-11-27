@@ -73,7 +73,9 @@ the edit report show the credits, next to the authors in the pack's manifest.
 A pack's **Look inside** on the Mods page, and `overbright-studio-cli modpack report --pack <file or id>`, say in words
 what it changes compared with the game: its props (each moved, removed or added), races, collision edits and the
 textures it replaces, its credits, which game copy it was made for, and what it overrules among the packs that are
-on. Nothing is switched on or written by it, so you can read the report of a pack file before you add it.
+on. A pack made by Overbright 0.7 or newer also lists a fingerprint for each item, so the report says which items were
+changed, are missing or were added since it was made ([manifest.md](asset-format/manifest.md) §4.2); older packs have
+none and are read as before. Nothing is switched on or written by it, so you can read the report of a pack file before you add it.
 
 A pack that changes races, props or collision carries the **affects play** tag (its manifest's `affects_play`, which
 the exporter computes). Saves made while it is on remember that, in a small file of Overbright's own beside the

@@ -1,0 +1,10 @@
+format = 2
+kind = "mod"
+id = "old-docks"
+name = "Old docks"
+version = "1.0.0"
+overbright = ">=0.5"
+origin = "own-work"
+share = "local-only"
+contents = ["races"]
+affects_play = true

@@ -45,6 +45,8 @@ pub struct Inside {
     pub refused: Option<String>,
     /// What it overrules or is overruled by among the packs that are on: (pack, it wins, values).
     pub clashes: Vec<(String, bool, usize)>,
+    /// The pack's per-item fingerprints against its files (format 3 packs; None for older packs, which have none).
+    pub items: Option<modpack::ItemReport>,
 }
 
 /// The tag lines of Look inside.
@@ -72,6 +74,19 @@ impl Inside {
         }
         if let Some(f) = &self.converted_from {
             v.push(format!("Provenance: converted from {f}"));
+        }
+        if let Some(r) = &self.items {
+            if r.is_clean() {
+                v.push(format!("Fingerprints: all {} items match", r.listed));
+            } else {
+                v.push(format!(
+                    "Fingerprints: {} changed, {} missing, {} not listed",
+                    r.changed.len(),
+                    r.missing.len(),
+                    r.added.len()
+                ));
+                v.extend(r.lines());
+            }
         }
         if !self.needs.is_empty() {
             v.push(format!("Needs {}", self.needs.join(", ")));
@@ -141,6 +156,7 @@ pub fn inside_of(p: &modpack::Installed, base: Option<&BaseId>, installed: bool)
     } else {
         modpack::check_base(m, base).err()
     };
+    out.items = modpack::verify_items(p).ok().flatten();
     let prov = provenance_text(p);
     out.converted_from = prov.as_deref().and_then(converted_from);
     out.credits = prov.as_deref().map(super::credits::parse).unwrap_or_default();

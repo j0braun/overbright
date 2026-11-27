@@ -154,6 +154,10 @@ fn look_inside_reads_a_pack_and_its_clashes_without_switching_anything_on() {
     assert_eq!(alone.made_for, "any copy of the game");
     assert!(alone.clashes.is_empty() && alone.refused.is_none());
     assert!(alone.lines().iter().any(|l| l == "Changes 1 moved prop, 1 texture"), "{:?}", alone.lines());
+    // A pack written now carries per-item fingerprints, all matching.
+    let fp = alone.items.as_ref().expect("a new pack has fingerprints");
+    assert!(fp.is_clean() && fp.listed > 0, "{fp:?}");
+    assert!(alone.lines().iter().any(|l| l.starts_with("Fingerprints: all ")), "{:?}", alone.lines());
     // cones is on; docks (off) is looked at: it would overrule cones on the one value both move.
     modpack::set_enabled(&mods_dir(), "cones", true).unwrap();
     let order = std::fs::read(mods_dir().join(modpack::ORDER_FILE)).unwrap();

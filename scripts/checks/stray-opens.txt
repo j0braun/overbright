@@ -4,6 +4,7 @@ crates/ob-asset-format/src/bundle.rs	2	the import and the base set itself (the g
 crates/ob-asset-format/src/docs.rs	2	the import and the base set itself (the game folder is the import's source)
 crates/ob-asset-format/src/import.rs	10	the import and the base set itself (the game folder is the import's source)
 crates/ob-asset-format/src/modpack.rs	5	the player's packs, mods and importers (user-chosen paths)
+crates/ob-asset-format/src/modpack/items.rs	3	the player's packs, mods and importers (user-chosen paths)
 crates/ob-asset-format/src/mount.rs	6	the import and the base set itself (the game folder is the import's source)
 crates/ob-core/src/cache/bytes.rs	2	the layer's own folder side or its stamp/cache files
 crates/ob-core/src/cache/file.rs	2	the asset cache, shader cache and cache verification (own data)
