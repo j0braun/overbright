@@ -345,6 +345,7 @@ single file, Studio writes it only when its content changes, and removes it when
 ended, so no stale unsaved copy stays behind. **Race ▸ Test without selected props** starts a test with the selected
 props' edits (moved, deleted or added) left out of the layer for that one run: the original is there instead, the mod and
 `map.obmap` are not changed, the status bar says how many were left out, and the next test is whole again.
+While such a run is open, **File ▸ Export…** and **File ▸ Export as mod pack…** ask first ("N props are left out of the running test. They stay in what you share.", Share or Cancel); what is shared is always the whole mod.
 **Race ▸ What the game loaded** asks the open test game for an opt-in answer (`op=loaded` over the link, the game writes
 `loaded.txt` next to `game.txt`): the mod and the file it was read from, how many props were moved, deleted and added,
 the races and collision edits, and the texture folders with their file counts. The game writes it only when asked.
