@@ -58,6 +58,14 @@ pub enum Action {
     Collision(super::collision::Show),
     /// What colours the collision layer (View ▸ Collision ▸ By kind / By surface).
     CollisionColour(super::collision::Colour),
+    /// Show or hide one kind of the layer (View ▸ Collision ▸ Kinds).
+    CollisionKind(super::collision::Class),
+    /// Every kind shown again.
+    CollisionEveryKind,
+    /// The layer's opacity in percent.
+    CollisionOpacity(u8),
+    CollisionWireframe,
+    CollisionFullHeight,
     RaceBarriers,
     /// Arm a drawing tool (Edit ▸ Draw wall / Draw ground).
     Draw(super::collision::Draw),
@@ -733,6 +741,31 @@ pub fn view_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                 if ui.add(egui::Button::selectable(colour == Some(c), c.label())).clicked() {
                     out.push(Action::CollisionColour(c));
                 }
+            }
+            let look = s.map(|s| s.collision_look).unwrap_or_default();
+            ui.menu_button("Kinds", |ui| {
+                for c in super::collision::Class::ALL {
+                    if ui.add(egui::Button::selectable(look.shows(c), c.label())).clicked() {
+                        out.push(Action::CollisionKind(c));
+                    }
+                }
+                ui.separator();
+                if ui.button("Show every kind").clicked() {
+                    out.push(Action::CollisionEveryKind);
+                }
+            });
+            ui.menu_button("Opacity", |ui| {
+                for c in super::collision::OPACITIES {
+                    if ui.add(egui::Button::selectable(look.opacity == c, super::collision::opacity_label(c))).clicked() {
+                        out.push(Action::CollisionOpacity(c));
+                    }
+                }
+            });
+            if ui.add(egui::Button::selectable(look.wireframe, "Wireframe")).clicked() {
+                out.push(Action::CollisionWireframe);
+            }
+            if ui.add(egui::Button::selectable(look.full_height, "Full-height walls")).on_hover_text("Walls the game lets reach from -2048 m to 2048 m drawn that tall, not only beside the floors").clicked() {
+                out.push(Action::CollisionFullHeight);
             }
             if s.is_some_and(|s| s.focus == Focus::World) {
                 ui.separator();
@@ -1458,6 +1491,8 @@ mod tests {
                         what: "Drawn wall wall-1".into(),
                         outline: vec![glam::Vec3::ZERO, glam::Vec3::X],
                         z: (0.0, 2.0),
+                        surface: None,
+                        owner: String::new(),
                     });
                     s.point = Some(RacePoint { part: RacePart::Checkpoint, index: 0 });
                     s.maps = match c {

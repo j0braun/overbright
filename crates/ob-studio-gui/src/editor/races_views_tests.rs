@@ -499,6 +499,8 @@ fn a_recorded_collision_sequence_writes_the_same_mod() {
         what: "Drawn wall wall-1".into(),
         outline: vec![Vec3::ZERO, Vec3::X],
         z: (0.0, 2.0),
+        surface: None,
+        owner: String::new(),
     });
     frame(&mut a, key(egui::Key::Delete).to_vec());
     frame(&mut a, vec![]);

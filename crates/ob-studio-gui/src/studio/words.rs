@@ -353,6 +353,18 @@ pub const SOUND: &str = "Sound";
 /// View menu: marks the road nearest the selection (else the camera) and goes to it.
 pub const SHOW_NEAREST_ROAD: &str = "Show nearest road";
 
+/// The collision layer: what a click names.
+pub const COLLISION_SURFACE: &str = "Surface";
+pub const COLLISION_BARRIER_GROUP: &str = "Barrier group";
+pub const COLLISION_NEXT_TO: &str = "Next to the prop";
+pub const COLLISION_NO_PROP: &str = "No prop nearby";
+pub const COLLISION_ADDED_PROP: &str = "An added prop";
+pub const COLLISION_MOVED_PROP: &str = "A moved prop";
+pub const COLLISION_DRAWN_BY_MOD: &str = "Drawn by this mod";
+pub const COLLISION_ROAD_FLOOR: &str = "A road floor";
+pub const COLLISION_FLOOR_OFF: &str = "A floor that is not ground";
+
+
 pub const ALL: &[&str] = &[
     QUIT,
     STUDIO,
@@ -680,6 +692,15 @@ pub const ALL: &[&str] = &[
     LANGUAGE_FILES_NEED_GAME,
     GAME_FOLDER_NOT_SET,
     SHOW_NEAREST_ROAD,
+    COLLISION_SURFACE,
+    COLLISION_BARRIER_GROUP,
+    COLLISION_NEXT_TO,
+    COLLISION_NO_PROP,
+    COLLISION_ADDED_PROP,
+    COLLISION_MOVED_PROP,
+    COLLISION_DRAWN_BY_MOD,
+    COLLISION_ROAD_FLOOR,
+    COLLISION_FLOOR_OFF,
 ];
 
 /// The characters beyond ASCII Studio's words and glyphs use (the faces must have them).

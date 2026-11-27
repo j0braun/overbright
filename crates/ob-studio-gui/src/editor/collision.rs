@@ -63,6 +63,10 @@ pub struct Picked {
     pub outline: Vec<Vec3>,
     /// A wall's height range.
     pub z: (f32, f32),
+    /// The surface id of its face (grip and sound); None for a drawn ground set by the mod's own outline.
+    pub surface: Option<u8>,
+    /// What it belongs to ("Barrier group BARRIERS_4126", "Next to the prop LAMP_01"), for the panel and status.
+    pub owner: String,
 }
 
 /// A click this close (points) to a wall's foot or top picks it.
@@ -73,7 +77,7 @@ const CLOSE_PX: f32 = 10.0;
 /// drawn wall snaps to it (Alt places without snapping).
 pub const SNAP_PX: f32 = 10.0;
 
-pub use ob_studio::collision_view::{Colour, Show};
+pub use ob_studio::collision_view::{Class, Colour, Look, OPACITIES, Show, opacity_label};
 
 /// Which barrier groups a workspace's collision layer draws. In the game a barrier group is switched on by what
 /// is being played: `BARRIERS_<track>` and `PLAYER_BARRIERS_<track>` by a race on that base track (free roam is
@@ -89,6 +93,8 @@ pub struct Scope {
     pub race_barriers: bool,
     /// What colours the walls and floors.
     pub colour: Colour,
+    /// Which classes are shown, opacity, wireframe, full height.
+    pub look: Look,
 }
 
 /// How a wall is drawn under a [`Scope`].
@@ -111,12 +117,12 @@ pub fn group_track(name: &str) -> Option<u16> {
 
 impl Scope {
     /// Everything at full strength (the editor's own window).
-    pub const ALL: Scope = Scope { focus: super::state::Focus::Both, track: None, race_barriers: true, colour: Colour::Kind };
+    pub const ALL: Scope = Scope { focus: super::state::Focus::Both, track: None, race_barriers: true, colour: Colour::Kind, look: Look::DEFAULT };
 
     pub fn of(s: &EditorState) -> Scope {
         use super::state::Focus;
         let track = s.race.and_then(|i| s.session.map.races.get(i)).map(|r| r.track);
-        Scope { focus: s.focus, track, race_barriers: s.race_barriers && s.focus == Focus::World, colour: s.collision_colour }
+        Scope { focus: s.focus, track, race_barriers: s.race_barriers && s.focus == Focus::World, colour: s.collision_colour, look: s.collision_look }
     }
 
     /// How wall `w` of `layer` is drawn.
@@ -240,8 +246,26 @@ impl super::app::Overlay for CollisionOverlay {
             remove_picked(s);
         }
         let proj = Proj::of(s, ctx, rect);
-        let taken = proj.as_ref().is_some_and(|proj| draw_input(self, s, ctx, painter, rect, proj));
         let show = s.collision;
+        let floors = s.camera.fov_y >= 5f32.to_radians();
+        let lg = (show != Show::Off).then(|| {
+            let scope = Scope::of(s);
+            legend_layout(self.layer(s), show, &scope, floors, painter, rect)
+        });
+        // A click on the key switches a class; it is not a pick or a drawn point.
+        let on_key = lg.as_ref().is_some_and(|l| {
+            ctx.input(|i| i.pointer.hover_pos()).is_some_and(|p| l.panel.contains(p))
+                && ctx.layer_id_at(ctx.input(|i| i.pointer.hover_pos()).unwrap_or_default()).is_none_or(|l| l.order == egui::Order::Background)
+        });
+        if on_key
+            && let (Some(l), Some(p)) = (&lg, ctx.input(|i| i.pointer.hover_pos()))
+            && ctx.input(|i| i.pointer.primary_pressed())
+            && let Some(t) = l.hit(p)
+        {
+            toggle(&mut s.collision_look, t);
+            ctx.request_repaint();
+        }
+        let taken = on_key || proj.as_ref().is_some_and(|proj| draw_input(self, s, ctx, painter, rect, proj));
         if show == Show::Off {
             return taken;
         }
@@ -257,8 +281,9 @@ impl super::app::Overlay for CollisionOverlay {
         let scope = Scope::of(s);
         let layer = self.layer(s);
         paint_3d(layer, show, &scope, &Overlay::new(painter, &s.camera, rect));
-        let floors = s.camera.fov_y >= 5f32.to_radians();
-        legend(layer, show, &scope, floors, painter, rect);
+        if let Some(l) = &lg {
+            paint_legend(l, painter);
+        }
         taken
     }
 }
@@ -635,7 +660,7 @@ fn pick_input(o: &mut CollisionOverlay, s: &mut EditorState, ctx: &egui::Context
             }
             continue;
         }
-        let q = w.quad(0.0, 1.0);
+        let q = wall_quad(w, 0.0, 1.0, &scope.look);
         let (Some(f0), Some(f1), Some(t0), Some(t1)) = (ov(q[0]), ov(q[1]), ov(q[3]), ov(q[2])) else { continue };
         let d = near(f0, f1).min(near(t0, t1)).min(near(f0, t0)).min(near(f1, t1));
         let inside = Shape::convex_polygon(vec![f0, f1, t1, t0], Color32::WHITE, Stroke::NONE)
@@ -665,26 +690,122 @@ fn pick_input(o: &mut CollisionOverlay, s: &mut EditorState, ctx: &egui::Context
     let picked = match best {
         Some((_, i)) => {
             let w = layer.walls[i as usize].clone();
-            Some(picked_wall(s, &w))
+            Some(picked_wall(s, layer, &w))
         }
         None => ground.and_then(|g| picked_ground(s, g)),
+    };
+    // Nothing else to pick: a floor under the click is named in the status line (the click stays the view's).
+    let floor = if picked.is_none() && show == Show::All {
+        ground.and_then(|g| picked_floor(layer, &scope, g)).map(|f| (f.surface, floor_owner(f)))
+    } else {
+        None
     };
     match picked {
         Some(p) => {
             s.selection.clear();
+            s.status = pick_words(p.surface, &p.owner);
             s.wall = Some(p);
             true
         }
         None => {
             s.wall = None;
+            if let Some((surface, owner)) = floor {
+                s.status = pick_words(Some(surface), &owner);
+            }
             false
         }
     }
 }
 
+/// The status line for a picked face: its surface and what it belongs to.
+fn pick_words(surface: Option<u8>, owner: &str) -> String {
+    use crate::studio::words;
+    let mut out = String::new();
+    if let Some(id) = surface {
+        out = format!("{} {id}", words::COLLISION_SURFACE);
+    }
+    if !owner.is_empty() {
+        if !out.is_empty() {
+            out.push_str(" · ");
+        }
+        out.push_str(owner);
+    }
+    out
+}
+
+/// What a floor belongs to.
+fn floor_owner(f: &collision::Floor) -> String {
+    use crate::studio::words;
+    match f.mine {
+        Mine::Added => words::COLLISION_ADDED_PROP.into(),
+        Mine::Moved => words::COLLISION_MOVED_PROP.into(),
+        Mine::Drawn => words::COLLISION_DRAWN_BY_MOD.into(),
+        Mine::Original if f.not_ground => words::COLLISION_FLOOR_OFF.into(),
+        Mine::Original => words::COLLISION_ROAD_FLOOR.into(),
+    }
+}
+
+/// The floor shown under world point `at` (the one nearest in height).
+fn picked_floor<'a>(layer: &'a Layer, scope: &Scope, at: Vec3) -> Option<&'a collision::Floor> {
+    let p = at.truncate();
+    let (_, floors) = layer.near(p - Vec2::splat(1.0), p + Vec2::splat(1.0));
+    floors
+        .iter()
+        .map(|&i| &layer.floors[i as usize])
+        .filter(|f| floor_shown_in(f, scope) && inside(f.points(), p))
+        .min_by(|a, b| {
+            let d = |f: &collision::Floor| (f.points().iter().map(|v| v.z).sum::<f32>() / f.n as f32 - at.z).abs();
+            d(a).total_cmp(&d(b))
+        })
+}
+
+/// Whether `p` is inside the polygon `points` seen from above.
+fn inside(points: &[Vec3], p: Vec2) -> bool {
+    let n = points.len();
+    let mut inside = false;
+    for k in 0..n {
+        let (a, b) = (points[k].truncate(), points[(k + 1) % n].truncate());
+        if (a.y > p.y) != (b.y > p.y) && p.x < a.x + (p.y - a.y) / (b.y - a.y) * (b.x - a.x) {
+            inside = !inside;
+        }
+    }
+    inside
+}
+
+/// What wall `w` belongs to: its barrier group, or the nearest prop of the original's scenery (the wall stands
+/// there as the collision of that prop or the road beside it).
+fn wall_owner(s: &EditorState, layer: &Layer, w: &Wall) -> String {
+    use crate::studio::words;
+    match w.mine {
+        Mine::Added => return words::COLLISION_ADDED_PROP.into(),
+        Mine::Moved => return words::COLLISION_MOVED_PROP.into(),
+        Mine::Drawn => return words::COLLISION_DRAWN_BY_MOD.into(),
+        Mine::Original => {}
+    }
+    if w.group != 0 {
+        return format!("{} {}", words::COLLISION_BARRIER_GROUP, layer.group_name(w.group));
+    }
+    let mid = w.a.lerp(w.b, 0.5);
+    let nearest = s
+        .session
+        .base
+        .placements
+        .iter()
+        .map(|p| (p.transform.w_axis.truncate().truncate().distance(mid), p))
+        .filter(|(d, _)| *d <= NEAR_PROP)
+        .min_by(|a, b| a.0.total_cmp(&b.0));
+    match nearest.and_then(|(_, p)| s.session.world.solids.get(p.solid)) {
+        Some(solid) => format!("{} {}", words::COLLISION_NEXT_TO, solid.name),
+        None => words::COLLISION_NO_PROP.into(),
+    }
+}
+
+/// A wall counts as next to a prop when the prop's origin is this near (metres).
+const NEAR_PROP: f32 = 25.0;
+
 /// What a click on wall `w` selects: a drawn wall (its whole box) when it
 /// is one of the mod's, else the original face.
-fn picked_wall(s: &EditorState, w: &Wall) -> Picked {
+fn picked_wall(s: &EditorState, layer: &Layer, w: &Wall) -> Picked {
     let mid = w.a.lerp(w.b, 0.5);
     let drawn = s.session.map.collision.iter().find_map(|e| match e {
         CollisionEdit::Wall { id, region, from, to, .. } if region.eq_ignore_ascii_case(&s.session.region) => {
@@ -701,6 +822,8 @@ fn picked_wall(s: &EditorState, w: &Wall) -> Picked {
             key: Target::Drawn(id),
             outline: vec![from, to],
             z: (w.z0, w.z1),
+            surface: Some(w.surface),
+            owner: crate::studio::words::COLLISION_DRAWN_BY_MOD.into(),
         },
         None => Picked {
             what: match w.kind() {
@@ -711,6 +834,8 @@ fn picked_wall(s: &EditorState, w: &Wall) -> Picked {
             key: Target::Original(w.corners.clone()),
             outline: vec![w.a.extend(w.z0), w.b.extend(w.z0)],
             z: (w.z0, w.z1),
+            surface: Some(w.surface),
+            owner: wall_owner(s, layer, w),
         },
     }
 }
@@ -718,7 +843,7 @@ fn picked_wall(s: &EditorState, w: &Wall) -> Picked {
 /// The mod's drawn wall or ground named `id` as the selection (None: the mod has none of that name here).
 pub fn pick_drawn(s: &EditorState, id: &str) -> Option<Picked> {
     s.session.map.collision.iter().find_map(|e| match e {
-        CollisionEdit::Wall { id: i, region, from, to, height, .. }
+        CollisionEdit::Wall { id: i, region, from, to, height, surface, .. }
             if i == id && region.eq_ignore_ascii_case(&s.session.region) =>
         {
             let base = from.z.min(to.z);
@@ -727,6 +852,8 @@ pub fn pick_drawn(s: &EditorState, id: &str) -> Option<Picked> {
                 key: Target::Drawn(id.to_string()),
                 outline: vec![*from, *to],
                 z: (base, base + height),
+                surface: Some(*surface),
+                owner: crate::studio::words::COLLISION_DRAWN_BY_MOD.into(),
             })
         }
         CollisionEdit::Ground { id: i, region, outline, .. }
@@ -737,6 +864,8 @@ pub fn pick_drawn(s: &EditorState, id: &str) -> Option<Picked> {
                 key: Target::Drawn(id.to_string()),
                 outline: outline.clone(),
                 z: (0.0, 0.0),
+                surface: None,
+                owner: crate::studio::words::COLLISION_DRAWN_BY_MOD.into(),
             })
         }
         _ => None,
@@ -761,6 +890,8 @@ fn picked_ground(s: &EditorState, at: Vec3) -> Option<Picked> {
                 key: Target::Drawn(id.clone()),
                 outline: outline.clone(),
                 z: (0.0, 0.0),
+                surface: None,
+                owner: crate::studio::words::COLLISION_DRAWN_BY_MOD.into(),
             })
         }
         _ => None,
@@ -833,6 +964,7 @@ pub fn panel(s: &mut EditorState, ui: &mut egui::Ui) -> bool {
     } else {
         ui.label(dim(&format!("{} corners · static collision", p.outline.len())));
     }
+    ui.label(dim(&pick_words(p.surface, &p.owner)));
     let barrier = is_barrier(&p);
     let label = if matches!(p.key, Target::Drawn(_)) { "Delete" } else { "Remove wall" };
     if ui.add_enabled(!barrier, egui::Button::new(label)).on_hover_text("Del").clicked() {
@@ -855,22 +987,69 @@ fn parts(layer: &Layer, w: &Wall, show: Show, scope: &Scope) -> Vec<(f32, f32, C
         return out;
     }
     let dim = |c: Color32| if weight == Weight::Dim { c.gamma_multiply(0.3) } else { c };
-    if let Some(c) = key::mine(w.mine) {
-        out.push((0.0, 1.0, dim(c)));
+    let by_surface = scope.colour == Colour::Surface;
+    let look = &scope.look;
+    if by_surface && !look.shows_surface(w.surface) {
         return out;
     }
-    let by_surface = scope.colour == Colour::Surface;
+    if let Some(c) = key::mine(w.mine) {
+        if look.shows(mine_class(w.mine)) {
+            out.push((0.0, 1.0, dim(c)));
+        }
+        return out;
+    }
     if w.group != 0 {
+        if !look.shows(Class::Barrier) {
+            return out;
+        }
         out.push((0.0, 1.0, if by_surface { key::surface(w.surface) } else { key::BARRIER }));
         return out;
     }
     let bare = if by_surface { key::surface(w.surface) } else { key::INVISIBLE };
-    out.extend(w.bare.iter().map(|&(a, b)| (a, b, dim(bare))));
-    if show == Show::All {
+    if look.shows(Class::Invisible) {
+        out.extend(w.bare.iter().map(|&(a, b)| (a, b, dim(bare))));
+    }
+    if show == Show::All && look.shows(Class::Behind) {
         let covered = if by_surface { key::surface(w.surface).gamma_multiply(0.5) } else { key::VISIBLE };
         out.extend(w.covered().into_iter().map(|(a, b)| (a, b, dim(covered))));
     }
     out
+}
+
+/// The class of a mod's own collision.
+fn mine_class(m: Mine) -> Class {
+    match m {
+        Mine::Added => Class::Added,
+        Mine::Moved => Class::Moved,
+        _ => Class::Drawn,
+    }
+}
+
+/// The class a floor belongs to.
+fn floor_class(f: &collision::Floor) -> Class {
+    match f.mine {
+        Mine::Original if f.not_ground => Class::NotGround,
+        Mine::Original => Class::Road,
+        m => mine_class(m),
+    }
+}
+
+/// Whether the look shows floor `f`.
+fn floor_shown_in(f: &collision::Floor, scope: &Scope) -> bool {
+    scope.look.shows(floor_class(f)) && (scope.colour != Colour::Surface || scope.look.shows_surface(f.surface))
+}
+
+/// The quad of the part `t0`..`t1` of `w` as the look draws it: a wall the game lets reach from -2048 m to 2048 m
+/// full height when asked, else beside the floors.
+pub fn wall_quad(w: &Wall, t0: f32, t1: f32, look: &Look) -> [Vec3; 4] {
+    let mut q = w.quad(t0, t1);
+    if look.full_height && w.tall {
+        q[0].z = -2048.0;
+        q[1].z = -2048.0;
+        q[2].z = 2048.0;
+        q[3].z = 2048.0;
+    }
+    q
 }
 
 /// A floor's colour by kind: drivable ground, or a face the wheels pass through.
@@ -909,10 +1088,13 @@ pub fn paint_3d(layer: &Layer, show: Show, scope: &Scope, o: &Overlay) {
         let (_, floors) =
             layer.near(cam.truncate() - Vec2::splat(FLOORS_NEAR), cam.truncate() + Vec2::splat(FLOORS_NEAR));
         // The mod's own floors (drawn ground, an added prop's) show in every mode, the original's in All.
-        let shown = floors.iter().map(|&i| &layer.floors[i as usize]).filter(|f| show == Show::All || f.mine != Mine::Original);
+        let shown = floors
+            .iter()
+            .map(|&i| &layer.floors[i as usize])
+            .filter(|f| (show == Show::All || f.mine != Mine::Original) && floor_shown_in(f, scope));
         for f in shown.take(MAX_FLOORS) {
             let width = if f.mine == Mine::Original { 1.0 } else { 3.0 };
-            quad(o, f.points(), None, key::fill(floor_shown(f, scope), 150), width);
+            quad(o, f.points(), None, key::fill(floor_shown(f, scope), scope.look.alpha(150)), width);
         }
     }
     let mut drawn = 0;
@@ -929,7 +1111,10 @@ pub fn paint_3d(layer: &Layer, show: Show, scope: &Scope, o: &Overlay) {
             } else {
                 70
             };
-            quad(o, &w.quad(t0, t1), Some(key::fill(c, alpha)), c, if w.mine == Mine::Original { 1.5 } else { 3.0 });
+            let look = &scope.look;
+            let fill = (!look.wireframe).then(|| key::fill(c, look.alpha(alpha)));
+            let line = c.gamma_multiply(look.opacity as f32 / 100.0);
+            quad(o, &wall_quad(w, t0, t1, look), fill, line, if w.mine == Mine::Original { 1.5 } else { 3.0 });
         }
         drawn += 1;
         if drawn >= MAX_WALLS {
@@ -1011,8 +1196,11 @@ fn foot_lines(
         }
     }
     lines.sort_by_key(|l| if l.2.a() < 255 || l.2 == key::VISIBLE { 0 } else { 1 });
+    let strength = scope.look.opacity as f32 / 100.0;
     for (a, b, colour) in lines {
-        if colour == key::VISIBLE || colour.a() < 255 {
+        let faint = colour.a() < 255 || colour == key::VISIBLE;
+        let colour = colour.gamma_multiply(strength);
+        if faint {
             painter.line_segment([a, b], Stroke::new(1.0, colour));
         } else {
             // A part shorter than a pixel still shows as a dot.
@@ -1022,10 +1210,60 @@ fn foot_lines(
     }
 }
 
+/// What a legend row switches.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Toggle {
+    Class(Class),
+    Surface(u8),
+}
+
+/// The colour key laid out: its panel and its rows with where each sits.
+pub struct Legend {
+    pub panel: Rect,
+    rows: Vec<LegendRow>,
+}
+
+struct LegendRow {
+    rect: Rect,
+    colour: Color32,
+    galley: std::sync::Arc<egui::Galley>,
+    toggle: Option<Toggle>,
+    shown: bool,
+}
+
+impl Legend {
+    /// The switch of the row at `at`, if any.
+    pub fn hit(&self, at: Pos2) -> Option<Toggle> {
+        self.rows.iter().find(|r| r.rect.contains(at)).and_then(|r| r.toggle)
+    }
+}
+
+/// Flip what a legend row switches (a click on it).
+pub fn toggle(look: &mut Look, t: Toggle) {
+    match t {
+        Toggle::Class(c) => look.toggle(c),
+        Toggle::Surface(id) => look.toggle_surface(id),
+    }
+}
+
 /// The colour key at the view's bottom right (the overview's scale line
-/// holds the bottom left), on the overlays' dark fill.
+/// holds the bottom left), on the overlays' dark fill. A click on a row
+/// shows or hides that class.
 /// `floors`: the view draws the floors (the 3D view does, the Map not).
-pub fn legend(layer: &Layer, show: Show, scope: &Scope, floors: bool, painter: &egui::Painter, rect: Rect) {
+pub fn legend(layer: &Layer, show: Show, scope: &Scope, floors: bool, painter: &egui::Painter, rect: Rect) -> Legend {
+    let l = legend_layout(layer, show, scope, floors, painter, rect);
+    paint_legend(&l, painter);
+    l
+}
+
+pub fn legend_layout(
+    layer: &Layer,
+    show: Show,
+    scope: &Scope,
+    floors: bool,
+    painter: &egui::Painter,
+    rect: Rect,
+) -> Legend {
     let counts = layer.counts();
     let barriers = layer.walls.iter().filter(|w| w.group != 0 && scope.weight(layer, w) == Weight::Full).count();
     let barrier_title = match scope.focus {
@@ -1033,28 +1271,29 @@ pub fn legend(layer: &Layer, show: Show, scope: &Scope, floors: bool, painter: &
         super::state::Focus::World if !scope.race_barriers => "Free roam and career barriers",
         _ => "Race and career barriers",
     };
-    let mut rows: Vec<(Color32, String)> = Vec::new();
+    let look = &scope.look;
+    let mut rows: Vec<(Color32, String, Option<Toggle>)> = Vec::new();
     if scope.colour == Colour::Surface {
         // By surface: one row per surface id the region has (the commonest first, a few), then the rest.
         let mut all = layer.surfaces();
         all.sort_by_key(|&(id, n)| (std::cmp::Reverse(n), id));
         for &(id, n) in all.iter().take(SURFACE_ROWS) {
-            rows.push((key::surface(id), format!("Surface {id} ({n})")));
+            rows.push((key::surface(id), format!("Surface {id} ({n})"), Some(Toggle::Surface(id))));
         }
         if all.len() > SURFACE_ROWS {
             let rest: usize = all[SURFACE_ROWS..].iter().map(|r| r.1).sum();
-            rows.push((colour::DIM, format!("{} more surfaces ({rest})", all.len() - SURFACE_ROWS)));
+            rows.push((colour::DIM, format!("{} more surfaces ({rest})", all.len() - SURFACE_ROWS), None));
         }
     } else {
-        rows.push((key::INVISIBLE, format!("Invisible walls ({})", counts.invisible)));
-        rows.push((key::BARRIER, format!("{barrier_title} ({barriers})")));
+        rows.push((key::INVISIBLE, format!("Invisible walls ({})", counts.invisible), Some(Toggle::Class(Class::Invisible))));
+        rows.push((key::BARRIER, format!("{barrier_title} ({barriers})"), Some(Toggle::Class(Class::Barrier))));
         if show == Show::All {
-            rows.push((key::VISIBLE, format!("Walls behind scenery ({})", counts.visible)));
+            rows.push((key::VISIBLE, format!("Walls behind scenery ({})", counts.visible), Some(Toggle::Class(Class::Behind))));
             if floors {
                 let off = layer.floors.iter().filter(|f| f.not_ground).count();
-                rows.push((key::FLOOR, format!("Road floors ({})", counts.floors - off)));
+                rows.push((key::FLOOR, format!("Road floors ({})", counts.floors - off), Some(Toggle::Class(Class::Road))));
                 if off > 0 {
-                    rows.push((key::FLOOR_OFF, format!("Floors that are not ground ({off})")));
+                    rows.push((key::FLOOR_OFF, format!("Floors that are not ground ({off})"), Some(Toggle::Class(Class::NotGround))));
                 }
             }
         }
@@ -1062,31 +1301,63 @@ pub fn legend(layer: &Layer, show: Show, scope: &Scope, floors: bool, painter: &
     let (added, moved, drawn) = layer.mine();
     for (m, n, what) in [(Mine::Added, added, "Added props'"), (Mine::Moved, moved, "Moved props'"), (Mine::Drawn, drawn, "Drawn by this mod")] {
         if let (Some(c), true) = (key::mine(m), n > 0) {
-            rows.push((c, format!("{what} ({n})")));
+            rows.push((c, format!("{what} ({n})"), Some(Toggle::Class(mine_class(m)))));
         }
     }
     let font = egui::FontId::proportional(13.0);
-    let galleys: Vec<_> =
-        rows.iter().map(|(_, t)| painter.layout_no_wrap(t.clone(), font.clone(), colour::INK)).collect();
+    let galleys: Vec<_> = rows
+        .iter()
+        .map(|(_, t, _)| painter.layout_no_wrap(t.clone(), font.clone(), colour::INK))
+        .collect();
     let width = galleys.iter().map(|g| g.size().x).fold(0.0, f32::max) + 12.0 + 6.0 + 16.0;
     let row_h = 18.0;
     let title_h = 18.0;
     let height = title_h + row_h * rows.len() as f32 + 10.0;
     let size = egui::vec2(width.max(160.0), height);
     let r = Rect::from_min_size(Pos2::new(rect.right() - 10.0 - size.x, rect.bottom() - 10.0 - height), size);
-    painter.rect_filled(r, 6.0, colour::SHADOW);
+    let rows = rows
+        .into_iter()
+        .zip(galleys)
+        .enumerate()
+        .map(|(k, ((colour, _, toggle), galley))| {
+            let y = r.top() + 5.0 + title_h + row_h * k as f32;
+            let shown = match toggle {
+                Some(Toggle::Class(c)) => look.shows(c),
+                Some(Toggle::Surface(id)) => look.shows_surface(id),
+                None => true,
+            };
+            LegendRow { rect: Rect::from_min_size(Pos2::new(r.left(), y), egui::vec2(r.width(), row_h)), colour, galley, toggle, shown }
+        })
+        .collect();
+    Legend { panel: r, rows }
+}
+
+pub fn paint_legend(l: &Legend, painter: &egui::Painter) {
+    let font = egui::FontId::proportional(13.0);
+    painter.rect_filled(l.panel, 6.0, colour::SHADOW);
     painter.text(
-        Pos2::new(r.left() + 8.0, r.top() + 5.0),
+        Pos2::new(l.panel.left() + 8.0, l.panel.top() + 5.0),
         egui::Align2::LEFT_TOP,
         "Collision",
-        font.clone(),
+        font,
         colour::DIM,
     );
-    for (k, ((c, _), g)) in rows.iter().zip(galleys).enumerate() {
-        let y = r.top() + 5.0 + title_h + row_h * k as f32;
-        let sw = Rect::from_min_size(Pos2::new(r.left() + 8.0, y + 2.0), egui::vec2(12.0, 12.0));
-        painter.rect_filled(sw, 2.0, *c);
-        painter.galley(Pos2::new(sw.right() + 6.0, y), g, colour::INK);
+    for row in &l.rows {
+        let sw = Rect::from_min_size(Pos2::new(row.rect.left() + 8.0, row.rect.top() + 2.0), egui::vec2(12.0, 12.0));
+        let text_at = Pos2::new(sw.right() + 6.0, row.rect.top());
+        if row.shown {
+            painter.rect_filled(sw, 2.0, row.colour);
+            painter.galley(text_at, row.galley.clone(), colour::INK);
+        } else {
+            // Switched off: an empty swatch and a struck-through name.
+            painter.rect_stroke(sw, 2.0, Stroke::new(1.0, row.colour), egui::StrokeKind::Inside);
+            painter.galley(text_at, row.galley.clone(), colour::DIM);
+            let y = row.rect.center().y;
+            painter.line_segment(
+                [Pos2::new(text_at.x, y), Pos2::new(text_at.x + row.galley.size().x, y)],
+                Stroke::new(1.0, colour::DIM),
+            );
+        }
     }
 }
 

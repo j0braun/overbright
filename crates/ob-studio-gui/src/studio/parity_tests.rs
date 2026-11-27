@@ -116,6 +116,12 @@ fn action(a: &Action) -> Cli {
         },
         // What colours the layer: a view setting, like the camera views.
         Action::CollisionColour(_) => WindowOnly(VIEWING),
+        // Which kinds the layer draws, how strongly, as outlines or full height: view settings; the mod is never touched.
+        Action::CollisionKind(_)
+        | Action::CollisionEveryKind
+        | Action::CollisionOpacity(_)
+        | Action::CollisionWireframe
+        | Action::CollisionFullHeight => WindowOnly(VIEWING),
         // Whether other races' barriers are drawn in World: a view setting, like the camera views.
         Action::RaceBarriers => WindowOnly(VIEWING),
         Action::Goal(_) | Action::GoTo | Action::SaveView | Action::RecallView(_) | Action::DeleteView(_) => {

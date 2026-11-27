@@ -88,7 +88,7 @@ A menu item that cannot act now is greyed out and says why when hovered (Duplica
 |---|---|
 | File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Export as mod pack…** (a `.obpk` file for the launcher's Mods page: the placements, races and textures as the asset format's own files; it proposes `<folder>-1.0.0.obpk` in the `exports` folder), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
 | Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Collision ▸ Draw wall**, **Edit ▸ Collision ▸ Draw ground** and **Edit ▸ Collision ▸ Remove wall** (see Removed and drawn collision) |
-| View | **View ▸ Roads** (the road network over the top view), **View ▸ Show nearest road**, **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision**, **View ▸ Collision ▸ By kind** and **View ▸ Collision ▸ By surface** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
+| View | **View ▸ Roads** (the road network over the top view), **View ▸ Show nearest road**, **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision**, **View ▸ Collision ▸ By kind** and **View ▸ Collision ▸ By surface** (see Collision), the Kinds submenu of View ▸ Collision (**View ▸ Collision ▸ Kinds ▸ Invisible walls**, **View ▸ Collision ▸ Kinds ▸ Barriers**, **View ▸ Collision ▸ Kinds ▸ Walls behind scenery**, **View ▸ Collision ▸ Kinds ▸ Road floors**, **View ▸ Collision ▸ Kinds ▸ Floors that are not ground**, **View ▸ Collision ▸ Kinds ▸ Added props'**, **View ▸ Collision ▸ Kinds ▸ Moved props'**, **View ▸ Collision ▸ Kinds ▸ Drawn by this mod**, **View ▸ Collision ▸ Kinds ▸ Show every kind**), the Opacity submenu (**View ▸ Collision ▸ Opacity ▸ 25 %**, **View ▸ Collision ▸ Opacity ▸ 50 %**, **View ▸ Collision ▸ Opacity ▸ 75 %**, **View ▸ Collision ▸ Opacity ▸ 100 %**), **View ▸ Collision ▸ Wireframe** and **View ▸ Collision ▸ Full-height walls** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
 | Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5), **Race ▸ Drive to record**, **Race ▸ Test without selected props**, **Race ▸ What the game loaded**, **Race ▸ Test car and clock…** |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
 
@@ -555,6 +555,23 @@ The L key steps through the three.
 The mod's own collision is set apart from the original's in every mode, in thicker lines, and shows in Invisible
 barriers too: an added prop's collision in blue, a moved prop's at its new place in lime, the walls and ground the
 mod drew in green; the key counts each. It is a view only: nothing is written to the mod.
+
+Which kinds are drawn, and how, is the window's own view setting:
+
+- The Kinds submenu (View ▸ Collision) shows or hides each kind the key lists (the invisible walls, the barriers, the walls
+  behind scenery, the road floors, the floors that are not ground, and the mod's own added, moved and drawn
+  collision); **Show every kind** brings them all back. Under **By surface** the key's surface rows switch single
+  surface ids. A click on a row of the key does the same as the menu item.
+- The Opacity submenu draws the layer at 25, 50, 75 or 100 % of its strength.
+- **View ▸ Collision ▸ Wireframe** draws outlines only, without the see-through fill.
+- **View ▸ Collision ▸ Full-height walls** draws a wall the game makes reach from -2048 m to 2048 m that tall,
+  not only beside the floors.
+- With the layer shown, a click on a wall (3D view, top view and Map) names its surface id and what it belongs to
+  in the status line and the Properties panel: its barrier group, the nearest prop of the original's scenery, or the
+  mod. With all collision shown, a click on a floor names its surface and kind in the status line.
+
+None of this is written to the mod: saved before and after, the mod is byte-identical. The menu is the keyboard and
+pad way to every switch.
 
 A key at the view's bottom right names the colours and counts each kind in the region. In the 3D view a wall is
 a see-through panel with its outline; in the top overview and on the Map it is a line along its foot.

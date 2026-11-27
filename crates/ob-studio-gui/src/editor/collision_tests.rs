@@ -536,14 +536,14 @@ fn collision_layers_follow_the_workspace() {
     assert_eq!(group_track("PLAYER_BARRIERS_4126"), Some(4126));
     assert_eq!(group_track("BARRIERS_CAREER1"), None);
     // World: permanent walls, free roam's own and the career stages'; a race's barriers only on request.
-    let world = Scope { focus: Focus::World, track: None, race_barriers: false, colour: Colour::Kind };
+    let world = Scope { focus: Focus::World, track: None, race_barriers: false, colour: Colour::Kind, look: Look::DEFAULT };
     assert_eq!(w(world, "NONE"), Weight::Full);
     assert_eq!(w(world, "BARRIERS_4000"), Weight::Full);
     assert_eq!(w(world, "BARRIERS_CAREER1"), Weight::Full);
     assert_eq!(w(world, "BARRIERS_4126"), Weight::Hidden);
     assert_eq!(w(Scope { race_barriers: true, ..world }, "BARRIERS_4126"), Weight::Full);
     // Races: the selected race's barriers, the permanent walls dimmed, nothing else.
-    let races = Scope { focus: Focus::Races, track: Some(4126), race_barriers: false, colour: Colour::Kind };
+    let races = Scope { focus: Focus::Races, track: Some(4126), race_barriers: false, colour: Colour::Kind, look: Look::DEFAULT };
     assert_eq!(w(races, "NONE"), Weight::Dim);
     assert_eq!(w(races, "BARRIERS_4126"), Weight::Full);
     assert_eq!(w(races, "PLAYER_BARRIERS_4126"), Weight::Full);
@@ -623,4 +623,114 @@ fn the_colouring_is_a_view_setting_kept_out_of_the_mod() {
     let names: Vec<&str> = Colour::ALL.iter().map(|c| c.label()).collect();
     assert_eq!(names, ["By kind", "By surface"]);
     assert_eq!(Colour::default(), Colour::Kind);
+}
+
+#[test]
+fn classes_switch_off_in_the_key_and_in_the_drawing() {
+    let l = surfaced();
+    let none = |c: Class| {
+        let mut look = Look::default();
+        look.toggle(c);
+        Scope { look, ..Scope::ALL }
+    };
+    let bare = l.walls.iter().find(|w| w.group == 0 && !w.bare.is_empty()).unwrap();
+    let barrier = l.walls.iter().find(|w| w.group != 0).unwrap();
+    assert!(!parts(&l, bare, Show::All, &Scope::ALL).is_empty());
+    assert!(parts(&l, bare, Show::All, &none(Class::Invisible)).iter().all(|p| p.2 != key::INVISIBLE));
+    assert!(parts(&l, barrier, Show::All, &none(Class::Barrier)).is_empty());
+    assert!(parts(&l, barrier, Show::All, &none(Class::Invisible)).len() == 1);
+    // Behind scenery: the covered parts go, the bare stay.
+    let covered = l.walls.iter().find(|w| w.group == 0 && !w.covered().is_empty()).unwrap();
+    assert!(parts(&l, covered, Show::All, &none(Class::Behind)).iter().all(|p| p.2 != key::VISIBLE));
+    assert!(!floor_shown_in(&l.floors[0], &none(Class::Road)));
+    assert!(floor_shown_in(&l.floors[0], &none(Class::NotGround)));
+    // By surface a surface switches off on its own.
+    let mut look = Look::default();
+    look.toggle_surface(bare.surface);
+    let scope = Scope { look, colour: Colour::Surface, ..Scope::ALL };
+    assert!(parts(&l, bare, Show::All, &scope).is_empty());
+    assert!(!parts(&l, bare, Show::All, &Scope { colour: Colour::Kind, ..scope }).is_empty());
+    // Every kind comes back at once.
+    let mut look = look;
+    look.toggle(Class::Barrier);
+    look.show_every_kind();
+    assert_eq!(look, Look::default());
+}
+
+#[test]
+fn a_click_on_a_key_row_names_its_toggle_and_flips_it() {
+    let l = surfaced();
+    let ctx = egui::Context::default();
+    let rect = Rect::from_min_size(Pos2::ZERO, egui::vec2(800.0, 500.0));
+    let _ = crate::editor::run_headless(&ctx, egui::RawInput { screen_rect: Some(rect), ..Default::default() }, |ui| {
+        let key = legend_layout(&l, Show::All, &Scope::ALL, true, ui.painter(), rect);
+        assert!(key.panel.max.x <= rect.max.x && key.panel.max.y <= rect.max.y && key.panel.min.x >= 0.0);
+        let first = key.rows[0].rect.center();
+        assert_eq!(key.hit(first), Some(Toggle::Class(Class::Invisible)));
+        assert_eq!(key.hit(Pos2::new(1.0, 1.0)), None);
+        let mut look = Look::default();
+        toggle(&mut look, Toggle::Class(Class::Invisible));
+        assert!(!look.shows(Class::Invisible));
+        toggle(&mut look, Toggle::Class(Class::Invisible));
+        assert_eq!(look, Look::default());
+    });
+}
+
+#[test]
+fn full_height_draws_the_tall_walls_to_their_real_height_and_opacity_scales_alpha() {
+    let l = region();
+    let tall = l.walls.iter().find(|w| w.tall).unwrap();
+    let low = Look::default();
+    let mut full = Look::default();
+    full.full_height = true;
+    assert!(wall_quad(tall, 0.0, 1.0, &low)[2].z < 100.0);
+    let q = wall_quad(tall, 0.0, 1.0, &full);
+    assert_eq!((q[0].z, q[2].z), (-2048.0, 2048.0));
+    // A wall that is not tall is unchanged.
+    let plain = l.walls.iter().find(|w| !w.tall).unwrap();
+    assert_eq!(wall_quad(plain, 0.0, 1.0, &full), plain.quad(0.0, 1.0));
+    let mut look = Look::default();
+    look.set_opacity(50);
+    assert_eq!(look.alpha(70), 35);
+    look.set_opacity(0);
+    assert_eq!(look.opacity, 10);
+    assert_eq!(opacity_label(25), "25 %");
+}
+
+#[test]
+fn picking_words_name_the_surface_and_the_owner() {
+    assert_eq!(pick_words(Some(16), "Barrier group BARRIERS_4126"), "Surface 16 · Barrier group BARRIERS_4126");
+    assert_eq!(pick_words(None, "Drawn by this mod"), "Drawn by this mod");
+}
+
+/// The layer's look is the window's own: a mod saved before and after switching classes, opacity, wireframe and
+/// full height (through the overlay, a click on the key included) is byte-identical, with no undo step.
+#[test]
+fn switching_the_look_leaves_the_saved_mod_byte_identical() {
+    use crate::tools::map::{MapMod, store};
+    let cam = Camera::looking_at(Vec3::new(0.0, -30.0, 20.0), Vec3::ZERO);
+    let dir = std::env::temp_dir().join(format!("ob-look-{}", std::process::id()));
+    let mut s = EditorState::new(dir.clone(), "L4RA", dir.clone(), "fixture", MapMod::default(), crate::world::World::default(), cam);
+    s.collision = Show::All;
+    let read = |s: &EditorState, tag: &str| {
+        let p = store::save(&dir, tag, &s.session.map).unwrap();
+        std::fs::read(p).unwrap()
+    };
+    let before = read(&s, "before");
+    let ctx = egui::Context::default();
+    let mut o = CollisionOverlay::default();
+    frame(&mut o, &mut s, &ctx, vec![]);
+    for c in Class::ALL {
+        s.collision_look.toggle(c);
+    }
+    s.collision_look.toggle_surface(3);
+    s.collision_look.set_opacity(25);
+    s.collision_look.wireframe = true;
+    s.collision_look.full_height = true;
+    click(&mut o, &mut s, &ctx, Pos2::new(1500.0, 900.0));
+    frame(&mut o, &mut s, &ctx, vec![]);
+    assert_ne!(s.collision_look, Look::default());
+    assert_eq!(read(&s, "after"), before);
+    assert_eq!(s.session.undo.undo_label(), None);
+    let _ = std::fs::remove_dir_all(&dir);
 }
