@@ -1,0 +1,17 @@
+{
+  "change": {
+    "changed": false,
+    "label": "Import 0 cells"
+  },
+  "command": "data.import",
+  "exit": 0,
+  "format": 1,
+  "label": "Import 0 cells",
+  "ok": true,
+  "outcome": "unchanged",
+  "request": {
+    "label": "Import 0 cells",
+    "op": "group",
+    "ops": []
+  }
+}

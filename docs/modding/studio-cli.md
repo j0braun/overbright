@@ -65,6 +65,8 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `data kinds` | read | The kinds the Data grid shows (placement, race) with their columns and row counts |
 | `data show` | read | One kind's table as the Data grid shows it (`--kind`; optional `--search` words, `--filter column=text`, `--sort column`, `--desc`), each value with where it comes from (original, yours, another mod) |
 | `data set` | edit | Write one cell as the grid does (`--kind`, `--row` the row's key as `data show` gives it, `--field` the column, `--value` as typed into the cell): one undo step, with a request, a diff and `--dry-run` like any edit |
+| `data export` | run | Write one kind's table as a CSV file to `--to` (never inside the game's folder), as `data show` narrows it (`--kind`; optional `--search`, `--filter`, `--sort`, `--desc`): a `row` column with each row's key, then the columns by their field names |
+| `data import` | edit | Bring a CSV file (`--from`, as `data export` writes it; a column by its field or label) back as cell edits for `--kind`: only the cells that differ, each checked like `data set`, all as one undo step with a request, a diff and `--dry-run` like any edit; one refused cell (or an unknown row or column) refuses the whole file |
 | `browser search` | read | Search the region's models and textures as the Browser workspace does: words of the name, a hash or `section:N` (after the command or `--text`), `--kind` all, models or textures, `--category` for models, `--textures` any, in-use, unused, animated or large; needs the game |
 | `browser used` | read | Where a model or texture is used: a model's placements, sections and textures, a texture's models and sections; needs the game |
 | `browser sounds` | read | List and search the game's sounds (sound bank events) by words of the bank's path or the sound's name, as the Browser's Sounds chip does; needs the game |
@@ -160,6 +162,8 @@ the same words give the same answer. On a near miss (`--filter barier`, `looks f
 `label`, `type`, `editable`) and `rows`: each `key` and `cells` by column, each cell `text`, `from` (`original`, `yours` or
 `mod <name>`), `yours` and `original` (the original's value when it differs). A cell the format cannot write yet, or a
 row another mod owns, is refused by `data set` with `error.reason` `bad_value` and the grid's words in `error.detail`.
+`data export` gives `kind`, `file`, `total` and `count`; `data import` refuses with the same `bad_value` and, in `error.detail`,
+the first refused cells ("Laps of row docks:sprint: 99 is out of range (1 to 20)"). A file that changes nothing is `unchanged`.
 
 `browser search` gives `region`, `text`, `count`, `found` (`models` and `textures` the words find at their widest) and `hits`
 (a model's `name`, `hash`, `placed`, `shown`, `sections`, `triangles`, `textures`, `used`; a texture's `name`, `texture`

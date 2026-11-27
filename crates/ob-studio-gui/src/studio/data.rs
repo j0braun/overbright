@@ -8,7 +8,7 @@
 use egui::{Align2, Rect, Stroke, StrokeKind, pos2, vec2};
 use ob_studio::changes::map::PLACEMENT;
 use ob_studio::changes::{From, Row};
-use ob_studio::data::{Grid, KINDS};
+use ob_studio::data::{CellEdit, Grid, KINDS, Span, refusals_sentence};
 
 use crate::editor::theme::{self, LABEL, SEMI, TITLE, font, rgb, tokens};
 
@@ -30,6 +30,14 @@ pub fn kind_name(kind: &str) -> &'static str {
 pub enum Ask {
     /// Write `text` in a cell, as one undo step.
     Edit { kind: &'static str, key: String, field: &'static str, text: String },
+    /// Write several cells (a fill, a paste, an import) as one undo step named `label`.
+    Cells { kind: &'static str, edits: Vec<CellEdit>, label: String, refused: String },
+    /// Put this text on the clipboard.
+    Copy(String),
+    /// Write the table to its file.
+    Export,
+    /// Bring the table's file back as edits.
+    Import,
     /// Show the row's entry on the Changes page.
     Changes { kind: &'static str, key: String },
     /// The page's own state moved (nothing for the shell to do).
@@ -52,6 +60,10 @@ pub struct Page {
     /// The focused row of what is shown; None: the header (Enter sorts the focused column).
     pub row: Option<usize>,
     pub col: usize,
+    /// The other corner of a selection of several cells (the focus is the first).
+    pub anchor: Option<(usize, usize)>,
+    /// Pad: the directions extend the selection (the pad has no Shift).
+    pub extend: bool,
     /// The text of the cell being edited.
     pub editing: Option<String>,
     /// The search box has the keys.
@@ -73,6 +85,8 @@ impl Default for Page {
             grid: None,
             row: Some(0),
             col: 0,
+            anchor: None,
+            extend: false,
             editing: None,
             searching: false,
             release: false,
@@ -124,28 +138,124 @@ impl Page {
         KINDS.into_iter().find(|k| *k != self.kind).unwrap_or(self.kind)
     }
 
-    /// ↑ ↓: a row on (the header above the first); false past the ends.
-    pub fn step_row(&mut self, d: i32) -> bool {
+    /// The selected cells (the focus alone when no more are selected).
+    pub fn span(&self) -> Option<Span> {
+        let r = self.row?;
+        Some(Span::between(self.anchor.unwrap_or((r, self.col)), (r, self.col)))
+    }
+
+    /// Several cells are selected.
+    pub fn multi(&self) -> bool {
+        self.span().is_some_and(|s| s.cells() > 1)
+    }
+
+    fn start_extending(&mut self, extend: bool) -> bool {
+        let on = (extend || self.extend) && self.row.is_some();
+        if on {
+            self.anchor = self.anchor.or(self.row.map(|r| (r, self.col)));
+        } else {
+            self.anchor = None;
+        }
+        on
+    }
+
+    /// ↑ ↓: a row on (the header above the first); false past the ends. With `extend` (Shift) the selection grows.
+    pub fn step_row(&mut self, d: i32, extend: bool) -> bool {
         let n = self.grid.as_ref().map_or(0, |g| g.counts().1) as i32;
         let cur = self.row.map_or(-1, |r| r as i32);
-        let to = (cur + d).clamp(-1, n - 1);
+        let on = self.start_extending(extend);
+        let to = (cur + d).clamp(if on { 0 } else { -1 }, n - 1);
         self.row = (to >= 0).then_some(to as usize);
         to != cur
     }
 
-    /// ← →: a column on.
-    pub fn step_col(&mut self, d: i32) -> bool {
+    /// ← →: a column on (with `extend`, the selection grows).
+    pub fn step_col(&mut self, d: i32, extend: bool) -> bool {
         let n = self.grid.as_ref().map_or(0, |g| g.columns.len()) as i32;
+        self.start_extending(extend);
         let to = (self.col as i32 + d).clamp(0, (n - 1).max(0)) as usize;
         let moved = to != self.col;
         self.col = to;
         moved
     }
 
+    /// Ctrl+A: every shown cell.
+    pub fn select_all(&mut self) {
+        let Some(g) = &self.grid else { return };
+        let (rows, cols) = (g.counts().1, g.columns.len());
+        if rows == 0 || cols == 0 {
+            return;
+        }
+        self.anchor = Some((0, 0));
+        self.row = Some(rows - 1);
+        self.col = cols - 1;
+    }
+
+    /// Pad View: the directions extend the selection, or stop doing so.
+    pub fn toggle_extend(&mut self) {
+        self.extend = !self.extend;
+        self.note = Some((if self.extend { words::SELECT_MODE_ON } else { words::SELECT_MODE_OFF }).into());
+        if !self.extend {
+            self.anchor = None;
+        }
+    }
+
+    fn cells_word(n: usize) -> String {
+        format!("{n} {}", words::CELLS.to_lowercase())
+    }
+
+    /// Ctrl+C: the selection as text for the clipboard.
+    pub fn copy(&mut self) -> Option<Ask> {
+        let (g, s) = (self.grid.as_ref()?, self.span()?);
+        self.note = Some(format!("{} {}", words::COPIED, Self::cells_word(s.cells())));
+        Some(Ask::Copy(g.copy_text(s)))
+    }
+
+    /// Ctrl+V: `text` into the selection (one value into every selected cell, a block from its first cell).
+    pub fn paste(&mut self, text: &str) -> Option<Ask> {
+        let (g, s) = (self.grid.as_ref()?, self.span()?);
+        let done = g.paste(s, text);
+        self.cells(done, words::PASTE, words::NOT_PASTED)
+    }
+
+    /// Edits as an ask, or the refusal's words as the note.
+    fn cells(
+        &mut self,
+        done: Result<Vec<CellEdit>, Vec<ob_studio::data::Refusal>>,
+        what: &str,
+        refused: &str,
+    ) -> Option<Ask> {
+        let kind = self.grid.as_ref()?.kind;
+        match done {
+            Ok(edits) if edits.is_empty() => {
+                self.note = Some(words::NOTHING_TO_CHANGE.into());
+                None
+            }
+            Ok(edits) => {
+                let label = format!("{what} {}", Self::cells_word(edits.len()));
+                Some(Ask::Cells { kind, edits, label, refused: refused.to_string() })
+            }
+            Err(r) => {
+                self.note = Some(format!("{refused}: {}", refusals_sentence(&r)));
+                None
+            }
+        }
+    }
+
+    /// The table's file, read, as edits (every cell that differs).
+    pub fn import(&mut self, text: &str) -> Option<Ask> {
+        let done = self.grid.as_ref()?.import(text);
+        self.cells(done, words::IMPORT_TABLE, words::NOT_IMPORTED)
+    }
+
     /// Enter / pad A: sort on the header, start editing a cell, keep what is typed.
     pub fn activate(&mut self) -> Option<Ask> {
         let g = self.grid.as_ref()?;
         if let Some(text) = self.editing.take() {
+            if let Some(span) = self.span().filter(|s| s.cells() > 1) {
+                let done = g.fill(span, &text);
+                return self.cells(done, words::FILL, words::NOT_CHANGED);
+            }
             let (key, c) = (g.key(self.row?)?.to_string(), g.columns[self.col]);
             return Some(Ask::Edit { kind: g.kind, key, field: c.field, text });
         }
@@ -154,12 +264,12 @@ impl Page {
             return Some(Ask::Moved);
         };
         let c = g.columns[self.col];
-        if !c.editable {
+        if !c.editable && !self.multi() {
             self.note = Some(format!("{} cannot be changed here yet", c.label));
             return None;
         }
         // A switch flips; the rest is typed.
-        if c.ty == ob_studio::data::Ty::Bool {
+        if c.ty == ob_studio::data::Ty::Bool && !self.multi() {
             let key = g.key(r)?.to_string();
             let text = if g.cell(r, self.col)?.text == "yes" { "no" } else { "yes" };
             return Some(Ask::Edit { kind: g.kind, key, field: c.field, text: text.into() });
@@ -170,7 +280,8 @@ impl Page {
 
     /// Esc / pad B: leave an edit or the search; false when there was none.
     pub fn back(&mut self) -> bool {
-        let was = self.editing.take().is_some() || self.searching;
+        let was = self.editing.take().is_some() || self.searching || self.anchor.take().is_some();
+        self.extend = false;
         if self.searching {
             self.searching = false;
             self.release = true;
@@ -246,7 +357,8 @@ impl Page {
                 p.galley(pos2(search.left() - g.size().x - 10.0, y0 + 14.0 - g.size().y / 2.0), g, rgb(t.dim));
             }
         }
-        let Some(grid) = self.grid.clone() else {
+        // The grid is taken out for the frame (a copy of tens of thousands of rows per frame would not be smooth).
+        let Some(grid) = self.grid.take() else {
             p.text(
                 pos2(inner.left(), y0 + 60.0),
                 Align2::LEFT_TOP,
@@ -257,10 +369,23 @@ impl Page {
             return (ask, drawn);
         };
         let mut top = y0 + 40.0;
-        if let Some(n) = &self.note {
-            p.text(pos2(inner.left(), top + 8.0), Align2::LEFT_CENTER, n, font("body", 13.0), rgb(t.lime));
-            top += 20.0;
+        // The line under the title: the note, and the table's file buttons.
+        let mut bx = inner.right();
+        for (label, what) in [(words::IMPORT_TABLE, Ask::Import), (words::EXPORT_TABLE, Ask::Export)] {
+            let w = p.layout_no_wrap(label.into(), font(LABEL, 14.0), rgb(t.ink)).size().x + 20.0;
+            let br = Rect::from_min_size(pos2(bx - w, top), vec2(w, 22.0));
+            if ui.put(br, super::changes::small_button(label, false)).clicked() {
+                ask = Some(what);
+            }
+            bx = br.left() - 6.0;
         }
+        if let Some(n) = &self.note {
+            let mut clip = p.clone();
+            clip.set_clip_rect(Rect::from_min_max(pos2(inner.left(), top), pos2(bx, top + 22.0)));
+            clip.text(pos2(inner.left(), top + 11.0), Align2::LEFT_CENTER, n, font("body", 13.0), rgb(t.lime));
+        }
+        top += 26.0;
+        let mut sort_to = None;
         let width = (inner.width() - SHOW_W - 8.0).max(200.0);
         let n = grid.columns.len().max(1) as f32;
         let widths: Vec<f32> = grid
@@ -308,9 +433,8 @@ impl Page {
             if ui.interact(r, egui::Id::new(("data-head", i)), egui::Sense::click()).clicked() {
                 self.col = i;
                 self.row = None;
-                if let Some(g) = self.grid.as_mut() {
-                    g.sort_by(i);
-                }
+                self.anchor = None;
+                sort_to = Some(i);
                 ask = Some(Ask::Moved);
             }
             cx += widths[i];
@@ -333,6 +457,22 @@ impl Page {
         }
         self.scroll = self.scroll.clamp(0.0, (total as f32 * ROW_H - body.height()).max(0.0));
         let first = (self.scroll / ROW_H).floor() as usize;
+        let span = self.span();
+        // The scroll bar: a thumb the size of what is in view, dragged to scroll.
+        let content = total as f32 * ROW_H;
+        if content > body.height() {
+            let track = Rect::from_min_max(pos2(body.right() - 8.0, body.top()), body.max);
+            let thumb_h = (body.height() * body.height() / content).max(24.0);
+            let room = (track.height() - thumb_h).max(1.0);
+            let at = track.top() + self.scroll / (content - body.height()) * room;
+            let thumb = Rect::from_min_size(pos2(track.left() + 2.0, at), vec2(4.0, thumb_h));
+            let grab = ui.interact(track, egui::Id::new("data-scroll"), egui::Sense::drag());
+            if grab.dragged() {
+                self.scroll += grab.drag_delta().y / room * (content - body.height());
+                self.scroll = self.scroll.clamp(0.0, content - body.height());
+            }
+            p.rect_filled(thumb, 2.0, rgb(t.dim).gamma_multiply(if grab.hovered() || grab.dragged() { 0.9 } else { 0.5 }));
+        }
         let mut clip = p.clone();
         clip.set_clip_rect(body);
         if total == 0 {
@@ -368,6 +508,9 @@ impl Page {
                     original: None,
                 });
                 let here = on_row && self.col == ci;
+                if span.is_some_and(|sp| sp.contains(i, ci)) {
+                    clip.rect_filled(r.shrink(1.0), 4.0, rgb(t.lime).gamma_multiply(0.16));
+                }
                 if here && focused {
                     clip.rect_stroke(r.shrink(1.0), 4.0, Stroke::new(2.0, rgb(t.lime)), StrokeKind::Inside);
                     drawn.focus = Some(r);
@@ -408,6 +551,11 @@ impl Page {
                         .interact(r.intersect(body), egui::Id::new(("data-cell", i, ci)), egui::Sense::click())
                         .clicked()
                     {
+                        if ui.input(|i| i.modifiers.shift) && self.row.is_some() {
+                            self.anchor = self.anchor.or(self.row.map(|r| (r, self.col)));
+                        } else {
+                            self.anchor = None;
+                        }
                         self.row = Some(i);
                         self.col = ci;
                         self.editing = None;
@@ -420,10 +568,16 @@ impl Page {
                 if br.bottom() <= body.bottom()
                     && ui.put(br, super::changes::small_button(words::IN_CHANGES, false)).clicked()
                 {
-                    ask = self.focused_changes();
+                    ask = grid.key(i).map(|k| Ask::Changes { kind: grid.kind, key: k.to_string() });
                 }
             }
             drawn.rows.push(line);
+        }
+        self.grid = Some(grid);
+        if let Some(c) = sort_to
+            && let Some(g) = self.grid.as_mut()
+        {
+            g.sort_by(c);
         }
         (ask, drawn)
     }

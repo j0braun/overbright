@@ -53,6 +53,15 @@ pub enum BottomTab {
 }
 
 /// One Studio window.
+/// A key of the Data page that is the shell's.
+enum DataKey {
+    Paste(String),
+    Copy,
+    All,
+    Export,
+    Import,
+}
+
 pub struct Studio {
     pub ctx: egui::Context,
     /// The mods' folder.
@@ -509,10 +518,14 @@ impl Studio {
         }
         if self.on_data_rows() {
             let done = match b {
-                Pad::Up if !self.data.typing() => Some(self.data.step_row(-1)),
-                Pad::Down if !self.data.typing() => Some(self.data.step_row(1)),
-                Pad::Left if !self.data.typing() => Some(self.data.step_col(-1)),
-                Pad::Right if !self.data.typing() => Some(self.data.step_col(1)),
+                Pad::Up if !self.data.typing() => Some(self.data.step_row(-1, false)),
+                Pad::Down if !self.data.typing() => Some(self.data.step_row(1, false)),
+                Pad::Left if !self.data.typing() => Some(self.data.step_col(-1, false)),
+                Pad::Right if !self.data.typing() => Some(self.data.step_col(1, false)),
+                Pad::View if !self.data.typing() => {
+                    self.data.toggle_extend();
+                    Some(true)
+                }
                 Pad::A => {
                     self.data_activate();
                     Some(true)
@@ -1054,11 +1067,68 @@ impl Studio {
 
     /// Enter / pad A on the Data page.
     fn data_activate(&mut self) {
-        match self.data.activate() {
+        let ask = self.data.activate();
+        self.data_ask(ask);
+    }
+
+    /// What the Data page asked of the shell.
+    fn data_ask(&mut self, ask: Option<data::Ask>) {
+        match ask {
             Some(data::Ask::Edit { kind, key, field, text }) => self.data_edit(kind, &key, field, &text),
             Some(data::Ask::Changes { kind, key }) => self.data_show_changes(kind, &key),
-            _ => {}
+            Some(data::Ask::Cells { kind, edits, label, refused }) => self.data_cells(kind, &edits, &label, &refused),
+            Some(data::Ask::Copy(text)) => self.ctx.copy_text(text),
+            Some(data::Ask::Export) => self.data_export(),
+            Some(data::Ask::Import) => self.data_import(),
+            Some(data::Ask::Moved) | None => {}
         }
+    }
+
+    /// Several cells of the Data page as one undo step (a fill, a paste, an import).
+    fn data_cells(&mut self, kind: &'static str, edits: &[ob_studio::data::CellEdit], label: &str, refused: &str) {
+        let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+        let session = self.editor.as_mut().and_then(|h| h.app.state.as_mut()).map(|s| &mut s.session);
+        let done = self.changes.edit_cells(session, &folder, kind, edits, label);
+        self.data.note = Some(match done {
+            Ok(l) => format!("{l} · {}", words::TAKES_IT_BACK),
+            Err(e) => format!("{refused}: {e}"),
+        });
+        self.changes.load(&folder);
+        self.data_reload();
+    }
+
+    /// Where the table's file is: the mod's reference folder, the place a model's export goes too (never the game's).
+    fn data_table_file(&self) -> Option<std::path::PathBuf> {
+        let folder = self.open_mod()?.folder.clone();
+        let dir = ob_studio::browser::gltf::reference_dir(&self.maps.join(folder));
+        Some(dir.join(format!("{}.csv", self.data.kind)))
+    }
+
+    /// Write the shown table as CSV.
+    fn data_export(&mut self) {
+        let (Some(file), Some(g)) = (self.data_table_file(), self.data.grid.as_ref()) else { return };
+        let game = self.game.clone().flatten();
+        self.data.note = Some(match ob_studio::data::export_file(g, &file, game.as_deref()) {
+            Ok(()) => format!("{} {}", words::TABLE_WRITTEN_TO, file.display()),
+            Err(e) => format!("{}: {e}", words::NOT_EXPORTED),
+        });
+    }
+
+    /// Bring the table's file back as edits.
+    fn data_import(&mut self) {
+        let Some(file) = self.data_table_file() else { return };
+        if !file.is_file() {
+            self.data.note = Some(words::NO_TABLE_FILE_YET.into());
+            return;
+        }
+        let ask = match ob_studio::data::read_file(&file) {
+            Ok(text) => self.data.import(&text),
+            Err(e) => {
+                self.data.note = Some(format!("{}: {e}", words::NOT_IMPORTED));
+                None
+            }
+        };
+        self.data_ask(ask);
     }
 
     /// A Data row's entry on the Changes page.
@@ -1139,9 +1209,32 @@ impl Studio {
         let find = self.nav.find_open;
         let places_menu = self.places_menu;
         let mut row_keys = vec![];
+        let mut data_acts: Vec<DataKey> = vec![];
         let mut spot_keys = vec![];
         let mut find_keys = vec![];
         raw.events.retain(|e| match e {
+            egui::Event::Paste(t) if data_rows => {
+                data_acts.push(DataKey::Paste(t.clone()));
+                false
+            }
+            egui::Event::Copy if data_rows => {
+                data_acts.push(DataKey::Copy);
+                false
+            }
+            egui::Event::Key { key, pressed: true, modifiers, .. }
+                if data_rows
+                    && modifiers.command
+                    && !modifiers.alt
+                    && !modifiers.shift
+                    && matches!(key, egui::Key::A | egui::Key::E | egui::Key::I) =>
+            {
+                data_acts.push(match key {
+                    egui::Key::A => DataKey::All,
+                    egui::Key::E => DataKey::Export,
+                    _ => DataKey::Import,
+                });
+                false
+            }
             egui::Event::Key { key, pressed: true, .. } if places_menu && *key == egui::Key::Escape => {
                 find_keys.push(*key);
                 false
@@ -1308,6 +1401,20 @@ impl Studio {
                 None => self.verdict = Some(words::CHOOSE_A_MODEL_TO_BRING_BACK.into()),
             }
         }
+        for act in data_acts {
+            self.nav.input = InputKind::Keyboard;
+            let ask = match act {
+                DataKey::Paste(t) => self.data.paste(&t),
+                DataKey::Copy => self.data.copy(),
+                DataKey::All => {
+                    self.data.select_all();
+                    None
+                }
+                DataKey::Export => Some(data::Ask::Export),
+                DataKey::Import => Some(data::Ask::Import),
+            };
+            self.data_ask(ask);
+        }
         for (key, shift) in row_keys {
             self.nav.input = InputKind::Keyboard;
             self.nav.level = Level::Row;
@@ -1328,10 +1435,10 @@ impl Studio {
             }
             if self.nav.workspace == Workspace::Data {
                 match key {
-                    egui::Key::ArrowUp => _ = self.data.step_row(-1),
-                    egui::Key::ArrowDown => _ = self.data.step_row(1),
-                    egui::Key::ArrowLeft => _ = self.data.step_col(-1),
-                    egui::Key::ArrowRight => _ = self.data.step_col(1),
+                    egui::Key::ArrowUp => _ = self.data.step_row(-1, shift),
+                    egui::Key::ArrowDown => _ = self.data.step_row(1, shift),
+                    egui::Key::ArrowLeft => _ = self.data.step_col(-1, shift),
+                    egui::Key::ArrowRight => _ = self.data.step_col(1, shift),
                     _ => self.data_activate(),
                 }
                 continue;
@@ -1928,11 +2035,7 @@ impl Studio {
                     let rows = self.changes.data().map(|d| d.rows.clone()).unwrap_or_default();
                     self.data.set_kind(k, &rows);
                 }
-                match ask {
-                    Some(data::Ask::Changes { kind, key }) => self.data_show_changes(kind, &key),
-                    Some(data::Ask::Edit { kind, key, field, text }) => self.data_edit(kind, &key, field, &text),
-                    _ => {}
-                }
+                self.data_ask(ask);
             }
             Workspace::Browser => {
                 let inner = slab.shrink2(vec2(20.0, 14.0));

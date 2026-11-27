@@ -97,6 +97,8 @@ fn every_chord_the_studio_page_names_exists_in_the_code() {
     }
     // Keys only a page handles: Changes' multi-select (Shift+↓) and Runs' rename (F2) and Browser's export (Ctrl+E), area export (Ctrl+Shift+E) and bring back (Ctrl+I), in `shell.rs`.
     known.push_str("Shift+↓ F2 Shift+Tab Ctrl+E Ctrl+Shift+E Ctrl+I");
+    // The Data page's selection, copy and paste (`shell.rs`).
+    known.push_str(" Shift+↑ Shift+← Shift+→ Ctrl+A Ctrl+C Ctrl+V");
     for c in prose_chords(&doc) {
         if c.ends_with("number")
             || (c.len() == 6 && c.starts_with("Ctrl+") && c.ends_with(|d: char| d.is_ascii_digit()))

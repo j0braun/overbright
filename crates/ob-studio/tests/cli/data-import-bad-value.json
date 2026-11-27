@@ -1,0 +1,12 @@
+{
+  "command": "data.import",
+  "error": {
+    "detail": "Backward of row docks:sprint: \"maybe\" is not yes or no; Backward of row docks:short: \"maybe\" is not yes or no",
+    "kind": "failed",
+    "message": "Backward of row docks:sprint: \"maybe\" is not yes or no; Backward of row docks:short: \"maybe\" is not yes or no",
+    "reason": "bad_value"
+  },
+  "exit": 1,
+  "format": 1,
+  "ok": false
+}

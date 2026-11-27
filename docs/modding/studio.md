@@ -287,6 +287,22 @@ holds only what the mod gives.
   yes / no cell flips at once. Each edit is one undo step of the mod's history, named as the editor names it
   ("Laps 4"), and Ctrl+Z takes it back; the same op runs from the editor, the command line and agents. A value the
   format refuses leaves the mod as it was and says why.
+- **Select.** Shift+↑ ↓ ← → (or Shift and a click) grows the selection from the focused cell, Ctrl+A selects every shown
+  cell, Esc ends it. On the pad, View starts and ends selecting: the D-pad then grows the selection.
+- **Fill.** With several cells selected, Enter (A) edits the focused one and Enter keeps the value in every selected
+  cell, as one undo step ("Fill 4 cells"). A cell that cannot be written (a read-only column, another mod's row)
+  or a value it refuses leaves the whole fill undone and says which cell and why.
+- **Copy and paste.** Ctrl+C puts the selection on the clipboard as tab-separated text. Ctrl+V pastes tab-separated
+  or comma-separated text: one value goes into every selected cell, a block starts at the focused cell and has to fit
+  the table. Every cell is checked by the same rules as a single edit, a block is all or none, and it is one undo
+  step ("Paste 6 cells").
+- **Table file.** Export table (Ctrl+E) writes the shown table as CSV to `.editor/reference/<kind>.csv` in the mod's
+  folder (never the game's folder): a `row` column with each row's key, then the columns by field name. Edit the file
+  in a spreadsheet and Import table (Ctrl+I) brings it back: only the cells that differ become edits, each checked as a
+  single edit is, all as one undo step ("Import table 3 cells"). A file that changes nothing changes nothing. The
+  command line takes any path: `data export --to`, `data import --from`.
+- **Long tables.** Only the rows in view are drawn, so tables of tens of thousands of rows scroll smoothly; the wheel,
+  the arrows and the scroll bar at the right move through them.
 - **In Changes** on the focused row opens that row's entry on the Changes page.
 
 Races can be edited at any time (Name, Race type, Base track, Laps, Backward); a race's checkpoints are shown by

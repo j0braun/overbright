@@ -566,6 +566,28 @@ pub const COMMANDS: &[Command] = &[
         ],
     },
     Command {
+        name: "data.export",
+        kind: CommandKind::Run,
+        summary: "Write one kind's table as a CSV file, as `data show` narrows it: a `row` column with each row's key, then the columns by field",
+        args: &[
+            f("kind", TEXT, Req::Yes, "The kind: placement or race"),
+            f("to", TEXT, Req::Yes, "The CSV file to write (never inside the game's folder)"),
+            f("search", TEXT, Req::No, "Keep rows where any cell has all these words"),
+            f("filter", TEXT, Req::No, "Keep rows whose column has the text: `column=text`"),
+            f("sort", TEXT, Req::No, "Sort by this column (smallest first)"),
+            f("desc", Ty::Bool, Req::No, "Largest first"),
+        ],
+    },
+    Command {
+        name: "data.import",
+        kind: CommandKind::Edit,
+        summary: "Bring a CSV file (as `data export` writes it) back as cell edits, each checked like `data set`, as one undo step; refuses the whole file when a cell is refused",
+        args: &[
+            f("kind", TEXT, Req::Yes, "The kind: placement or race"),
+            f("from", TEXT, Req::Yes, "The CSV file to read"),
+        ],
+    },
+    Command {
         name: "browser.search",
         kind: CommandKind::Read,
         summary: "Search the region's models and textures by name, hash or `section:N`, as the Browser workspace does",
