@@ -7,7 +7,7 @@ use ob_look::legends::InputKind;
 
 use super::Studio;
 use super::address::Address;
-use super::layout;
+use super::matrix;
 use super::nav::{Area, Pad};
 use super::shot::{frames, raw_input};
 use super::workspace::Workspace;
@@ -56,47 +56,68 @@ fn press(s: &mut Studio, size: (u32, u32), events: Vec<egui::Event>) {
     s.frame(raw_input(size, 1.0, 0, events));
 }
 
-/// The four review sizes.
-const REVIEW: [(u32, u32); 4] = [(1920, 1080), (1280, 800), (1024, 768), (2560, 1080)];
-
+/// World and Races drawn through the screenshot-matrix kit: six sizes, the mouse, the keys and the pad.
 #[test]
 fn world_hosts_the_map_editor_at_every_review_size() {
-    for (w, h) in REVIEW {
-        for ws in [Workspace::World, Workspace::Races] {
-            for input in [InputKind::Mouse, InputKind::Keyboard, InputKind::Xbox] {
-                let sc = Scratch::new(&format!("studio-world-{w}x{h}-{ws:?}-{input:?}"));
+    for ws in [Workspace::World, Workspace::Races] {
+        let mut scratches = Vec::new();
+        let mut n = 0;
+        let drawn = matrix::page(
+            &format!("{ws:?}"),
+            3,
+            |size, input| {
+                n += 1;
+                let sc = Scratch::new(&format!("studio-world-{}-{ws:?}-{input:?}-{n}", size.label()));
                 let mut s = studio(&sc);
+                scratches.push(sc);
                 s.nav.workspace = ws;
-                s.nav.input = input;
-                let scale = layout::ui_scale(w, h);
-                let (_, l) = frames(&mut s, (w, h), scale, 3);
-                assert!(s.editing(), "{w}x{h} {ws:?}: the editor opened the mod");
-                assert!(l.problems().is_empty(), "{w}x{h} {ws:?} {input:?}: {:?}", l.problems());
+                s
+            },
+            |s, l, size, _| {
+                let mut bad = vec![];
+                if !s.editing() {
+                    bad.push("the editor did not open the mod".to_string());
+                    return bad;
+                }
+                bad.extend(l.problems());
                 let app = &s.editor.as_ref().unwrap().app;
-                assert!(app.untaken.is_empty(), "{:?}", app.untaken);
+                if !app.untaken.is_empty() {
+                    bad.push(format!("untaken: {:?}", app.untaken));
+                }
                 // The editor's toolbar fits the toolbar row; its view lies in Studio's view.
                 let fit = menu::toolbar_fit(&s.ctx).expect("the editor's toolbar was laid out");
-                assert!(fit.problems().is_empty(), "{w}x{h} {ws:?}: {:?}", fit.problems());
-                assert!(l.toolbar.unwrap().expand(1.0).contains_rect(fit.bar), "{w}x{h}: {:?}", fit.bar);
-                assert!(
-                    l.view.expand(1.0).contains_rect(app.view_rect),
-                    "{w}x{h}: {:?} in {:?}",
-                    app.view_rect,
-                    l.view
-                );
-                assert!(app.view_rect.width() >= 400.0 && app.view_rect.height() >= 200.0, "{:?}", app.view_rect);
+                bad.extend(fit.problems());
+                if !l.toolbar.unwrap().expand(1.0).contains_rect(fit.bar) {
+                    bad.push(format!("toolbar {:?} outside its row", fit.bar));
+                }
+                if !l.view.expand(1.0).contains_rect(app.view_rect) {
+                    bad.push(format!("{:?} outside {:?}", app.view_rect, l.view));
+                }
+                if app.view_rect.width() < 400.0 || app.view_rect.height() < 200.0 {
+                    bad.push(format!("the view is only {:?}", app.view_rect));
+                }
                 let mode = app.state.as_ref().unwrap().mode;
-                assert_eq!(mode, if ws == Workspace::Races { Mode::Races } else { Mode::Props });
+                if mode != if ws == Workspace::Races { Mode::Races } else { Mode::Props } {
+                    bad.push(format!("mode {mode:?}"));
+                }
                 // The address bar names where the window is.
                 let c = s.crumbs();
-                assert_eq!(&c[..3], &["Harbour edits".to_string(), ws.name().to_string(), "L4RA".to_string()]);
-                if ws == Workspace::Races {
-                    assert_eq!(c.get(3).map(String::as_str), Some("Casino sprint"));
-                    assert_eq!(s.address().to_string(), "ob://harbour-edits/race/harbour-edits:sprint");
+                if c[..3] != ["Harbour edits".to_string(), ws.name().to_string(), "L4RA".to_string()] {
+                    bad.push(format!("crumbs {c:?} at {}", size.label()));
                 }
-                assert!(s.close_requested());
-            }
-        }
+                if ws == Workspace::Races
+                    && (c.get(3).map(String::as_str) != Some("Casino sprint")
+                        || s.address().to_string() != "ob://harbour-edits/race/harbour-edits:sprint")
+                {
+                    bad.push(format!("the race is not named: {c:?}"));
+                }
+                if !s.close_requested() {
+                    bad.push("close is not offered".into());
+                }
+                bad
+            },
+        );
+        assert!(drawn >= 12, "{ws:?}: {drawn}");
     }
 }
 

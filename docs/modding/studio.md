@@ -86,6 +86,8 @@ editor's; F6 and the pad's triggers still move between areas. The pad's L4 / R4 
 button tests the race. Studio keeps a few keys for itself: Ctrl+D opens Changes (the editor's Duplicate is in Edit
 and the prop menu), Ctrl+G opens Data and Ctrl+N opens Studio's New mod dialog.
 
+**How World's and Races' output is checked.** `studio::world_tests` draws both with the map editor at the six matrix sizes for the mouse, keys and pad (clip and overlap check, the editor's toolbar check, its view inside Studio's), and walks into and out of World by keyboard and pad; Test race runs the race in the game.
+
 ## Home
 
 The open mod's name; a card that says how it stands, with the next steps (Go to World, Make a race); and rows for
@@ -137,6 +139,8 @@ ahead of the start, each one step to undo; the step ticks when the race has no e
 view and the map, so you can see where race points may go. The last card's **Open the sample** opens the sample
 race pack. Start it from Home's Start here or Help ▸ Make your first race. While either tutorial runs, F1 does
 its current step.
+
+**How Home's output is checked.** `studio::tests` draws it at the six matrix sizes for the mouse, keys and pad with the clip and overlap check, `studio::inside_tests` tabs round every control, and `studio::guide_tests` walks it by keyboard and pad from Start here to an exported pack.
 
 ## Changes
 
@@ -225,6 +229,8 @@ do the same from the command line, and `browser area` the area export.
 ↑ ↓ and Tab move over the chips and results, ← → change a chip (in the results they move in the search field), Esc
 (B) goes back. Cars and regions the mod is not edited on are not indexed yet.
 
+**How the Browser's output is checked.** `studio::browser_tests` draws the models, sounds and strings kinds at the six matrix sizes for the mouse, keys and pad (every part inside its slab, none over the viewer), reads the index against the world, checks that the command line prints the viewer's numbers, and checks that a missing game folder is said instead of listing nothing.
+
 ## Runs
 
 Ctrl+5 (MAKE ▸ Runs, `ob://<mod id>/@runs`) is where a mod's recorded runs are read. It is the map editor's own
@@ -264,6 +270,8 @@ leaves room for.
 Runs only reads the files (and keeps, renames or deletes them). Telemetry to a port and a race from a driven line
 are not in it yet.
 
+**How Runs' output is checked.** `studio::runs_tests` draws the page at the six matrix sizes for the mouse, keys and pad, opens and compares runs in the editor's playback, checks the telemetry against the run file and keeps the list honest after a rename or delete; a run recorded in the game is the same with recording on or off (the frame-rate and parity checks).
+
 ## Data
 
 Ctrl+G (or `ob://<mod id>/@data`) opens the Data page over World; Esc goes back. It shows one kind of record at a
@@ -284,6 +292,8 @@ holds only what the mod gives.
 Races can be edited at any time (Name, Race type, Base track, Laps, Backward); a race's checkpoints are shown by
 their count and a prop's Object is shown only: those columns cannot be written here yet. A prop's Position, Heading
 and Hidden are edited while World has the mod open (they need the city loaded); without it the page says so.
+
+**How Data's output is checked.** `studio::data_tests` draws the Props and Races tables at the six matrix sizes for the mouse, keys and pad, and each edit is checked in the mod's file and as one undo step.
 
 ## The Mod page
 
@@ -320,6 +330,8 @@ for an older map mod or texture pack: [Studio command-line tool](studio-cli.md))
 
 The command-line tool exports the same way: `overbright-studio-cli pack export --mod <dir> --to <file.zip>`
 (`--derived-ok` for textures from the original game's pixels; [Studio command-line tool](studio-cli.md)).
+
+**How the Mod page's output is checked.** `studio::mod_page_tests` draws it at the six matrix sizes for the mouse, keys and pad, keeps a detail as one step, and exports a pack and imports it again as the same mod.
 
 ## Keyboard and pad
 
@@ -390,7 +402,7 @@ keyboard and by pad, and reads addresses back. `studio::inside_tests` tabs round
 1920 × 1080, 1280 × 800 and 1024 × 768, reaches every row of each dock by the arrows and the D-pad, runs a command
 and a place from Find, goes back and forward by the mouse's buttons 4 and 5, drags the docks' edges (the sizes are
 kept with the mod) and reads the busy line and the counts in the status bar. `studio::world_tests` draws World and Races with the map editor at
-the four review sizes (1920 × 1080, 1280 × 800, 1024 × 768, 2560 × 1080) with the same check and the editor's
+the six matrix sizes with the same check and the editor's
 toolbar check, and walks into and out of World by keyboard and pad. `studio::guide_tests` runs both tutorials by
 keyboard and by pad on a stand-in city and makes the templates and the sample from Home; `studio::mod_page_tests`
 keeps a detail as one step, exports a mod with derived textures and imports it again; `studio::changes_tests`

@@ -682,7 +682,7 @@ impl Page {
                 clip.text(
                     pos2(list.left() + 4.0, list.top() + 32.0),
                     Align2::LEFT_TOP,
-                    format!("Did you mean `{m}`?"),
+                    format!("{} `{m}`?", words::DID_YOU_MEAN),
                     font("body", 14.0),
                     rgb(t.dim),
                 );
