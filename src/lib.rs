@@ -34,45 +34,15 @@ mod testkit_tests {
     }
 }
 
-pub mod ai;
 pub mod asset_layer;
-pub mod ai_looks;
-pub mod carfx_pops;
-pub mod track_camera;
 pub mod audio;
-pub mod chase;
-pub mod contact;
-pub mod drift;
-pub mod style;
-pub mod drive;
-pub mod event_camera;
-pub mod difficulty;
-pub mod dyno;
-pub mod latency;
-pub mod replay_cams;
-pub mod racer_reset;
-pub mod interpolate;
 #[cfg(feature = "mimalloc")]
 pub mod allocator;
 pub mod frontend;
-pub mod garage;
-pub mod opponents;
-pub mod outrun;
-pub mod pad;
-pub mod photo;
 pub mod qol;
 pub mod rear_view;
-pub mod screen_flash;
-pub mod screen_tint;
 pub mod sky;
-pub mod smackable;
-pub mod standings;
-pub mod hydraulics;
-pub mod melo;
 pub mod render;
-pub mod rng_sites;
-pub mod shop_scene;
-pub mod weather;
 // The opt-in modding tools (texture and map editors; docs/modding/texture-editor.md).
 pub mod tools;
 // The one interface Studio's crates use into this library (crates/ob-studio, crates/ob-studio-gui).
@@ -84,7 +54,6 @@ pub mod launcher;
 /// The game↔launcher contract (probe and prepare formats, the error
 /// kinds, the shared look's tokens): what the game names of the launcher.
 pub mod launch;
-pub mod mark_spot;
 
 /// The library's build id (build_support/build_id.rs): the asset caches its
 /// code makes are named and checked by it.
@@ -116,6 +85,11 @@ pub use ob_assets::{
 };
 // The settings store and the extras' options, crates/ob-settings (`qol::setup` is the asset crate's).
 pub use ob_settings::extras;
+// The simulation layer, crates/ob-sim: its modules at their old paths (the audio cues' data it posts, `audio::car::
+// pushes`, `audio::car::scripted`, `audio::world::impacts`, and the effect controller are re-exported where they were).
+pub use ob_sim::{
+    ai, ai_looks, carfx_pops, track_camera, chase, contact, drift, style, drive, event_camera, difficulty, dyno, latency, replay_cams, racer_reset, interpolate, garage, opponents, outrun, pad, photo, smackable, standings, hydraulics, weather, mark_spot, rng_sites, shop_scene, melo, screen_flash, screen_tint,
+};
 pub use ob_core::{env_parsed, env_set, env_value, env_value_os, game_root, persist, persist_enum, unique_tag};
 
 // The file-format parsers and the engine's tables (docs/original/exe-tables.md),

@@ -11,7 +11,7 @@ crate ob-settings crates/ob-settings/src
 # check keeps their references pointing down until they move into crates of their own. Audio, render and the
 # menus are listed in a line (audio, then render, then the menus), so a reference up that line is refused too.
 crate ob-assets crates/ob-assets/src
-crate ob-sim src
+crate ob-sim crates/ob-sim/src
 crate ob-audio src
 crate ob-render src
 crate ob-frontend src
@@ -59,6 +59,9 @@ tools::map::store ob-map
 qol ob-settings
 qol::setup ob-assets
 qol::tests nfsu2
+qol::test_kit nfsu2
+render::native::display::frontend_tests nfsu2
+render::enh::post::blur_dof::frontend_tests nfsu2
 # Test modules that drive the menus or the simulation stay with the library when their module
 # moves into its crate: the crate's own tests stay in the crate, these join the library's tests.
 game_assets::tests nfsu2
@@ -187,6 +190,7 @@ package ob-asset-format
 package ob-map
 package ob-settings
 package ob-assets
+package ob-sim
 package nfsu2
 package ob-studio
 package ob-studio-gui
@@ -199,6 +203,7 @@ forbid ob-asset-format wgpu winit cpal egui
 forbid ob-map wgpu winit cpal egui
 forbid ob-settings winit cpal egui
 forbid ob-assets winit cpal egui
+forbid ob-sim winit cpal egui
 forbid ob-look wgpu winit cpal egui
 forbid nfsu2 egui
 forbid ob-studio egui

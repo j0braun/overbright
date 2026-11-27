@@ -51,6 +51,9 @@ pub const CONTROL_CELL: u32 = 0x200;
 /// The curve widget's point columns (+ k).
 pub const CURVE_COLUMN: u32 = 0x100;
 
+#[cfg(feature = "dev-harness")]
+pub use crate::render::native::ui::geom_dump::Rect;
+#[cfg(not(feature = "dev-harness"))]
 /// One drawn object's rectangle on the canvas and its placement.
 #[derive(Clone, Copy, Debug)]
 pub struct Rect {
@@ -244,10 +247,7 @@ pub fn slider_rows() -> Vec<SliderRow> {
 /// The cursor (target pixels) as a canvas point for elements placed by
 /// `place` (the inverse of `UiFrame::to_pixels`).
 pub fn canvas_point(frame: &UiFrame, px: Vec2, place: Place) -> Vec2 {
-    Vec2::new(
-        (px.x - frame.origin.0 - place.x as f32 * frame.reach_x(place)) / frame.scale.0,
-        (px.y - frame.origin.1 - place.y as f32 * frame.reach.1) / frame.scale.1,
-    )
+    frame.from_pixels(px, place)
 }
 
 /// Whether the cursor (target pixels) lies in `r` (0x50CD00: pos ≤ p ≤
@@ -313,4 +313,14 @@ impl Mouse {
         self.wheel = 0.0;
         self.middle_released = false;
     }
+}
+
+/// dev harness: hands the geometry dump (render::native::ui::geom_dump) the mouse's recording, hit test and rectangles.
+#[cfg(feature = "dev-harness")]
+pub fn install_geom_dump() {
+    crate::render::native::ui::geom_dump::install_mouse(crate::render::native::ui::geom_dump::MouseHooks {
+        begin_frame: || begin_frame(true),
+        rects: geom_rects,
+        inside,
+    });
 }

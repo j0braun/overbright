@@ -18,6 +18,9 @@ pub use surface::*;
 pub use crate::draw::ui_frame::*;
 
 #[cfg(test)]
+mod frontend_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -30,8 +33,6 @@ mod tests {
         assert!(list.contains(&(3840, 2160)) && list.contains(&(3440, 1440)) && !list.contains(&(720, 400)));
         assert_eq!(list.iter().filter(|&&m| m == (1920, 1080)).count(), 1);
         assert!(list.windows(2).all(|w| w[0] < w[1]));
-        assert_eq!(crate::frontend::options::step_mode(&list, (1600, 1200), true), (1920, 1080));
-        assert_eq!(crate::frontend::options::step_mode(&list, (5120, 1440), true), (5120, 1440));
         // Wide: 4:3 untouched, 16:9 a centred 4:3 canvas and Hor+.
         set_aspect_mode(AspectMode::Wide);
         assert_eq!(canvas_rect((1280, 960)), (0.0, 0.0, 1280.0, 960.0));
@@ -120,7 +121,7 @@ mod tests {
             // The mouse maps back through the same reach.
             for (f, p) in [(&centred, side), (&centred, hud), (&wide, side), (&wide, hud)] {
                 let px = f.to_pixels(v(600.0, 30.0), p);
-                assert!((crate::frontend::mouse::canvas_point(f, px, p) - v(600.0, 30.0)).length() < 1e-3);
+                assert!((f.from_pixels(px, p) - v(600.0, 30.0)).length() < 1e-3);
             }
         }
         // Within 16:9 the safe area is the screen: the HUD at the edges.
@@ -186,20 +187,5 @@ mod tests {
         assert!((0..8).all(|f| env_faces(2, f)[0] && env_faces(2, f)[4]));
         assert_eq!(env_faces(3, 7), [true; 6]);
         assert_eq!(env_faces(0, 0), [false; 6]);
-    }
-
-    #[test]
-    fn from_custom() {
-        let top = crate::frontend::options::custom_presets(5);
-        let d = Display::from_custom(&top);
-        assert_eq!(
-            d,
-            Display { env_rate: 3, env_world: true, shadows: true, headlight: true, world_lod_b: false, fog: true }
-        );
-        let low = Display::from_custom(&crate::frontend::options::custom_presets(1));
-        assert_eq!(
-            low,
-            Display { env_rate: 0, env_world: false, shadows: false, headlight: false, world_lod_b: true, fog: false }
-        );
     }
 }

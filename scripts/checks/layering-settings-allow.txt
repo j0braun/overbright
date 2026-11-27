@@ -58,7 +58,7 @@ src/render/native/car/record.rs	let mut e = crate::qol::Enhancements::default();
 src/render/native/car/record.rs	let opts = crate::render::RenderOptions::in_force();
 src/render/native/car/record.rs	use crate::qol::Preset;
 src/render/native/display/present.rs	.or_else(crate::qol::frame_cap)
-src/render/native/fx/effect_controller.rs	let _g = crate::qol::test_globals();
+crates/ob-sim/src/render/native/fx/effect_controller.rs	let _g = crate::qol::test_globals();
 src/render/native/post/mod.rs	crate::qol::Enhancements::default().apply();
 src/render/native/post/mod.rs	crate::qol::Enhancements { hdr_post: 2, ..Default::default() }.apply();
 src/render/native/post/mod.rs	crate::qol::Enhancements { hdr_post: hdr, ..Default::default() }.apply();

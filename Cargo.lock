@@ -1785,6 +1785,7 @@ dependencies = [
  "ob-look",
  "ob-map",
  "ob-settings",
+ "ob-sim",
  "ob-testkit",
  "pollster 0.4.0",
  "profiling",
@@ -1986,6 +1987,32 @@ dependencies = [
  "ob-formats",
  "ob-testkit",
  "wgpu",
+]
+
+[[package]]
+name = "ob-sim"
+version = "0.6.3"
+dependencies = [
+ "anyhow",
+ "bytemuck",
+ "env_logger",
+ "gilrs",
+ "glam",
+ "libc",
+ "log",
+ "ob-assets",
+ "ob-core",
+ "ob-formats",
+ "ob-map",
+ "ob-settings",
+ "ob-testkit",
+ "profiling",
+ "rayon",
+ "serde",
+ "serde_json",
+ "wgpu",
+ "windows",
+ "xxhash-rust",
 ]
 
 [[package]]

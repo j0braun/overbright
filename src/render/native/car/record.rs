@@ -225,8 +225,8 @@ impl CarRenderer {
         self.mask_queued.set(self.queued.get());
         self.glass_queued.set(self.queued.get());
         // The texture editor's list (docs/modding/texture-editor.md; off: not run).
-        if self.queued.get().is_some() && crate::tools::texed::recording() {
-            crate::tools::texed::note_textures(true, self.pack_textures.iter().flatten());
+        if self.queued.get().is_some() && crate::render::draw_notes::recording() {
+            crate::render::draw_notes::note_textures(true, self.pack_textures.iter().flatten());
         }
         match self.queued.take() {
             Some((frontend, Some(base))) => {

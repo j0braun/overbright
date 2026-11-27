@@ -34,7 +34,7 @@ src/frontend/settings/gpu_rating.rs	2	system files (/proc, /sys, /dev, /etc) and
 src/frontend/settings/options_txt.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
 crates/ob-assets/src/game_assets.rs	1	SPEED2.EXE, which the set does not keep, read from the folder
 crates/ob-assets/src/hud_mod.rs	5	the player's packs, mods and importers (user-chosen paths)
-src/latency.rs	5	system files (/proc, /sys, /dev, /etc) and the program's own files
+crates/ob-sim/src/latency.rs	5	system files (/proc, /sys, /dev, /etc) and the program's own files
 src/launcher/crash_report.rs	3	the program's own data: settings, saves, logs, launcher state, the player's folders
 src/launcher/game_data.rs	5	the program's own data: settings, saves, logs, launcher state, the player's folders
 src/launcher/model.rs	10	the program's own data: settings, saves, logs, launcher state, the player's folders
@@ -56,8 +56,8 @@ crates/ob-assets/src/mod_packs/pack_export.rs	2	the player's packs, mods and imp
 crates/ob-assets/src/mod_packs/sidecar.rs	1	the program's own data: the save sidecar beside the profiles (Overbright's own small file, never a game file)
 crates/ob-assets/src/obpack/index.rs	1	the player's packs, mods and importers (user-chosen paths)
 src/overlay/system/sources.rs	13	system files (/proc, /sys, /dev, /etc) and the program's own files
-src/pad/ff_out.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files
-src/pad/host.rs	1	a developer tool or an override folder from the environment
+crates/ob-sim/src/pad/ff_out.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files
+crates/ob-sim/src/pad/host.rs	1	a developer tool or an override folder from the environment
 crates/ob-settings/src/qol/crash.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files
 crates/ob-settings/src/qol/saves.rs	2	the program's own data: settings, saves, logs, launcher state, the player's folders
 crates/ob-assets/src/qol/setup.rs	10	the game-folder check (size and hash of key files before an import); and the saved folder/pack/language choices

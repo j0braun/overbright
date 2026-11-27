@@ -3,4 +3,4 @@
 
 pub use ob_assets::render::native::fx::*;
 
-pub mod effect_controller;
+pub use ob_sim::render::native::fx::effect_controller;

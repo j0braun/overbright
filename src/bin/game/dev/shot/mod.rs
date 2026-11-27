@@ -811,6 +811,7 @@ fn write_outputs(game: &mut Game, s: Setup, keys: Keys, drawn: Offscreen, out: &
         game.fe.help_cycle = Some(screens::HelpCycle::started(start, at));
     }
     settle_map_widgets(game, at);
+    nfsu2::frontend::mouse::install_geom_dump();
     nfsu2::render::native::ui::geom_dump::begin_layout();
     quads.extend(game.menu_quads(at));
     quads.extend(game.loading_quads(at));
