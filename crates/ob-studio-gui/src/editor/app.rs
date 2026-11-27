@@ -698,6 +698,9 @@ mod parts {
             if menu::take(ctx, Command::FaceCamera) {
                 props::face_camera_selection(s);
             }
+            if menu::take(ctx, Command::SelectStreet) {
+                crate::editor::street::select_street(s);
+            }
             p.context_menu(s, ctx, rect);
             if menu::take(ctx, Command::SelectAllOfSolid)
                 && let Some(solid) =
@@ -829,7 +832,7 @@ mod parts {
             if self.dragging {
                 if down {
                     if let Some(at) = pointer.and_then(|p| race_ground(s, ctx, rect, p)) {
-                        r.drag(s, at, mods.alt);
+                        r.drag(s, at);
                     }
                     return true;
                 }
@@ -845,7 +848,7 @@ mod parts {
             r.pick_m = Some(radius);
             let armed = s.mode == Mode::Races && r.tool != crate::editor::races::Tool::Select;
             if armed {
-                r.click(s, at, mods.shift, mods.alt);
+                r.click(s, at, mods.shift);
                 self.dragging = r.is_dragging();
                 return true;
             }
@@ -865,7 +868,7 @@ mod parts {
             match hit {
                 Some((k, _)) => {
                     (s.race, s.mode) = (Some(k), Mode::Races);
-                    r.click(s, at, false, mods.alt);
+                    r.click(s, at, false);
                     self.dragging = r.is_dragging();
                     true
                 }
@@ -1570,6 +1573,12 @@ impl App {
                 }
             }
             A::Hint(on) => self.layout.hint = on,
+            A::Snap(m) => {
+                if let Some(s) = self.state.as_mut() {
+                    s.snap_mode = m;
+                    s.status = format!("{}: {}", crate::studio::words::SNAP, m.label());
+                }
+            }
             A::Collision(c) => {
                 if let Some(s) = self.state.as_mut() {
                     s.collision = c;

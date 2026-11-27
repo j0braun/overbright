@@ -16,6 +16,7 @@ pub mod races;
 pub mod roads;
 pub mod sim;
 pub mod state;
+pub mod street;
 pub mod testplay;
 pub mod theme;
 pub mod thumbs;

@@ -477,11 +477,13 @@ fn walls_are_drawn_and_picked_in_top() {
             .collect();
         assert_eq!(walls.len(), 2, "{view}");
         assert!(walls[1].0.truncate().distance(to.truncate()) < 1e-3, "{view}: snapped {}", walls[1].0);
-        click_at(&mut o, &mut s, at(near), true);
-        click_at(&mut o, &mut s, at(near + Vec3::new(10.0, 10.0, 0.0)), true);
+        s.snap_mode = super::super::state::SnapMode::Free;
+        click_at(&mut o, &mut s, at(near), false);
+        click_at(&mut o, &mut s, at(near + Vec3::new(10.0, 10.0, 0.0)), false);
+        s.snap_mode = super::super::state::SnapMode::default();
         let c = s.session.map.collision.last().cloned();
         let Some(CollisionEdit::Wall { from: f3, .. }) = c else { panic!("{view}: {c:?}") };
-        assert!(f3.truncate().distance(near.truncate()) < 0.3, "{view}: Alt: {f3}");
+        assert!(f3.truncate().distance(near.truncate()) < 0.3, "{view}: Free: {f3}");
 
         // Pick the first wall (on its foot), Del, undo, redo.
         s.draw = None;

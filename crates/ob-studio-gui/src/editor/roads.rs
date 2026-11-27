@@ -201,7 +201,7 @@ fn network<'s>(s: &'s EditorState, overview: &'s Option<Option<(u16, RoadNet)>>)
     race_network(s).or_else(|| overview.as_ref()?.as_ref().map(|(t, n)| (*t, n)))
 }
 
-fn race_network(s: &EditorState) -> Option<(u16, &RoadNet)> {
+pub(super) fn race_network(s: &EditorState) -> Option<(u16, &RoadNet)> {
     let race_track = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| r.track);
     if let Some(t) = race_track
         && let Some(Some(net)) = s.nets.get(&t)
@@ -238,7 +238,7 @@ fn net_of_lines<'a>(lines: impl Iterator<Item = &'a [Vec3]>) -> RoadNet {
 /// free roam's AI routes (every lane the free roam's traffic drives, read
 /// through the assets), each a segment of a network with no barriers. Its
 /// number is 0 here.
-fn overview_net(assets: &dyn crate::tools::map::assets::MapAssets, region: &str) -> Option<(u16, RoadNet)> {
+pub(super) fn overview_net(assets: &dyn crate::tools::map::assets::MapAssets, region: &str) -> Option<(u16, RoadNet)> {
     let lines = assets.free_roam_lines(region);
     Some((0, net_of_lines(lines.iter().map(Vec::as_slice)))).filter(|(_, n)| !n.nodes.is_empty())
 }

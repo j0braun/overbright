@@ -516,7 +516,7 @@ fn place_start(s: &mut crate::editor::state::EditorState, races: &mut crate::edi
     }
     s.mode = crate::editor::state::Mode::Races;
     races.tool = crate::editor::races::Tool::Start;
-    races.click(s, Vec3::from(RACE_SPOT), false, false);
+    races.click(s, Vec3::from(RACE_SPOT), false);
     if s.race.and_then(|k| s.session.map.races.get(k)).is_some_and(|r| r.start.is_some()) {
         s.status = words::START_LINE_PLACED_THE_CARS_LINE.into();
     }
@@ -549,11 +549,11 @@ fn add_points(s: &mut crate::editor::state::EditorState, races: &mut crate::edit
     let (cps, finish) = pts.split_at(pts.len().min(CHECKPOINTS_AT.len()));
     for p in cps {
         races.tool = Tool::Checkpoint;
-        races.click(s, p.extend(ground(s, *p)), false, false);
+        races.click(s, p.extend(ground(s, *p)), false);
     }
     if let Some(f) = finish.first() {
         races.tool = Tool::Finish;
-        races.click(s, f.extend(ground(s, *f)), false, false);
+        races.click(s, f.extend(ground(s, *f)), false);
     }
     races.tool = Tool::Select;
     races.update(s);

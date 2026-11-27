@@ -9,6 +9,7 @@ use super::nav::{self, KEYS};
 use super::workspace::Workspace;
 use crate::editor::collision::{Draw, Show};
 use crate::editor::menu::{Action, Command, Tool};
+use crate::editor::state::SnapMode;
 
 /// What the command line has for a window command.
 #[derive(Clone, Copy, Debug)]
@@ -76,6 +77,7 @@ fn menu_command(c: Command) -> Cli {
         Command::NewRace => Has(&["race create"]),
         Command::SelectAllOfSolid => WindowOnly("a selection in the window; a script names the props it means (`props solids` lists where each is placed)"),
         Command::Rotate90 | Command::FaceCamera => Has(&["props move"]),
+        Command::SelectStreet => WindowOnly("a selection in the window; a script names the props it means (`props solids` lists where each is placed)"),
         Command::ResetCamera | Command::FrameSelection => WindowOnly(VIEWING),
         Command::TestRace
         | Command::DriveHere
@@ -108,6 +110,7 @@ fn action(a: &Action) -> Cli {
             Tool::Move | Tool::Rotate => Has(&["props move", "race point move"]),
             Tool::Checkpoint | Tool::Start | Tool::Finish | Tool::Grid => Has(&["race point add"]),
         },
+        Action::Snap(_) => WindowOnly("how the window's drags and clicks snap; a command gives the exact position it means"),
         Action::Roads => WindowOnly("a drawing over the window's top view; `checks run` reports the roads' own findings"),
         Action::ShowNearestRoad => WindowOnly("a way of looking at the window's top view: it marks the road nearest the selection; `checks run` reports a point's distance from the roads"),
         // The collision layer's three modes: `collision show --mode` counts what each draws.
@@ -178,6 +181,7 @@ fn every_window_command_has_a_command_line_counterpart_or_a_reason() {
         Action::Undo,
         Action::Redo,
         Action::Roads,
+        Action::Snap(SnapMode::Surface),
         Action::ShowNearestRoad,
         Action::Tab(""),
         Action::Controls,

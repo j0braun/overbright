@@ -19,7 +19,7 @@
 //! The same in Top and on the Map (the point is the mouse's x/y at the
 //! floor's height there, a wall is picked by its foot). A drawn point snaps
 //! to collision corners and the ends of the mod's drawn walls within
-//! [`SNAP_PX`] (Alt: no snapping), a ring marking the corner.
+//! [`SNAP_PX`] (the snap mode Free: no snapping), a ring marking the corner.
 
 use egui::{Color32, Pos2, Rect, Shape, Stroke};
 use glam::{Vec2, Vec3};
@@ -74,7 +74,7 @@ const PICK_PX: f32 = 8.0;
 /// A click this close (points) to an outline's first point closes it.
 const CLOSE_PX: f32 = 10.0;
 /// A drawn point this close (points) to a collision corner or the end of a
-/// drawn wall snaps to it (Alt places without snapping).
+/// drawn wall snaps to it (Free places without snapping).
 pub const SNAP_PX: f32 = 10.0;
 
 pub use ob_studio::collision_view::{Class, Colour, Look, OPACITIES, Show, opacity_label};
@@ -410,7 +410,7 @@ fn snap_corners(o: &mut CollisionOverlay, s: &EditorState, proj: &Proj, g: Vec3)
 
 /// The ground under the mouse when the left button went down over the
 /// view this frame (not over a window or a handle), snapped to existing
-/// corners unless Alt is held.
+/// corners unless the snap mode is Free.
 fn pressed_ground(
     o: &mut CollisionOverlay,
     s: &EditorState,
@@ -439,7 +439,7 @@ fn ground_snapped(
     p: Pos2,
 ) -> Option<Vec3> {
     let g = super::app::race_ground(s, ctx, rect, p)?;
-    if ctx.input(|i| i.modifiers.alt) {
+    if !s.snap_mode.snaps() {
         return Some(g);
     }
     let cands = snap_corners(o, s, proj, g);
@@ -578,10 +578,10 @@ pub fn step_back(s: &mut EditorState) {
 /// next click, how to finish, how to step back.
 pub fn draw_words(d: &Draw) -> &'static str {
     match d {
-        Draw::Wall { first: None } => "Click the wall's first end on the ground · Alt: no snapping",
-        Draw::Wall { first: Some(_) } => "Click the wall's other end · Alt: no snapping",
+        Draw::Wall { first: None } => "Click the wall's first end on the ground · K: snap mode",
+        Draw::Wall { first: Some(_) } => "Click the wall's other end · K: snap mode",
         Draw::Ground { points } if points.len() < 3 => {
-            "Click the outline's corners on the ground · Backspace: last corner · Alt: no snapping"
+            "Click the outline's corners on the ground · Backspace: last corner · K: snap mode"
         }
         Draw::Ground { .. } => {
             "Click more corners · Enter or a click on the first corner finishes · Backspace: last corner"

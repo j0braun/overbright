@@ -5,12 +5,19 @@ pub use ob_look::words::QUIT;
 
 /// Edit hygiene (the map editor): the snap mode shown in the hint line, and the status after Esc puts a drag back.
 pub const DRAG_CANCELLED: &str = "Drag cancelled: everything is back where it was";
-pub const SNAP_ROAD: &str = "Snap: to the road · Alt: free";
-pub const SNAP_OFF: &str = "Snap: off · Alt: free";
-/// "Snap: steps of 0.25 m and 15° · Alt: free".
-pub fn snap_steps(metres: &str, degrees: &str) -> String {
-    format!("Snap: steps of {metres} m and {degrees}° · Alt: free")
+pub const SNAP_TO_SURFACE: &str = "To surface";
+pub const SNAP_KEEP_HEIGHT: &str = "Keep height";
+pub const SNAP_FREE: &str = "Free";
+pub const SNAP: &str = "Snap";
+/// The hint line's snap part: "Snap: To surface · K: next mode".
+pub fn snap_hint(mode: &str) -> String {
+    format!("Snap: {mode} · K: next mode")
 }
+pub const SNAP_HINT_ROAD: &str = "To the road";
+pub const STREET_SELECTED: &str = "Street selected up to the junctions at both ends";
+pub const NO_STREET_HERE: &str = "No street to select: select a prop on a street first";
+pub const APPLY: &str = "Apply";
+pub const TYPED_VALUE_WAITING: &str = "Enter or Apply uses it; Esc puts it back";
 
 pub const STUDIO: &str = "Overbright Studio";
 pub const TOO_SMALL: &str = "Studio needs at least 960 × 600";
@@ -591,8 +598,15 @@ pub const ALL: &[&str] = &[
     PLACE_THE_START_LINE_FIRST,
     NO_GROUND_IN_VIEW_PRESS_TAKE,
     DRAG_CANCELLED,
-    SNAP_ROAD,
-    SNAP_OFF,
+    SNAP_TO_SURFACE,
+    SNAP_KEEP_HEIGHT,
+    SNAP_FREE,
+    SNAP,
+    SNAP_HINT_ROAD,
+    STREET_SELECTED,
+    NO_STREET_HERE,
+    APPLY,
+    TYPED_VALUE_WAITING,
     NO_CONE_IN_THIS_CITY_DRAG,
     NONE_YET_THE_ORIGINAL_EVERYWHERE,
     AUTHOR,

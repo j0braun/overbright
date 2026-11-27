@@ -21,6 +21,24 @@ game's files and your career save are never written.
 
 If no map mod is on, none of this runs: worlds and races are the original's.
 
+## Snap modes
+
+One mode for every tool that places or moves (**K** cycles it; the Snap submenu of the Edit menu or the toolbar's **Snap** button sets it; the hint line under the view names the mode in force):
+
+- **To surface**: props move in steps (0.25 m and 15° unless changed with a right-click on **Snap**) and land on the ground where they are put down; race points snap to the road; collision corners snap to existing corners.
+- **Keep height** (the start): the same steps with the prop's height kept, as the editor always snapped.
+- **Free**: nothing snaps: moves and turns are exact and a point lands where the mouse is.
+
+Alt no longer changes snapping: **Alt + drag** an arrow copies the selection, as Shift + drag does. Esc during either puts everything back.
+
+## Select street
+
+**Edit ▸ Select street** selects the props along the street the first selected prop stands on, up to the junction at each end (a junction is where the road branches into more than one way on), within 14 m of the road's centre line. Duplicate, Move and Delete then work on the whole street. Where the game's road records give no connections (the free roam overview) the street is the single road piece the prop stands on.
+
+## Typed values
+
+In the Properties panel, numbers you type (position, heading) wait: **Enter** or the **Apply** button uses them as one undo step; leaving the field or **Esc** puts them back. Dragging a number moves the prop as you drag and is one undo step when released; Esc during that drag puts it back.
+
 ## Opening it
 
 - From the launcher: **Mods** page, **Map mods**: choose a mod and press **Open in map editor**; or on the
@@ -87,7 +105,7 @@ A menu item that cannot act now is greyed out and says why when hovered (Duplica
 | Menu | Items |
 |---|---|
 | File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Export as mod pack…** (a `.obpk` file for the launcher's Mods page: the placements, races and textures as the asset format's own files; it proposes `<folder>-1.0.0.obpk` in the `exports` folder), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
-| Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Collision ▸ Draw wall**, **Edit ▸ Collision ▸ Draw ground** and **Edit ▸ Collision ▸ Remove wall** (see Removed and drawn collision) |
+| Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Select street** (see Select street), **Edit ▸ Snap ▸ To surface**, **Edit ▸ Snap ▸ Keep height**, **Edit ▸ Snap ▸ Free** (see Snap modes), **Edit ▸ Collision ▸ Draw wall**, **Edit ▸ Collision ▸ Draw ground** and **Edit ▸ Collision ▸ Remove wall** (see Removed and drawn collision) |
 | View | **View ▸ Roads** (the road network over the top view), **View ▸ Show nearest road**, **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision**, **View ▸ Collision ▸ By kind** and **View ▸ Collision ▸ By surface** (see Collision), the Kinds submenu of View ▸ Collision (**View ▸ Collision ▸ Kinds ▸ Invisible walls**, **View ▸ Collision ▸ Kinds ▸ Barriers**, **View ▸ Collision ▸ Kinds ▸ Walls behind scenery**, **View ▸ Collision ▸ Kinds ▸ Road floors**, **View ▸ Collision ▸ Kinds ▸ Floors that are not ground**, **View ▸ Collision ▸ Kinds ▸ Added props'**, **View ▸ Collision ▸ Kinds ▸ Moved props'**, **View ▸ Collision ▸ Kinds ▸ Drawn by this mod**, **View ▸ Collision ▸ Kinds ▸ Show every kind**), the Opacity submenu (**View ▸ Collision ▸ Opacity ▸ 25 %**, **View ▸ Collision ▸ Opacity ▸ 50 %**, **View ▸ Collision ▸ Opacity ▸ 75 %**, **View ▸ Collision ▸ Opacity ▸ 100 %**), **View ▸ Collision ▸ Wireframe** and **View ▸ Collision ▸ Full-height walls** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
 | Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5), **Race ▸ Drive to record**, **Race ▸ Test without selected props**, **Race ▸ What the game loaded**, **Race ▸ Test car and clock…** |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
@@ -102,7 +120,7 @@ do nothing while a text field has the keyboard.
 |---|---|
 | `Q` | Select tool: a click selects a prop or a race point, never adds |
 | `W` | Move tool: drag an arrow to move the selected props |
-| `E` | Rotate tool: drag the ring to turn the selected props (Alt: turn freely) |
+| `E` | Rotate tool: drag the ring to turn the selected props (the snap mode Free: turn freely) |
 | `C` | Checkpoint tool: a click on the road adds a checkpoint |
 | `S` | Start tool: a click on the road puts the start line |
 | `X` | Finish tool: a click on the road puts the finish line |
@@ -121,8 +139,8 @@ do nothing while a text field has the keyboard.
 | `Shift+H` | Show only the selected props |
 | `Alt+H` | Show every prop again |
 | `LMB / Ctrl+LMB` | Select / add to the selection |
-| `Shift + drag an arrow` | Copy the selection and move the copy |
-| `Alt while dragging or placing` | No snapping |
+| `Shift or Alt + drag an arrow` | Copy the selection and move the copy (Esc cancels it) |
+| `K` | Snap mode: To surface / Keep height / Free (every placing and moving tool follows it) |
 | `Shift + click on the route` | Insert a checkpoint there |
 | `[ / ]` | Previous / next checkpoint |
 | `Ctrl+D` | Duplicate |
@@ -171,9 +189,8 @@ mod saved with props hidden is byte for byte the mod saved without.
 - **Select** a prop with a click in the view or in the tree; Ctrl+click adds to the selection. **Edit ▸ Select
   all of this solid** selects every placement of the same model.
 - **Move** shows an arrow per axis, **Rotate** (E) a ring around the vertical. The handles keep their size on
-  screen, in the 3D view and in Top, and so does the reach of a race point's grab in Top (12 points at any zoom). Moves snap to 0.25 m and turns to 15° while **Snap** is on (right-click it
-  for other steps; Alt held: no snapping, the ring turns freely). Shift while dragging an arrow moves a copy. A
-  drag moves the world as you drag and is one undo step when released; **Esc** during a drag puts everything back exactly as it was (a copy is taken back too) and leaves no undo step, for a race point as well. The hint line names the snap in force (steps, the road, or off; Alt: free). With a prop selected the hint line names
+  screen, in the 3D view and in Top, and so does the reach of a race point's grab in Top (12 points at any zoom). Moves snap to 0.25 m and turns to 15° unless the snap mode is Free (see Snap modes; right-click **Snap** for other steps). Shift or Alt while dragging an arrow moves a copy. A
+  drag moves the world as you drag and is one undo step when released; **Esc** during a drag puts everything back exactly as it was (a copy is taken back too) and leaves no undo step, for a race point as well. The hint line names the snap mode in force. With a prop selected the hint line names
   the Rotate key and the prop menu.
 - **The prop menu**: right-click a prop in the view (a click, not a flight: the camera must not move between
   press and release), or press Shift+F10 with props selected. It selects the prop when it is not selected yet and
@@ -209,8 +226,8 @@ mod saved with props hidden is byte for byte the mod saved without.
 - **Race ▸ New race** (or **New race…** in the tree) makes a sprint on the selected race's base track, else on the race
   track whose roads come nearest to where the camera looks, and arms Start: click the road for the start line, then for the checkpoints (the Checkpoint tool is armed for you),
   finish last for a sprint. The race tools work the same in the 3D view, in **Top** and on the **Map**: a click
-  places the point, a drag moves it, each one undo step. Points snap to the base track's nearest road while Snap
-  is on (Alt: no snapping); in Top and on the Map a point takes its height from the road under it, never from
+  places the point, a drag moves it, each one undo step. Points snap to the base track's nearest road unless the snap mode
+  is Free; in Top and on the Map a point takes its height from the road under it, never from
   the camera. The selected race's base-track roads are drawn faint green over the 3D view (near the camera), in
   Top and on the map: a race may only use those roads. On the Map, a drag that does not start on a race point
   pans as before.
@@ -613,7 +630,7 @@ drawn ground selects that), and the Properties panel names it and its size.
 - Picking and drawing work in the 3D view, in Top and on the Map alike: in Top and on the Map the point is the
   mouse's x/y at the road's or floor's height there (as for race points), and a click picks a wall by its foot.
   Drawn points snap to existing collision corners and to the ends of your own drawn walls and outlines within
-  10 points on the screen; a ring shows the corner a click takes, and Alt places the point where the mouse is.
+  10 points on the screen; a ring shows the corner a click takes, and the snap mode Free places the point where the mouse is.
   Enter, Esc and Del work as in the 3D view.
 - Each drawn wall and ground has a surface id (grip and sound): by default that of the floor under its first
   point; the Properties panel sets another.
@@ -626,7 +643,7 @@ by itself and has no tool of its own):
   layer's own settings stay in the Collision group of the View menu.
 - **One selection**: a click on a wall (or inside a drawn ground) selects it, one piece at a time, and clears the
   prop selection; picking a prop clears the wall. A tool armed does not pick.
-- **One set of keys**: a click places or picks, Alt places without snapping, Enter confirms what is begun (an
+- **One set of keys**: a click places or picks, the snap mode Free places without snapping, Enter confirms what is begun (an
   outline), Del removes the selected piece (also from the menu). Esc steps back one level at a time: the shape
   being drawn is dropped (the tool stays armed), the next Esc puts the tool down, the next clears the selected
   wall. Backspace takes back an outline's last corner.
