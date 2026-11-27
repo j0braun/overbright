@@ -146,3 +146,46 @@ fn free_roam_automatic_ignores_the_shift_keys() {
     assert!(plain.iter().flatten().all(|t| t.0 >= NEUTRAL), "the automatic gearbox drives forward");
     assert_eq!(plain, shifted);
 }
+
+/// Report #349 (shifting felt late at a high frame rate): a shift press
+/// and its release inside one tick, queued as the window queues them, is
+/// taken by that very tick at 30, 60, 120, 170 and 200 drawn frames per
+/// second: the gearbox's target gear changes in the tick the press is
+/// due at, never a tick later, and never not at all. The run then goes
+/// on tick for tick as at 60 fps.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn a_quick_shift_lands_on_its_tick_at_every_frame_rate() {
+    testkit::game();
+    let target = |game: &Game| {
+        game.sim.drive.as_ref().and_then(|d| d.state.drivetrain.as_ref()).map(|t| (t.gear, t.target_gear))
+    };
+    let run = |hz: f64| {
+        let mut game = free_roam(true);
+        ticks(&mut game, 30);
+        let due = game.pacing.clocks.tick + 7;
+        game.input_at(due, InputEvent::press(KeyCode::ShiftLeft));
+        game.input_at(due, InputEvent::KeyUp(KeyCode::ShiftLeft));
+        // Drawn frames at `hz`: the state after each tick, by tick.
+        let mut by_tick = std::collections::BTreeMap::new();
+        while game.pacing.clocks.tick < due + 40 {
+            game.advance(1.0 / hz as f32).unwrap();
+            by_tick.insert(game.pacing.clocks.tick, target(&game));
+        }
+        (due, by_tick)
+    };
+    let (due60, at60) = run(60.0);
+    let before = at60[&due60];
+    let after = at60[&(due60 + 1)];
+    assert_ne!(before, after, "the press shifts in its tick: {before:?} -> {after:?}");
+    for hz in [30.0, 120.0, 170.0, 200.0] {
+        let (due, at) = run(hz);
+        assert_eq!(due, due60, "{hz} fps");
+        // Every tick a frame ended on agrees with 60 fps (30 fps: every other).
+        let first = *at60.keys().next().unwrap();
+        for (tick, s) in at.iter().filter(|(t, _)| (first..=due + 40).contains(*t)) {
+            assert_eq!(Some(s), at60.get(tick), "{hz} fps, tick {tick}");
+        }
+        assert!(at.contains_key(&(due + 1)) || hz < 60.0, "{hz} fps");
+    }
+}

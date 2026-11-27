@@ -91,6 +91,15 @@ impl Pacer {
         }
     }
 
+    /// The period the pacer locks to under the present mode: the refresh
+    /// with vsync (FIFO: a frame can only go out at a refresh), none with
+    /// vsync off (Mailbox / Immediate: locking to the refresh there held
+    /// the frame rate at the refresh rate, report #349; the integrator on
+    /// the just-in-time GPU wait paces those).
+    pub fn for_present(vsync: bool, refresh: Option<f64>) -> Option<f64> {
+        if vsync { refresh } else { None }
+    }
+
     /// The fallback's sleep before the input (s).
     pub fn delay(&self) -> f32 {
         self.delay
@@ -153,6 +162,16 @@ impl Pacer {
     pub fn reset(&mut self) {
         *self = Pacer { period: self.period, ..Pacer::default() };
     }
+}
+
+/// The swap chain's frames in flight (`desired_maximum_frame_latency`):
+/// two, and one under Low Latency with vsync. With vsync off Low Latency
+/// keeps two: with one, a Mailbox swap chain has two images and each
+/// acquire waits for a refresh, and on Vulkan / DX12 the CPU waits for the
+/// GPU to finish the last frame before it starts the next (no overlap);
+/// the just-in-time GPU wait keeps the queue short instead.
+pub fn frames_in_flight(low_latency: bool, vsync: bool) -> u32 {
+    if low_latency && vsync { 1 } else { 2 }
 }
 
 /// The frame period a VRR display gets under Low Latency: the top rate
@@ -259,6 +278,155 @@ pub fn simulate(display: &mut Display, frames: usize, low_latency: bool, cap: Op
         now = present;
     }
     out
+}
+
+/// The swap chain's present mode in the GPU pipeline model ([`pipeline`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Present {
+    /// Vsync: every frame shown, in order, one per refresh.
+    Fifo,
+    /// Vsync off without tearing: the newest finished frame is shown at
+    /// each refresh, older ones are dropped.
+    Mailbox,
+    /// Vsync off, tearing: a frame goes on screen when it is finished.
+    Immediate,
+}
+
+/// How a frame starts in the pipeline model ([`pipeline`]).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Start {
+    /// Low Latency off: right after the last frame was submitted; the
+    /// swap chain's acquire (two frames in flight) is the only wait.
+    Off,
+    /// Low Latency as 0.7.0 had it, kept as a model of report #349's
+    /// cause: one frame in flight in every present mode and the
+    /// refresh-locked [`Pacer`] even with vsync off.
+    Refresh,
+    /// Low Latency now ([`Pacer::for_present`]): with vsync the same
+    /// refresh-locked pacer and one frame in flight; with vsync off two
+    /// frames in flight, the just-in-time GPU wait before the acquire (the
+    /// frame before the last one's fence) and the integrator's sleep before
+    /// the input, which takes that wait's time.
+    JustInTime,
+}
+
+/// One run of [`pipeline`]: frames finished per second on the GPU, the GPU's
+/// busy share, and the time from a frame's input to its frame finished on
+/// the GPU and to the refresh that shows it (means after the settling).
+#[derive(Clone, Copy, Debug, Default)]
+pub struct PipelineRun {
+    pub fps: f64,
+    pub gpu_busy: f64,
+    pub input_to_done: f64,
+    pub input_to_photon: f64,
+}
+
+/// A model of the CPU, the GPU and the swap chain together (report #349):
+/// each frame takes `cpu` s on the main thread (input to its submission,
+/// half before the image's acquire, half after) and `gpu` s on the GPU,
+/// in order. The swap chain has `frames in flight + 1` images; the
+/// acquire of an image waits (as wgpu's Vulkan swap chain does) for the
+/// GPU work of the frame that used it last and for the display to give it
+/// back. The pure model the regression tests check; the window loop runs
+/// the same [`Pacer`].
+pub fn pipeline(hz: f64, present: Present, start: Start, frames: usize, cpu: f64, gpu: f64) -> PipelineRun {
+    let period = 1.0 / hz;
+    let vsync = present == Present::Fifo;
+    let in_flight = match start {
+        Start::Off => frames_in_flight(false, vsync),
+        Start::Refresh => 1,
+        Start::JustInTime => frames_in_flight(true, vsync),
+    } as usize;
+    let images = in_flight + 1;
+    let mut pacer = Pacer::default();
+    pacer.set_period(match start {
+        Start::Refresh => Some(period),
+        _ => Pacer::for_present(vsync, Some(period)),
+    });
+    let vblank = |t: f64| (t / period).ceil() * period;
+    // Per frame: its input, the GPU's end, when it is shown and when its
+    // image is free again.
+    let (mut input, mut done, mut shown, mut free) =
+        (vec![0.0f64; frames], vec![0.0f64; frames], vec![f64::NAN; frames], vec![f64::INFINITY; frames]);
+    let mut holder: Vec<Option<usize>> = vec![None; images];
+    let mut t = 0.0f64;
+    for k in 0..frames {
+        // Low Latency's sleep before the input.
+        if start != Start::Off {
+            t = pacer.due(t);
+        }
+        input[k] = t;
+        let at_acquire = t + cpu * 0.5;
+        // Vsync off: the just-in-time wait for the frame before the last
+        // one (after the last frame's end went to the GPU, before the
+        // acquire: `WindowState::jit_wait`).
+        let jit = if start == Start::JustInTime && !vsync && k >= 2 { at_acquire.max(done[k - 2]) } else { at_acquire };
+        // The image of frame k − images: its GPU work done and the display
+        // done with it.
+        // wgpu waits for the GPU work of the acquire `images` back (its
+        // semaphore's last use), then the display gives the image that is
+        // free first (the last frame's is not: it waits for this one).
+        let fence = if k >= images { done[k - images] } else { 0.0 };
+        let (slot, image_free) = holder
+            .iter()
+            .enumerate()
+            .filter(|(_, h)| h.is_none_or(|j| j + 1 < k))
+            .map(|(i, h)| (i, h.map_or(0.0, |j| free[j])))
+            .min_by(|a, b| a.1.total_cmp(&b.1))
+            .expect("an image");
+        holder[slot] = Some(k);
+        let acquired = jit.max(fence).max(image_free);
+        // The time blocked after the input (with vsync off the GPU wait and
+        // the acquire together), which the pacer moves before it.
+        let (ready, got) = (at_acquire, acquired);
+        let submit = acquired + cpu * 0.5;
+        let gpu_start = if k > 0 { submit.max(done[k - 1]) } else { submit };
+        done[k] = gpu_start + gpu;
+        // The display: when this frame is shown and the frame before it
+        // gives its image back.
+        match present {
+            Present::Immediate => {
+                shown[k] = done[k];
+                if k > 0 {
+                    free[k - 1] = done[k];
+                }
+            }
+            Present::Fifo => {
+                let after = if k > 0 { shown[k - 1] + period } else { 0.0 };
+                shown[k] = vblank(done[k]).max(after);
+                if k > 0 {
+                    free[k - 1] = shown[k];
+                }
+            }
+            Present::Mailbox => {
+                shown[k] = vblank(done[k]);
+                if k > 0 {
+                    // Frame k − 1 dropped when k replaces it before its
+                    // refresh, else let go when k goes on screen.
+                    if done[k] < shown[k - 1] {
+                        free[k - 1] = done[k];
+                        shown[k - 1] = f64::NAN;
+                    } else {
+                        free[k - 1] = shown[k];
+                    }
+                }
+            }
+        }
+        if start != Start::Off {
+            pacer.record(FrameTimes { input: input[k], ready, got, present: submit });
+        }
+        t = submit;
+    }
+    let skip = frames / 4;
+    let n = (frames - skip) as f64;
+    let span = done[frames - 1] - done[skip];
+    let shown_after: Vec<f64> = (skip..frames).filter(|&k| shown[k].is_finite()).map(|k| shown[k] - input[k]).collect();
+    PipelineRun {
+        fps: (frames - 1 - skip) as f64 / span,
+        gpu_busy: gpu * (frames - 1 - skip) as f64 / span,
+        input_to_done: (skip..frames).map(|k| done[k] - input[k]).sum::<f64>() / n,
+        input_to_photon: shown_after.iter().sum::<f64>() / shown_after.len().max(1) as f64,
+    }
 }
 
 /// Mean of a slice of samples' fields (skipping the first `skip`, the
@@ -569,5 +737,69 @@ mod tests {
         assert!(due >= 1.02 && (at - at.round()).abs() < 1e-6, "{due} {at}");
         p.reset();
         assert_eq!(p.delay(), 0.0);
+    }
+    /// Report #349: GPU-bound with vsync off, the old Low Latency held the
+    /// frame rate at the refresh (one frame in flight, the pacer locked to
+    /// the refresh); now it stays within a few % of Off and the time from
+    /// the input to the GPU's end drops.
+    #[test]
+    fn vsync_off_low_latency_keeps_the_frame_rate() {
+        for present in [Present::Mailbox, Present::Immediate] {
+            for hz in [60.0, 144.0] {
+                for (cpu, gpu) in [(0.0015, 0.0055), (0.002, 0.005), (0.004, 0.0045), (0.006, 0.003)] {
+                    let off = pipeline(hz, present, Start::Off, 2000, cpu, gpu);
+                    let old = pipeline(hz, present, Start::Refresh, 2000, cpu, gpu);
+                    let on = pipeline(hz, present, Start::JustInTime, 2000, cpu, gpu);
+                    eprintln!(
+                        "{present:?} {hz} Hz cpu {cpu} gpu {gpu}: off {off:.4?}\n  old {old:.4?}\n  new {on:.4?}"
+                    );
+                    assert!(on.fps > off.fps * 0.95, "{present:?} {hz} {cpu} {gpu}: on {} off {}", on.fps, off.fps);
+                    assert!(
+                        on.input_to_done <= off.input_to_done + 1e-4,
+                        "{present:?} {hz} {cpu} {gpu}: on {} off {}",
+                        on.input_to_done,
+                        off.input_to_done
+                    );
+                    if gpu > cpu * 1.5 {
+                        // GPU-bound: the queue behind the input shorter by a millisecond or more.
+                        assert!(
+                            on.input_to_done < off.input_to_done - 0.001,
+                            "{present:?} {hz} {cpu} {gpu}: {}",
+                            on.input_to_done
+                        );
+                        assert!(
+                            on.gpu_busy > off.gpu_busy * 0.95,
+                            "{present:?} {hz} {cpu} {gpu}: busy {}",
+                            on.gpu_busy
+                        );
+                    }
+                    // The cause: the old pacing held the rate near the refresh.
+                    if gpu > cpu && 1.0 / gpu > hz * 1.2 {
+                        assert!(old.fps < hz * 1.05, "{present:?} {hz} {cpu} {gpu}: old {}", old.fps);
+                    }
+                }
+            }
+        }
+    }
+
+    /// With vsync Low Latency is as before: one frame in flight, the
+    /// refresh kept, the latency down.
+    #[test]
+    fn vsync_low_latency_is_unchanged() {
+        for hz in [60.0, 144.0] {
+            // A quiet GPU (the pacer's slack holds the GPU's time).
+            let old = pipeline(hz, Present::Fifo, Start::Refresh, 1200, 0.002, 0.0005);
+            let on = pipeline(hz, Present::Fifo, Start::JustInTime, 1200, 0.002, 0.0005);
+            let off = pipeline(hz, Present::Fifo, Start::Off, 1200, 0.002, 0.0005);
+            assert!((on.fps - old.fps).abs() < 1e-6 && (on.input_to_photon - old.input_to_photon).abs() < 1e-9);
+            assert!(
+                (on.fps - hz).abs() < hz * 0.03 && on.input_to_photon < off.input_to_photon * 0.6,
+                "{hz}: on {on:?} off {off:?}"
+            );
+        }
+        assert_eq!(frames_in_flight(true, true), 1);
+        assert_eq!(frames_in_flight(true, false), 2);
+        assert_eq!(frames_in_flight(false, true), 2);
+        assert_eq!(Pacer::for_present(false, Some(0.01)), None);
     }
 }

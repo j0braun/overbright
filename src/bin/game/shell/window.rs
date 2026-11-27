@@ -95,6 +95,9 @@ pub(crate) struct WindowState {
     /// The last frame's acquire and settle, their starts and ends.
     pub(crate) acquired: Option<(Instant, Instant)>,
     pub(crate) settled: Option<(Instant, Instant)>,
+    /// Low Latency with vsync off: the frame's just-in-time GPU wait
+    /// (`jit_wait`), its start and end.
+    pub(crate) gpu_wait: Option<(Instant, Instant)>,
     /// HDR Output (docs/playing/hdr.md; clone deviation): the signal the surface
     /// offers (None: SDR only; headless: `NFSU2_HDR_FAKE`), and while it is
     /// on, the display transform and its frame texture.
@@ -163,6 +166,7 @@ impl WindowState {
             settle_sum: 0.0,
             acquired: None,
             settled: None,
+            gpu_wait: None,
             hdr_offered: nfsu2::qol::hdr_output_signal(),
             hdr: None,
         }
@@ -233,6 +237,28 @@ impl WindowState {
             h.frame = Some((size, t));
         }
         h.frame.as_ref().map(|(_, t)| t.create_view(&Default::default()))
+    }
+
+    /// Low Latency with vsync off: waits until the GPU has finished the
+    /// frame before the last one (the second newest of `in_flight`, the
+    /// last one settled just before), and keeps the wait's span for the
+    /// pacer (`gpu_wait`). Nothing otherwise.
+    pub(crate) fn jit_wait(&mut self) {
+        if !(nfsu2::extras::low_latency()
+            && !matches!(self.config.present_mode, wgpu::PresentMode::Fifo | wgpu::PresentMode::FifoRelaxed))
+            || self.surface.is_none()
+        {
+            self.gpu_wait = None;
+            return;
+        }
+        let began = Instant::now();
+        if let Some((_, index)) = self.in_flight.iter().rev().nth(1).cloned() {
+            let _ = self.gpu.device.poll(wgpu::PollType::Wait {
+                submission_index: Some(index),
+                timeout: Some(std::time::Duration::from_millis(100)),
+            });
+        }
+        self.gpu_wait = Some((began, Instant::now()));
     }
 
     /// Waits for the last frame's submission and present (see
@@ -718,6 +744,15 @@ impl ApplicationHandler for Game {
         // event (SPEED2.EXE's pump 0x5BF1D0 waits in GetMessage).
         if self.background_pause() {
             event_loop.set_control_flow(winit::event_loop::ControlFlow::Wait);
+            return;
+        }
+        // The next frame's waits (the frame cap, Low Latency's pacing) are
+        // slept here, in the event loop, so the input that comes in during
+        // them is read for that frame's ticks (`Game::wait_for_frame`).
+        if self.platform.window.as_ref().is_some_and(|w| w.window.is_some())
+            && let Some(wake) = self.wait_for_frame()
+        {
+            event_loop.set_control_flow(winit::event_loop::ControlFlow::WaitUntil(wake));
             return;
         }
         event_loop.set_control_flow(winit::event_loop::ControlFlow::Poll);

@@ -135,7 +135,7 @@ Where and when it rains stays the original's.
 | Detail Distance | Native | Scenery detail and draw distance; the top tiers keep all of the city loaded and stop pop-in |
 | Reversed-Z Depth | Off (row hidden unless on) | Legacy: no visible effect in any tested scene |
 | Frame Rate Cap | Off | Caps drawing; the world rate is unaffected |
-| Low Latency | Off | One frame in flight, input read after the display wait |
+| Low Latency | Off | With vsync: one frame in flight, input read after the display wait; vsync off: the GPU queue kept to about one frame |
 | In the Background | Native (pause) | Keep running, or keep running drawn at 30 FPS, while the window is not focused (the original pauses) |
 | Power Saving | Off | Frame caps where nothing the player watches changes |
 | Performance Overlay | Hidden | The F3 overlay's layout (Minimal, Standard, Full) |
