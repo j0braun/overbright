@@ -180,7 +180,7 @@ fn another_programs_write_to_the_files_becomes_an_undoable_step() {
     assert_eq!(t.outside.len(), 1);
     assert_eq!(h.steps().last().unwrap().author, OUTSIDE);
     assert_eq!(h.doc(store::FILE), Some(map("a", &[("r1", 3), ("r2", 9)]).as_str()));
-    assert_eq!(h.undo(STUDIO).unwrap().unwrap(), format!("Changed outside Studio: {}", store::FILE));
+    assert_eq!(h.undo(STUDIO).unwrap().unwrap(), outside_label(store::FILE));
     h.save().unwrap();
     drop(h);
     // While closed.
@@ -191,6 +191,28 @@ fn another_programs_write_to_the_files_becomes_an_undoable_step() {
     assert!(h.pending().is_none());
     h.undo(STUDIO).unwrap();
     assert_eq!(h.doc(store::FILE), Some(map("a", &[("r1", 3), ("r2", 2)]).as_str()));
+}
+
+/// Two files written by another program (a checkout) are two steps, each named by its file, each taken back alone.
+#[test]
+fn each_file_another_program_wrote_is_its_own_step() {
+    let s = Scratch::new("history-outside-each");
+    let looks = "looks.toml";
+    std::fs::write(s.path().join(store::FILE), map("a", &[])).unwrap();
+    std::fs::write(s.path().join(looks), "format = 1\n").unwrap();
+    let open2 = |d: &Path| History::open(d, &d.join(store::EDITOR_DIR), &[store::FILE, looks], STUDIO, Arc::new(disk::Real)).unwrap();
+    let mut h = open2(s.path());
+    std::fs::write(s.path().join(store::FILE), map("b", &[])).unwrap();
+    std::fs::write(s.path().join(looks), "format = 1\n# by hand\n").unwrap();
+    h.stamps.clear();
+    let t = h.tick(Instant::now()).unwrap();
+    assert_eq!(t.outside.len(), 2, "one step per file");
+    let labels: Vec<&str> = h.steps().iter().rev().take(2).map(|s| s.label.as_str()).collect();
+    assert!(labels.contains(&outside_label(store::FILE).as_str()) && labels.contains(&outside_label(looks).as_str()), "{labels:?}");
+    assert_eq!(h.undo(STUDIO).unwrap().unwrap(), outside_label(store::FILE));
+    assert_eq!(h.doc(store::FILE), Some(map("a", &[]).as_str()));
+    assert_eq!(h.doc(looks), Some("format = 1\n# by hand\n"), "the other file's step stays");
+    assert_eq!(h.undo(STUDIO).unwrap().unwrap(), outside_label(looks));
 }
 
 #[test]

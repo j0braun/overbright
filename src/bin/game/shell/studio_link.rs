@@ -195,7 +195,7 @@ impl Link {
 /// Do `c` (an apply or restart): the aim it names (else the run's own), the mod read again for
 /// `Apply` (free roam then goes on from where the car is), the run started
 /// over. The run's aim changes only when it started.
-fn apply(
+pub(crate) fn apply(
     game: &mut Game,
     test: &mut super::cli::MapTest,
     c: &link::Command,
@@ -212,7 +212,7 @@ fn apply(
         }
         nfsu2::tools::map::reload_active();
         match (known.as_ref(), current_mod()) {
-            (Some(old), Some((folder, new))) => match game.apply_map_live(old, &new, &folder) {
+            (Some(old), Some((folder, new))) => match game.apply_map_live(old, &new, &folder, test.race.as_deref()) {
                 Ok(what) => {
                     *known = Some(new);
                     *done = what.to_string();
@@ -222,6 +222,13 @@ fn apply(
             },
             _ => why = Some("no mod known to the run".into()),
         }
+    }
+    if c.op == Op::Apply && why.is_none() {
+        why = match (&c.focus, &c.aim) {
+            (Some(_), _) => Some("the car or clock changed".to_string()),
+            (None, Some(_)) => Some("a new start was asked".to_string()),
+            _ => None,
+        };
     }
     let mut t = test.clone();
     if let Some(f) = &c.focus {

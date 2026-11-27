@@ -985,6 +985,8 @@ pub struct App {
     pub save_note: String,
     /// The open mod's texture list (`looks.toml`) as its pack data (`textures/`) was last written from.
     looks_written: Option<String>,
+    /// The open mod's texture files, watched for another program's writes.
+    pack_watch: ob_studio::looks::work::PackWatch,
     /// The window should close.
     pub quit: bool,
     /// Last frame's time on the CPU (status bar).
@@ -1096,6 +1098,7 @@ impl App {
             last_tick: Instant::now(),
             save_note: String::new(),
             looks_written: None,
+            pack_watch: Default::default(),
             quit: false,
             frame_ms: 0.0,
             untaken: Vec::new(),
@@ -1179,6 +1182,7 @@ impl App {
         let mut h = History::open(&dir, &edir, ob_studio::MOD_DOCS, PROGRAM, Arc::new(history::disk::Real))
             .with_context(|| format!("opening the history of {folder}"))?;
         self.looks_written = std::fs::read_to_string(dir.join(ob_studio::looks::FILE)).ok();
+        self.pack_watch = ob_studio::looks::work::PackWatch::new(&dir);
         let pending = h.pending().map(|p| p.at);
         let read_only = !h.writable();
         if read_only || (pending.is_some() && saved.is_none()) {
@@ -1354,18 +1358,40 @@ impl App {
         };
         let mut changed = std::mem::take(&mut self.save_note).len() > 0 || t.saved;
         s.session.dirty = h.writable() && h.unsaved();
-        if t.saved {
+        if t.saved || !t.outside.is_empty() {
             self.follow_looks();
         }
+        // Texture files another program wrote (while the pack data follows the list): one step each.
+        let mut outside: Vec<String> = t.outside.iter().filter_map(|q| self.outside_label(*q)).collect();
+        if let Some(s) = self.state.as_mut()
+            && let Some(h) = s.session.history.as_mut()
+            && h.doc(ob_studio::looks::FILE) == self.looks_written.as_deref()
+        {
+            let dir = s.maps.join(&s.session.folder);
+            let edir = h.editor_dir().to_path_buf();
+            match self.pack_watch.take(h, &dir, &edir) {
+                Ok(l) => outside.extend(l),
+                Err(e) => log::warn!("editor: texture files not taken in: {e}"),
+            }
+        }
         let Some(s) = self.state.as_mut() else { return changed };
-        if !t.outside.is_empty() || !t.answered.is_empty() || t.reloaded {
+        if !outside.is_empty() || !t.answered.is_empty() || t.reloaded {
             if s.session.sync() {
                 undo::follow(s);
                 s.status = "Changed by another program".into();
             }
+            if let Some(l) = outside.last() {
+                s.status = l.clone();
+            }
             changed = true;
         }
         changed
+    }
+
+    /// The label of the history step `seq`.
+    fn outside_label(&self, seq: u64) -> Option<String> {
+        let h = self.state.as_ref()?.session.history.as_ref()?;
+        h.steps().iter().find(|s| s.seq == seq).map(|s| s.label.clone())
     }
 
     /// After the mod's files were written: its pack data (`textures/`) follows the texture list when a step
@@ -3175,9 +3201,32 @@ mod tests {
         assert!(a.tick(Instant::now() + Duration::from_secs(10)));
         let st = a.state.as_ref().unwrap();
         assert_eq!(st.session.map.name, "By hand");
-        assert_eq!(st.status, "Changed by another program");
+        assert_eq!(st.status, "Outside change: map.obmap");
         a.act(menu::Action::Undo);
         assert!(a.state.as_ref().unwrap().session.map.name.is_empty());
+    }
+
+    /// Another program writing a texture file of the mod: one step named by the file, which Undo takes back.
+    #[test]
+    fn an_outside_texture_file_is_an_undoable_step() {
+        let s = Scratch::new("editor-outside-texture");
+        let maps = s.path().join("maps");
+        let mut a = app(&s);
+        a.new_mod("tex", "", "L4RA").unwrap();
+        let dir = maps.join("tex");
+        let file = dir.join("textures/world/0000000A.png");
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(&file, ob_studio::looks::encode_png(2, 2, &[9, 9, 9, 255].repeat(4)).unwrap()).unwrap();
+        assert!(a.tick(Instant::now() + Duration::from_secs(10)));
+        let st = a.state.as_ref().unwrap();
+        assert_eq!(st.status, "Outside change: textures/world/0000000A.png");
+        let h = st.session.history.as_ref().unwrap();
+        assert!(h.doc(ob_studio::looks::FILE).is_some_and(|t| t.contains("world:0x0000000A")));
+        assert_eq!(h.steps().last().unwrap().author, history::OUTSIDE);
+        a.save().unwrap();
+        a.act(menu::Action::Undo);
+        a.save().unwrap();
+        assert!(!file.exists(), "undo takes the texture away again");
     }
 
     #[test]

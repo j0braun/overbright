@@ -63,6 +63,11 @@ pub const STUDIO: &str = "Overbright Studio";
 /// Changes found in the mod's files that no step made (another program wrote them).
 pub const OUTSIDE: &str = "outside Studio";
 
+/// The label of the step that takes in a change of `file` made outside Studio.
+pub fn outside_label(file: &str) -> String {
+    format!("Outside change: {file}")
+}
+
 /// Unix time in ms.
 pub fn now_ms() -> u64 {
     SystemTime::now().duration_since(SystemTime::UNIX_EPOCH).map_or(0, |d| d.as_millis() as u64)
@@ -448,17 +453,27 @@ impl History {
         Ok(s)
     }
 
-    /// Make the files' changes that no step made one step under [`OUTSIDE`], merged item by item with the
-    /// unsaved steps (the files win an item changed both ways; undo gets the other version back).
-    fn take_outside(&mut self) -> Result<Option<u64>> {
+    /// Make the files' changes that no step made steps under [`OUTSIDE`], one per changed file ("Outside change:
+    /// map.obmap"), each merged item by item with the unsaved steps (the files win an item changed both ways; undo
+    /// gets the other version back). The numbers of the steps made.
+    fn take_outside(&mut self) -> Result<Vec<u64>> {
         let base = self.r.saved_state.clone().unwrap_or_else(|| self.r.current.clone());
-        let (merged, _) = doc::merge(&base, &self.r.current, &self.files, Prefer::Theirs);
-        let names: Vec<String> = diff(&base, &self.files).into_keys().collect();
-        let label = format!("Changed outside Studio: {}", names.join(", "));
-        let seq = self.step(OUTSIDE, &label, &merged, None)?;
+        let mut made = Vec::new();
+        for name in diff(&base, &self.files).into_keys() {
+            // Only this file as the disk has it.
+            let mut one = base.clone();
+            match self.files.get(&name) {
+                Some(t) => one.insert(name.clone(), t.clone()),
+                None => one.remove(&name),
+            };
+            let (merged, _) = doc::merge(&base, &self.r.current, &one, Prefer::Theirs);
+            if let Some(seq) = self.step(OUTSIDE, &outside_label(&name), &merged, None)? {
+                made.push(seq);
+            }
+        }
         // The files are what they are; the journal now knows them as written.
         self.mark_saved(self.files.clone())?;
-        Ok(seq)
+        Ok(made)
     }
 
     /// The mod is open for writing.
@@ -843,9 +858,7 @@ impl History {
             }
             if on_disk != self.files {
                 self.files = on_disk;
-                if let Some(seq) = self.take_outside()? {
-                    t.outside.push(seq);
-                }
+                t.outside.extend(self.take_outside()?);
             }
         }
         t.answered = self.answer_inbox()?;

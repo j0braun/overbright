@@ -268,7 +268,7 @@ then stay in the history for the next opening.
 One program writes a mod at a time. A mod already open in another editor (or another program of Overbright
 Studio) opens read-only, with a strip over the view saying which program has it; edits are not kept, the view
 follows the other program's steps, and **Try again** opens the mod for writing once the other program has let go.
-When another program writes `map.obmap` while the mod is open, its change becomes one step that Undo takes back.
+When another program writes a file of the mod while the mod is open (`map.obmap`, `looks.toml`, a texture file), each change becomes one step, "Outside change: <file>", that Undo takes back ([The game link](studio.md#the-game-link)).
 
 An older editor wrote unsaved changes to `.editor/map.obmap.autosave`. When that file is newer than the mod,
 opening the mod offers it once through the same prompt; the editor removes it after the answer and never writes
@@ -323,12 +323,12 @@ running world in place, within a moment and without a loading screen: a linked r
 placements beside the modded state, so each edit derives the placements again from original and mod (the same world a
 fresh load of the edited mod makes), the renderer's instances and the scenery collision follow, the car stays where it is
 and the clock keeps running. An added or removed prop makes the world renderer again (a pause of a moment, no load). What
-cannot go in place (the races changed, a new aim, car or clock) starts the run over behind the loading screen, and the
+cannot go in place (the run's own race, a new aim, car or clock) starts the run over behind the loading screen, and the
 status bar says "reloaded" with the reason. **Race ▸ Restart race** (Ctrl+F5) only starts over. F5 or Shift+F5 while the game is
 open send the new race or spot instead of refusing. Free roam goes on from where the car is after a reload. A run that
 cannot start (the race was deleted, no road at the spot) stays as it was and the status bar says why. The game writes its own state about twice
-a second; the status bar shows "Game connected", "Game applying changes", "Game reloading the world" (the races
-changed: the run starts over), and then what the game did ("Game: applied live", "Game: reloaded: the races changed"),
+a second; the status bar shows "Game connected", "Game applying changes", "Game reloading the world" (the run's own race
+changed: the run starts over), and then what the game did ("Game: applied live", "Game: reloaded: the race under test changed"),
 "Game not answering" or "Game not connected". Studio also sends a probe every few seconds while the game is idle (a
 command the game answers at once, so a game that beats but does not read the command file shows as not answering; a
 probe never goes over a command the game has not read). At most four game runs (test windows and simulations, of every
