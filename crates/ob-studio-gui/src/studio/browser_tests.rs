@@ -160,30 +160,58 @@ fn ctrl_4_opens_it_and_it_draws_without_a_mod() {
     let _ = std::fs::remove_dir_all(&dir);
 }
 
-#[test]
-fn it_draws_inside_its_slab_at_each_size() {
+/// The browser page drawn into its slab at every standard size with the mouse, the keys and the pad (the kit);
+/// `setup` makes the page, `check` returns what else is wrong with what was drawn.
+fn slab_matrix(name: &str, mut setup: impl FnMut() -> Page, mut check: impl FnMut(&Page, egui::Rect) -> Vec<String>) -> usize {
     let w = region();
-    for (width, height) in [(960.0, 600.0), (1280.0, 800.0), (1920.0, 1080.0)] {
+    let mut drawn = 0;
+    let report = ob_testkit::matrix::run(name, &ob_testkit::matrix::STANDARD, &super::matrix::INPUTS, |size, input| {
+        if super::matrix::too_small(size) {
+            return vec![];
+        }
+        drawn += 1;
+        let sc = super::matrix::scale_of(size);
+        let (lw, lh) = (size.w as f32 / sc, size.h as f32 / sc);
         let ctx = egui::Context::default();
         crate::editor::theme::apply(&ctx);
-        let mut p = Page::new();
-        let inner = egui::Rect::from_min_size(egui::pos2(20.0, 20.0), egui::vec2(width - 100.0, height - 150.0));
-        for _ in 0..2 {
-            let mut out = ctx.run_ui(raw_input((width as u32, height as u32), 1.0, 1, vec![]), |ui| {
-                p.draw(ui, inner, true, true, Some(Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None }));
+        let mut p = setup();
+        let inner = egui::Rect::from_min_size(egui::pos2(20.0, 20.0), egui::vec2(lw - 100.0, lh - 150.0));
+        let keys = input != ob_look::legends::InputKind::Mouse;
+        for _ in 0..3 {
+            let mut out = ctx.run_ui(raw_input((size.w, size.h), sc, 1, vec![]), |ui| {
+                p.draw(ui, inner, keys, true, Some(Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None }));
             });
             out.textures_delta.clear();
         }
         let d = &p.last;
         let inside = inner.expand(1.0);
-        for r in d.rows.iter().chain(&d.chips).chain(d.viewer.iter()).chain(&d.buttons).chain(d.search.iter()) {
-            assert!(inside.contains_rect(*r), "{width}x{height}: {r:?} outside {inner:?}");
+        let mut bad = vec![];
+        for r in d.rows.iter().chain(&d.chips).chain(d.viewer.iter()).chain(&d.buttons).chain(d.search.iter()).chain(d.area_button.iter()) {
+            if !inside.contains_rect(*r) {
+                bad.push(format!("{r:?} outside {inner:?}"));
+            }
         }
-        assert!(!d.rows.is_empty() && d.viewer.is_some());
-        // The viewer and the list do not overlap.
-        let v = d.viewer.unwrap();
-        assert!(d.rows.iter().all(|r| !r.intersects(v)));
-    }
+        if d.rows.is_empty() || d.viewer.is_none() {
+            bad.push("no rows or no viewer drawn".into());
+        }
+        if let Some(v) = d.viewer
+            && d.rows.iter().any(|r| r.intersects(v))
+        {
+            bad.push("a row overlaps the viewer".into());
+        }
+        bad.extend(check(&p, inner));
+        bad
+    });
+    report.finish(name);
+    drawn
+}
+
+#[test]
+fn it_draws_inside_its_slab_at_each_size() {
+    let w = region();
+    let _ = &w;
+    let drawn = slab_matrix("browser models", Page::new, |_, _| vec![]);
+    assert!(drawn >= 12, "{drawn}");
 }
 
 #[test]
@@ -309,33 +337,33 @@ fn without_a_game_folder_the_kinds_say_so() {
 
 #[test]
 fn the_media_kinds_draw_inside_their_slab_at_each_size() {
-    let w = region();
     for kind in [Kind::Sounds, Kind::Strings] {
-        for (width, height) in [(960.0, 600.0), (1280.0, 800.0), (1920.0, 1080.0)] {
-            let ctx = egui::Context::default();
-            crate::editor::theme::apply(&ctx);
-            let mut p = media_page(&w);
-            p.query.kind = kind;
-            let inner = egui::Rect::from_min_size(egui::pos2(20.0, 20.0), egui::vec2(width - 100.0, height - 150.0));
-            for _ in 0..3 {
-                let mut out = ctx.run_ui(raw_input((width as u32, height as u32), 1.0, 1, vec![]), |ui| {
-                    p.draw(ui, inner, true, true, Some(Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None }));
-                });
-                out.textures_delta.clear();
-            }
-            let d = &p.last;
-            let inside = inner.expand(1.0);
-            for r in d.rows.iter().chain(&d.chips).chain(d.viewer.iter()).chain(&d.buttons).chain(d.search.iter()).chain(d.area_button.iter()) {
-                assert!(inside.contains_rect(*r), "{kind:?} {width}x{height}: {r:?} outside {inner:?}");
-            }
-            assert!(!d.rows.is_empty() && d.viewer.is_some(), "{kind:?} {width}x{height}");
-            assert_eq!(d.chips.len(), 5 + 2 * usize::from(kind == Kind::Strings), "the kinds, and the languages of Strings");
-            let v = d.viewer.unwrap();
-            assert!(d.rows.iter().all(|r| !r.intersects(v)));
-            // The area button is clear of the search field and the chips.
-            let a = d.area_button.unwrap();
-            assert!(!a.intersects(d.search.unwrap()) && d.chips.iter().all(|c| !c.intersects(a)));
-        }
+        let w = region();
+        let drawn = slab_matrix(
+            &format!("browser {kind:?}"),
+            || {
+                let mut p = media_page(&w);
+                p.query.kind = kind;
+                p
+            },
+            |p, _| {
+                let d = &p.last;
+                let mut bad = vec![];
+                if d.chips.len() != 5 + 2 * usize::from(kind == Kind::Strings) {
+                    bad.push("the kinds, and the languages of Strings".to_string());
+                }
+                match (d.area_button, d.search) {
+                    (Some(a), Some(s)) => {
+                        if a.intersects(s) || d.chips.iter().any(|c| c.intersects(a)) {
+                            bad.push("the area button meets the search field or a chip".into());
+                        }
+                    }
+                    _ => bad.push("no area button or search field".into()),
+                }
+                bad
+            },
+        );
+        assert!(drawn >= 12, "{drawn}");
     }
 }
 

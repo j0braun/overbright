@@ -40,8 +40,8 @@ pub const CREATE: &str = "Create";
 pub const RESTORE: &str = "Restore";
 
 /// Every shared word, in the order above.
-pub const ALL: [&str; 14] =
-    [BACK, CANCEL, OK, SELECT, OPEN, SAVE, QUIT, UNDO, REDO, DELETE, DUPLICATE, RENAME, CREATE, RESTORE];
+pub const ALL: &[&str] =
+    &[BACK, CANCEL, OK, SELECT, OPEN, SAVE, QUIT, UNDO, REDO, DELETE, DUPLICATE, RENAME, CREATE, RESTORE];
 
 /// The question before a mod with textures from the original game's pixels is exported (Studio's Mod page,
 /// the launcher's Map mods export): its title and its yes.

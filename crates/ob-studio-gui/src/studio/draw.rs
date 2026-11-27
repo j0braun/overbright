@@ -441,7 +441,7 @@ mod tests {
     fn summary_rows_stack_and_the_busy_lamp_turns() {
         let ctx = egui::Context::default();
         crate::editor::theme::apply(&ctx);
-        let _ = ctx.run_ui(egui::RawInput::default(), |_| {});
+        ctx.run_ui(egui::RawInput::default(), |_| {}).textures_delta.clear();
         let area = Rect::from_min_size(pos2(10.0, 0.0), vec2(400.0, 300.0));
         let rows = [
             SummaryRow::new(Mark::Ok, "Changes", "3 changes"),
@@ -452,9 +452,10 @@ mod tests {
         let mut busy = vec![];
         for time in [0.0, 0.25] {
             let mut end = 0.0;
-            let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
                 end = summary_rows(ui.painter(), area, 20.0, &rows, 120.0, time);
             });
+            out.textures_delta.clear();
             ends.push(end);
             // The rows' own shapes: three rules, lamps and texts (the busy lamp is an arc).
             let lines = out

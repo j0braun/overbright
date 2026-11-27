@@ -111,6 +111,7 @@ pub const NO_MOD_OPEN_OPEN_ONE_ON: &str = "No mod open: open one on Home to brow
 pub const SEARCH_MODELS_AND_TEXTURES_BY_NAME: &str = "Search models and textures by name, 0x hash or section:1407";
 pub const CHOOSE_MODELS_OR_TEXTURES_TO_FILTER: &str = "Choose Models or Textures to filter them";
 pub const NOTHING_IN_THIS_REGION: &str = "Nothing in this region";
+pub const DID_YOU_MEAN: &str = "Did you mean";
 pub const NO_MODEL_OR_TEXTURE_MATCHES: &str = "No model or texture matches";
 pub const CHOOSE_A_RESULT_TO_SEE_IT: &str = "Choose a result to see it and where it is used";
 pub const OPEN_IN_LOOKS: &str = "Open in Looks";
@@ -352,7 +353,7 @@ pub const SOUND: &str = "Sound";
 /// View menu: marks the road nearest the selection (else the camera) and goes to it.
 pub const SHOW_NEAREST_ROAD: &str = "Show nearest road";
 
-pub const ALL: [&str; 325] = [
+pub const ALL: &[&str] = &[
     QUIT,
     STUDIO,
     TOO_SMALL,
@@ -447,6 +448,7 @@ pub const ALL: [&str; 325] = [
     SEARCH_MODELS_AND_TEXTURES_BY_NAME,
     CHOOSE_MODELS_OR_TEXTURES_TO_FILTER,
     NOTHING_IN_THIS_REGION,
+    DID_YOU_MEAN,
     NO_MODEL_OR_TEXTURE_MATCHES,
     CHOOSE_A_RESULT_TO_SEE_IT,
     OPEN_IN_LOOKS,
