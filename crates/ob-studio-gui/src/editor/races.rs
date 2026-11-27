@@ -495,6 +495,19 @@ impl Races {
         self.dragging.is_some()
     }
 
+    /// Esc during a drag: the race goes back exactly as it was, with no undo step.
+    pub fn cancel_drag(&mut self, s: &mut EditorState) {
+        if self.dragging.take().is_none() {
+            return;
+        }
+        if let Some((k, before)) = self.live.take()
+            && let Some(r) = s.session.map.races.get_mut(k)
+        {
+            *r = before;
+        }
+        s.status = crate::studio::words::DRAG_CANCELLED.into();
+    }
+
     /// The drag ended: one undo step.
     pub fn release(&mut self, s: &mut EditorState) {
         if let Some(p) = self.dragging.take() {
@@ -560,6 +573,10 @@ impl Races {
         }
         use egui::Key;
         let pressed = |k: Key| ctx.input(|i| i.key_pressed(k) && i.modifiers.is_none());
+        if self.dragging.is_some() && ctx.input_mut(|i| i.consume_key(egui::Modifiers::NONE, Key::Escape)) {
+            self.cancel_drag(s);
+            return;
+        }
         if pressed(Key::Delete) {
             self.delete_selected(s);
         }

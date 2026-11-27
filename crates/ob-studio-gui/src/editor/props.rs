@@ -819,7 +819,9 @@ impl Props {
         if dup {
             duplicate_selection(s, cursor);
         }
-        if esc && self.drag.is_none() {
+        if esc && self.drag.is_some() {
+            self.cancel_drag(s);
+        } else if esc {
             if s.draw.is_some() {
                 super::collision::step_back(s);
             } else {
@@ -827,6 +829,20 @@ impl Props {
                 s.wall = None;
             }
         }
+    }
+}
+
+impl Props {
+    /// Esc during a handle drag: everything is put back exactly as it was before the press (a Shift copy is
+    /// taken back too), and nothing is left on the undo stack.
+    pub fn cancel_drag(&mut self, s: &mut EditorState) {
+        let Some(d) = self.drag.take() else { return };
+        d.live.take_back(s);
+        if let Some(originals) = d.copied {
+            s.session.undo();
+            s.selection = originals.iter().filter_map(|k| s.session.placement_of(k)).collect();
+        }
+        s.status = crate::studio::words::DRAG_CANCELLED.into();
     }
 }
 
@@ -1269,6 +1285,44 @@ pub(crate) mod tests {
         assert!((copy.x - 20.0).abs() < 0.01 && (edit::heading_of(cr) - 90.0).abs() < 1e-3, "{copy}");
         assert!(edit::placement_parts(&s.session.world, 0).unwrap().0.abs_diff_eq(pivot, 1e-4));
         assert!(matches!(s.session.map.props.last(), Some(PropEdit::Add { position, .. }) if *position == copy));
+    }
+
+    #[test]
+    fn esc_during_a_drag_puts_everything_back_exactly() {
+        for copy in [false, true] {
+            let mut s = state();
+            top(&mut s);
+            s.selection = vec![0];
+            let mut p = Props::default();
+            let rect = viewport();
+            let pivot = Vec3::new(10.0, 0.0, 0.0);
+            let len = Props::handle_length(&s, rect, pivot);
+            let mid = project(&s, rect, pivot + Vec3::X * len * 0.6).unwrap();
+            let (n, bytes, label) =
+                (s.session.world.placements.len(), s.session.map.write(), s.session.undo.undo_label().map(String::from));
+            let ctx = egui::Context::default();
+            frame(&mut p, &mut s, &ctx, copy, vec![egui::Event::PointerMoved(mid)]);
+            frame(&mut p, &mut s, &ctx, copy, vec![button(mid, true)]);
+            frame(&mut p, &mut s, &ctx, copy, vec![egui::Event::PointerMoved(mid + egui::vec2(96.0, 0.0))]);
+            assert!(p.dragging());
+            assert_ne!(edit::placement_parts(&s.session.world, n * usize::from(copy)).unwrap().0, pivot, "copy {copy}: it moved live");
+            let esc = egui::Event::Key {
+                key: egui::Key::Escape,
+                physical_key: None,
+                pressed: true,
+                repeat: false,
+                modifiers: Default::default(),
+            };
+            let input = egui::RawInput { screen_rect: Some(rect), events: vec![esc], ..Default::default() };
+            let _ = crate::editor::run_headless(&ctx, input, |ui| p.keys(&mut s, ui.ctx(), None));
+            assert!(!p.dragging());
+            frame(&mut p, &mut s, &ctx, copy, vec![button(mid, false)]);
+            assert_eq!(edit::placement_parts(&s.session.world, 0).unwrap().0, pivot, "copy {copy}");
+            assert_eq!(s.session.world.placements.len(), n, "copy {copy}: no copy left");
+            assert_eq!(s.session.map.write(), bytes, "copy {copy}: the mod is as it was");
+            assert_eq!(s.session.undo.undo_label().map(String::from), label, "copy {copy}: no undo step");
+            assert_eq!(s.selection, vec![0], "copy {copy}");
+        }
     }
 
     #[test]

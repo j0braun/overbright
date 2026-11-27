@@ -3,6 +3,15 @@
 
 pub use ob_look::words::QUIT;
 
+/// Edit hygiene (the map editor): the snap mode shown in the hint line, and the status after Esc puts a drag back.
+pub const DRAG_CANCELLED: &str = "Drag cancelled: everything is back where it was";
+pub const SNAP_ROAD: &str = "Snap: to the road · Alt: free";
+pub const SNAP_OFF: &str = "Snap: off · Alt: free";
+/// "Snap: steps of 0.25 m and 15° · Alt: free".
+pub fn snap_steps(metres: &str, degrees: &str) -> String {
+    format!("Snap: steps of {metres} m and {degrees}° · Alt: free")
+}
+
 pub const STUDIO: &str = "Overbright Studio";
 pub const TOO_SMALL: &str = "Studio needs at least 960 × 600";
 pub const FIND_HINT: &str = "Find anything…";
@@ -551,6 +560,9 @@ pub const ALL: &[&str] = &[
     START_LINE_PLACED_THE_CARS_LINE,
     PLACE_THE_START_LINE_FIRST,
     NO_GROUND_IN_VIEW_PRESS_TAKE,
+    DRAG_CANCELLED,
+    SNAP_ROAD,
+    SNAP_OFF,
     NO_CONE_IN_THIS_CITY_DRAG,
     NONE_YET_THE_ORIGINAL_EVERYWHERE,
     AUTHOR,

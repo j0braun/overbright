@@ -173,7 +173,7 @@ mod saved with props hidden is byte for byte the mod saved without.
 - **Move** shows an arrow per axis, **Rotate** (E) a ring around the vertical. The handles keep their size on
   screen, in the 3D view and in Top, and so does the reach of a race point's grab in Top (12 points at any zoom). Moves snap to 0.25 m and turns to 15° while **Snap** is on (right-click it
   for other steps; Alt held: no snapping, the ring turns freely). Shift while dragging an arrow moves a copy. A
-  drag moves the world as you drag and is one undo step when released. With a prop selected the hint line names
+  drag moves the world as you drag and is one undo step when released; **Esc** during a drag puts everything back exactly as it was (a copy is taken back too) and leaves no undo step, for a race point as well. The hint line names the snap in force (steps, the road, or off; Alt: free). With a prop selected the hint line names
   the Rotate key and the prop menu.
 - **The prop menu**: right-click a prop in the view (a click, not a flight: the camera must not move between
   press and release), or press Shift+F10 with props selected. It selects the prop when it is not selected yet and

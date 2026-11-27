@@ -456,7 +456,9 @@ pub fn shortcuts(app: &App, ctx: &egui::Context, out: &mut Vec<Action>) {
     let armed = app
         .state
         .as_ref()
-        .is_some_and(|s| current_tool(s, &app.panels.props.borrow(), &app.panels.races.borrow()).armed());
+        .is_some_and(|s| current_tool(s, &app.panels.props.borrow(), &app.panels.races.borrow()).armed())
+        // Esc during a drag only puts the drag back; the tool stays.
+        && !app.panels.races.borrow().is_dragging();
     ctx.input_mut(|i| {
         if i.consume_shortcut(&NEW) {
             out.push(Action::NewMod);
@@ -1282,6 +1284,17 @@ pub fn hint_job_in(s: &EditorState, p: &Props, r: &Races, plan: bool) -> egui::t
     if drawing.is_none() && !tool.armed() && (!s.selection.is_empty() || s.point.is_some() || s.wall.is_some()) {
         chip(&mut job, "Esc", 18.0);
         job.append(" clear the selection", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
+    }
+    // The snap mode in force, in the same place for every tool that places or moves.
+    if matches!(tool, Tool::Move | Tool::Rotate) || tool.armed() {
+        let snap = if tool.armed() {
+            if r.snap { crate::studio::words::SNAP_ROAD.to_string() } else { crate::studio::words::SNAP_OFF.to_string() }
+        } else if p.snap {
+            crate::studio::words::snap_steps(&trim_num(p.snap_metres), &trim_num(p.snap_degrees))
+        } else {
+            crate::studio::words::SNAP_OFF.to_string()
+        };
+        job.append(&snap, 18.0, egui::TextFormat::simple(small.clone(), theme::dim()));
     }
     if plan {
         chip(&mut job, "RMB", 18.0);
