@@ -46,3 +46,4 @@ state	src/render/native/world/plan.rs	pub static MASK_FROM_MAIN: std::sync::atom
 state	src/render/native/world/plan.rs	pub static FORCE_MASK_FROM_MAIN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);	tests and measurements: the switch to the older path they compare
 state	src/render/native/world/plan.rs	pub static MASK_FROM_MAIN_DEVICE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);	tests: the counter they read back
 qol	src/render/native/frame_settings.rs	pub use crate::qol::RenderOptions;	the type's re-export: RenderOptions lives with the settings store that fills it
+state	src/render/native/ui/geom_dump.rs	static MOUSE: OnceLock<MouseHooks> = OnceLock::new();	dev-harness only: the menus layer hands over the mouse hooks once (set-once, no state changes after)

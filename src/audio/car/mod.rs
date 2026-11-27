@@ -16,6 +16,6 @@ pub mod turbo;
 pub mod transients;
 pub mod hydraulics;
 pub mod scrape;
-pub mod pushes;
-pub mod scripted;
+pub use ob_sim::audio::car::pushes;
+pub use ob_sim::audio::car::scripted;
 pub mod skids;

@@ -12,10 +12,35 @@
 //! Without the variable nothing is collected.
 
 use std::fmt::Write as _;
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
 use crate::draw::quad::Quad;
 use crate::render::display::{AspectMode, Place, UiFrame};
+
+/// One drawn object's rectangle on the canvas and its placement (the mouse's record of the layout).
+#[derive(Clone, Copy, Debug)]
+pub struct Rect {
+    pub lo: glam::Vec2,
+    pub hi: glam::Vec2,
+    pub place: Place,
+}
+
+/// The mouse's side of the dump, installed by the menus layer (the renderer does not name it).
+pub struct MouseHooks {
+    /// Start recording this layout's rectangles.
+    pub begin_frame: fn(),
+    /// The rectangles recorded, sorted.
+    pub rects: fn() -> Vec<((String, u32), Rect)>,
+    /// Whether the cursor (target pixels) lies in the rectangle.
+    pub inside: fn(&UiFrame, glam::Vec2, &Rect) -> bool,
+}
+
+static MOUSE: OnceLock<MouseHooks> = OnceLock::new();
+
+/// The menus layer's mouse module hands over its hooks (once, before the first shot lays out).
+pub fn install_mouse(hooks: MouseHooks) {
+    let _ = MOUSE.set(hooks);
+}
 
 struct DrawnQuad {
     index: usize,
@@ -59,7 +84,9 @@ fn with(f: impl FnOnce(&mut State)) {
 /// same either way), so [`finish`] can hit-test them.
 pub fn begin_layout() {
     if target().is_some() {
-        crate::frontend::mouse::begin_frame(true);
+        if let Some(m) = MOUSE.get() {
+            (m.begin_frame)();
+        }
     }
 }
 
@@ -182,7 +209,7 @@ pub(super) fn finish(frame: &UiFrame, size: (u32, u32)) {
     // rectangle with its place, and the game's own hit test
     // (`mouse::inside` on the frame the mouse uses) at that box's centre.
     let mouse_frame = UiFrame::new(size);
-    for (i, ((package, hash), r)) in crate::frontend::mouse::geom_rects().into_iter().enumerate() {
+    for (i, ((package, hash), r)) in MOUSE.get().map(|m| (m.rects)()).unwrap_or_default().into_iter().enumerate() {
         if i > 0 {
             o.push(',');
         }
@@ -207,7 +234,7 @@ pub(super) fn finish(frame: &UiFrame, size: (u32, u32)) {
         let (hit, expect) = if drawn {
             let c = glam::Vec2::new((px[0] + px[2]) * 0.5, (px[1] + px[3]) * 0.5);
             let at = mouse_frame.to_pixels((r.lo + r.hi) * 0.5, r.place);
-            (crate::frontend::mouse::inside(&mouse_frame, c, &r).to_string(), format!("[{},{}]", at.x, at.y))
+            (MOUSE.get().map_or(false, |m| (m.inside)(&mouse_frame, c, &r)).to_string(), format!("[{},{}]", at.x, at.y))
         } else {
             ("null".to_string(), "null".to_string())
         };

@@ -1,5 +1,5 @@
 pub mod collision;
-pub mod impacts;
+pub use ob_sim::audio::world::impacts;
 pub mod driveby;
 pub mod env;
 pub mod enviro;

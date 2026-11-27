@@ -37,6 +37,7 @@
 //! screen space. The cars' headlight pools are drawn into that image only
 //! ([`HeadlightPool`]).
 
+pub mod draw_notes;
 pub mod debug_env;
 pub mod native;
 pub use self::native::frame_settings::{FrameSettings, RenderOptions};

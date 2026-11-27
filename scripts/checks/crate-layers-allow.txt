@@ -3,18 +3,3 @@
 # and so does a line here that no longer matches one. `crate_layers.py --list` prints the current set.
 # src/qol/mod.rs render::blur_dof: the library's own (cfg(test)) `test_globals` also resets photo mode; the file is the
 # library's facade over the settings crate, not a module of it.
-src/qol/mod.rs render::blur_dof
-src/render/enh/post/blur_dof.rs frontend::graphics_table::row
-src/render/enh/post/blur_dof.rs frontend::options
-src/render/enh/post/blur_dof.rs frontend::options::RowId
-src/render/enh/post/blur_dof.rs frontend::options::Settings
-src/render/native/car/record.rs tools::texed::note_textures
-src/render/native/car/record.rs tools::texed::recording
-src/render/native/display/mod.rs frontend::mouse::canvas_point
-src/render/native/display/mod.rs frontend::options::custom_presets
-src/render/native/display/mod.rs frontend::options::step_mode
-src/render/native/ui/geom_dump.rs frontend::mouse::begin_frame
-src/render/native/ui/geom_dump.rs frontend::mouse::geom_rects
-src/render/native/ui/geom_dump.rs frontend::mouse::inside
-src/render/native/world/record.rs tools::texed::note_world_slots
-src/render/native/world/record.rs tools::texed::recording

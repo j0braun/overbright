@@ -122,8 +122,8 @@ impl WorldCore {
             order.retain(|&i| !self.draws[i as usize].water);
         }
         // The texture editor's list (docs/modding/texture-editor.md; off: not run).
-        if crate::tools::texed::recording() {
-            crate::tools::texed::note_world_slots(order.iter().filter_map(|&i| self.drawn_slot(i, plan.time)));
+        if crate::render::draw_notes::recording() {
+            crate::render::draw_notes::note_world_slots(order.iter().filter_map(|&i| self.drawn_slot(i, plan.time)));
         }
         let from_main = self.draw_pass_faded(
             encoder,
