@@ -5,7 +5,7 @@
 //!
 //! Every tool works on a world point (the viewport's ground point under
 //! the cursor, or the top view's x/y) and snaps it to the base track's
-//! road network unless snapping is off or Alt is held. Every edit is an
+//! road network unless the snap mode is Free. Every edit is an
 //! [`Op`] run through [`undo::run`]: one undo step per click, per drag
 //! (on release) and per typed value. The tracks and their road networks
 //! are read through the state's [`MapAssets`](crate::tools::map::assets::MapAssets).
@@ -70,8 +70,6 @@ pub struct Preview {
 #[derive(Default)]
 pub struct Races {
     pub tool: Tool,
-    /// Snap placed points to the road network.
-    pub snap: bool,
     /// The region's race tracks (read on first use through the assets),
     /// and the region they are of.
     tracks: Option<(String, Vec<TrackInfo>)>,
@@ -341,7 +339,7 @@ fn row<R>(ui: &mut egui::Ui, name: &str, add: impl FnOnce(&mut egui::Ui) -> R) -
 
 impl Races {
     pub fn new() -> Races {
-        Races { snap: true, ..Races::default() }
+        Races::default()
     }
 
     /// The region's race tracks: those with a career event (whose set-up
@@ -410,9 +408,9 @@ impl Races {
         self.checks.iter().find(|c| c.race == Some(k) && c.level == super::state::Level::Error).map(|c| c.text.clone())
     }
 
-    fn snapped(&mut self, s: &mut EditorState, at: Vec3, bypass: bool) -> (Vec3, Option<RoadPoint>) {
+    fn snapped(&mut self, s: &mut EditorState, at: Vec3) -> (Vec3, Option<RoadPoint>) {
         let Some(track) = s.race.and_then(|k| s.session.map.races.get(k)).map(|r| r.track) else { return (at, None) };
-        if !self.snap || bypass {
+        if !s.snap_mode.snaps() {
             return (at, None);
         }
         let Some(rp) = self.net(s, track).and_then(|n| race::snap(n, at.truncate())) else { return (at, None) };
@@ -443,9 +441,8 @@ impl Races {
 
     /// A click at world point `at` in the viewport or the map: pick a
     /// point near it, else use the armed tool there (Select only clears
-    /// the point). `shift`: insert a checkpoint into the route; `alt`: no
-    /// snapping.
-    pub fn click(&mut self, s: &mut EditorState, at: Vec3, shift: bool, alt: bool) {
+    /// the point). `shift`: insert a checkpoint into the route.
+    pub fn click(&mut self, s: &mut EditorState, at: Vec3, shift: bool) {
         self.update(s);
         let Some(k) = s.race.filter(|&k| k < s.session.map.races.len()) else {
             s.status = "Make a race first: Race > New race".into();
@@ -460,7 +457,7 @@ impl Races {
             s.point = None;
             return;
         }
-        let (at, road) = self.snapped(s, at, alt);
+        let (at, road) = self.snapped(s, at);
         let r = &s.session.map.races[k];
         let insert_at = insert_index(r, self.previews.get(k), s.point, at.truncate(), shift);
         let f = s.camera.forward();
@@ -481,9 +478,9 @@ impl Races {
 
     /// The pointer dragged to `at` with a point picked by [`Races::click`]
     /// (the race changes live; the op is run on release).
-    pub fn drag(&mut self, s: &mut EditorState, at: Vec3, alt: bool) {
+    pub fn drag(&mut self, s: &mut EditorState, at: Vec3) {
         let (Some(p), Some(k)) = (self.dragging, s.race) else { return };
-        let (at, road) = self.snapped(s, at, alt);
+        let (at, road) = self.snapped(s, at);
         self.begin_live(s, k);
         if let Some(r) = s.session.map.races.get_mut(k) {
             move_point(r, p, at, road);

@@ -56,6 +56,8 @@ pub enum Action {
     Hint(bool),
     /// The collision layer (View ▸ Collision).
     Collision(super::collision::Show),
+    /// Edit ▸ Snap, or K: how every placing and moving tool snaps.
+    Snap(super::state::SnapMode),
     /// What colours the collision layer (View ▸ Collision ▸ By kind / By surface).
     CollisionColour(super::collision::Colour),
     /// Show or hide one kind of the layer (View ▸ Collision ▸ Kinds).
@@ -99,6 +101,8 @@ pub enum Command {
     DropToGround,
     Rotate90,
     FaceCamera,
+    /// Edit ▸ Select street: the selected props' street, up to the junctions at both ends.
+    SelectStreet,
     ResetCamera,
     FrameSelection,
     NewRace,
@@ -116,7 +120,7 @@ pub enum Command {
 
 impl Command {
     /// Every command, for the test that each one has a taker.
-    pub const ALL: [Command; 16] = [
+    pub const ALL: [Command; 17] = [
         Command::Duplicate,
         Command::Delete,
         Command::RemoveWall,
@@ -124,6 +128,7 @@ impl Command {
         Command::DropToGround,
         Command::Rotate90,
         Command::FaceCamera,
+        Command::SelectStreet,
         Command::ResetCamera,
         Command::FrameSelection,
         Command::NewRace,
@@ -155,6 +160,7 @@ impl Command {
                 | Command::DropToGround
                 | Command::Rotate90
                 | Command::FaceCamera
+                | Command::SelectStreet
         );
         match self {
             _ if props_only && (s.mode != Mode::Props || s.selection.is_empty()) => Some("Select a prop first"),
@@ -289,7 +295,7 @@ impl Tool {
         match self {
             Tool::Select => "Select tool: a click selects a prop or a race point, never adds",
             Tool::Move => "Move tool: drag an arrow to move the selected props",
-            Tool::Rotate => "Rotate tool: drag the ring to turn the selected props (Alt: turn freely)",
+            Tool::Rotate => "Rotate tool: drag the ring to turn the selected props (the snap mode Free: turn freely)",
             Tool::Checkpoint => "Checkpoint tool: a click on the road adds a checkpoint",
             Tool::Start => "Start tool: a click on the road puts the start line",
             Tool::Finish => "Finish tool: a click on the road puts the finish line",
@@ -396,8 +402,8 @@ pub const KEYS: &[Binding] = &[
     b("View", "L", "Collision layer: off / invisible barriers / all collision", &[Key::L]),
     b("Tools", "Esc", "Back to Select (a race tool armed); else clear the selection", &[Key::Escape]),
     b("Edit", "LMB / Ctrl+LMB", "Select / add to the selection", &[]),
-    b("Edit", "Shift + drag an arrow", "Copy the selection and move the copy", &[]),
-    b("Edit", "Alt while dragging or placing", "No snapping", &[]),
+    b("Edit", "Shift or Alt + drag an arrow", "Copy the selection and move the copy (Esc cancels it)", &[]),
+    b("Edit", "K", "Snap mode: To surface / Keep height / Free (every placing and moving tool follows it)", &[Key::K]),
     b("Edit", "Shift + click on the route", "Insert a checkpoint there", &[]),
     b("Edit", "[ / ]", "Previous / next checkpoint", &[Key::OpenBracket, Key::CloseBracket]),
     b("Edit", "Ctrl+D", words::DUPLICATE, &[Key::D]),
@@ -505,6 +511,10 @@ pub fn shortcuts(app: &App, ctx: &egui::Context, out: &mut Vec<Action>) {
         if i.consume_key(Modifiers::NONE, Key::L) {
             let now = app.state.as_ref().map_or(super::collision::Show::Off, |s| s.collision);
             out.push(Action::Collision(now.next()));
+        }
+        if i.consume_key(Modifiers::NONE, Key::K) {
+            let now = app.state.as_ref().map_or(super::state::SnapMode::default(), |s| s.snap_mode);
+            out.push(Action::Snap(now.next()));
         }
         for t in Tool::ALL {
             if i.consume_key(Modifiers::NONE, t.key()) {
@@ -658,6 +668,20 @@ pub fn edit_items(app: &App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
     command(ui, s, "Drop to ground", "End", Command::DropToGround);
     command(ui, s, "Rotate 90°", "", Command::Rotate90);
     command(ui, s, "Face camera", "", Command::FaceCamera);
+    command(ui, s, "Select street", "", Command::SelectStreet);
+    ui.separator();
+    ui.add_enabled_ui(s.is_some(), |ui| {
+        ui.menu_button("Snap", |ui| {
+            let now = s.map(|s| s.snap_mode);
+            for m in super::state::SnapMode::ALL {
+                let key = if m == super::state::SnapMode::default() { "K cycles" } else { "" };
+                if ui.add(egui::Button::selectable(now == Some(m), m.label())).on_hover_text(key).clicked() {
+                    out.push(Action::Snap(m));
+                    ui.close();
+                }
+            }
+        });
+    });
     ui.separator();
     // One group for the collision tools: the same selection (a click on a wall), the same Del, Esc and Alt.
     let open = s.is_some();
@@ -959,14 +983,15 @@ const LEFT: [Part; 15] = [
     Part::Save,
 ];
 
-/// The snap button's words.
-fn snap_job(p: &Props, r: &Races, tool: Tool, tier: usize) -> egui::text::LayoutJob {
-    let (on, steps) = if tool.armed() {
-        (r.snap, "to road".to_string())
+/// The snap button's words: the mode in force, and the steps (props) or the road (race tools) it snaps to.
+fn snap_job(p: &Props, mode: super::state::SnapMode, tool: Tool, tier: usize) -> egui::text::LayoutJob {
+    let steps = if tool.armed() {
+        crate::studio::words::SNAP_HINT_ROAD.to_string()
     } else {
-        (p.snap, format!("{} m · {}°", trim_num(p.snap_metres), trim_num(p.snap_degrees)))
+        format!("{} m · {}°", trim_num(p.snap_metres), trim_num(p.snap_degrees))
     };
-    label_job("Snap", (tier == 0).then_some(steps.as_str()), on, true)
+    let text = format!("{}: {}", crate::studio::words::SNAP, mode.label());
+    label_job(&text, (tier == 0 && mode.snaps()).then_some(steps.as_str()), mode.snaps(), true)
 }
 
 fn trim_num(v: f32) -> String {
@@ -979,7 +1004,7 @@ fn part_job(
     tier: usize,
     s: &EditorState,
     p: &Props,
-    r: &Races,
+    _r: &Races,
     tool: Tool,
 ) -> Option<egui::text::LayoutJob> {
     let key = |t: Tool| (tier == 0).then(|| t.key().name());
@@ -994,7 +1019,7 @@ fn part_job(
     }
     Some(match part {
         Part::Tool(t) => label_job(t.name(), key(t), tool == t, t.unavailable(s).is_none()),
-        Part::Snap => snap_job(p, r, tool, tier),
+        Part::Snap => snap_job(p, s.snap_mode, tool, tier),
         Part::Undo => label_job(words::UNDO, None, false, true),
         Part::Redo => label_job(words::REDO, None, false, true),
         Part::Save => label_job(words::SAVE, None, false, true),
@@ -1112,23 +1137,22 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                 }
                 Part::Snap => {
                     let Some(j) = r else { continue };
-                    let (mut p, mut rc) = (panels.props.borrow_mut(), panels.races.borrow_mut());
-                    let on = if tool.armed() { rc.snap } else { p.snap };
-                    let tip = if tool.armed() {
-                        "Snap race points to the road (hold Alt to place freely). Right-click: the steps"
-                    } else {
-                        "Snap moves and turns to steps (hold Alt to bypass). Right-click: the steps"
-                    };
-                    let resp = ui.add(egui::Button::selectable(on, j)).on_hover_text(tip);
+                    let mut p = panels.props.borrow_mut();
+                    let mode = s.snap_mode;
+                    let tip = "Snap mode for every placing and moving tool: To surface, Keep height, Free. Click or K: the next \
+                               mode. Right-click: the mode and the steps";
+                    let resp = ui.add(egui::Button::selectable(mode.snaps(), j)).on_hover_text(tip);
                     if resp.clicked() {
-                        if tool.armed() {
-                            rc.snap = !rc.snap;
-                        } else {
-                            p.snap = !p.snap;
-                        }
+                        out.push(Action::Snap(mode.next()));
                     }
                     resp.context_menu(|ui| {
-                        ui.checkbox(&mut p.snap, "Snap props");
+                        for m in super::state::SnapMode::ALL {
+                            if ui.add(egui::Button::selectable(mode == m, m.label())).clicked() {
+                                out.push(Action::Snap(m));
+                                ui.close();
+                            }
+                        }
+                        ui.separator();
                         ui.horizontal(|ui| {
                             ui.label("Step");
                             ui.add(
@@ -1136,7 +1160,6 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
                             );
                             ui.add(egui::DragValue::new(&mut p.snap_degrees).range(1.0..=90.0).speed(0.5).suffix("°"));
                         });
-                        ui.checkbox(&mut rc.snap, "Snap race points to the road");
                     });
                     fit.items.push(("Snap".into(), resp.rect));
                 }
@@ -1226,9 +1249,9 @@ pub fn toolbar(app: &mut App, ui: &mut egui::Ui, out: &mut Vec<Action>) {
 pub fn tool_hint(tool: Tool, r: &Races) -> &'static str {
     match tool {
         Tool::Select => "Click a prop or a race point to select it · Ctrl+click: add to the selection",
-        Tool::Move => "Drag an arrow to move the selection · Shift+drag: copy · Alt: no snapping",
+        Tool::Move => "Drag an arrow to move the selection · Shift or Alt+drag: copy",
         Tool::Rotate => {
-            "Drag the ring to turn the selection · Alt: turn freely · right-click a prop: Rotate 90°, Face camera"
+            "Drag the ring to turn the selection · right-click a prop: Rotate 90°, Face camera"
         }
         _ => r.hint(),
     }
@@ -1286,15 +1309,12 @@ pub fn hint_job_in(s: &EditorState, p: &Props, r: &Races, plan: bool) -> egui::t
         job.append(" clear the selection", 0.0, egui::TextFormat::simple(small.clone(), theme::ink()));
     }
     // The snap mode in force, in the same place for every tool that places or moves.
-    if matches!(tool, Tool::Move | Tool::Rotate) || tool.armed() {
-        let snap = if tool.armed() {
-            if r.snap { crate::studio::words::SNAP_ROAD.to_string() } else { crate::studio::words::SNAP_OFF.to_string() }
-        } else if p.snap {
-            crate::studio::words::snap_steps(&trim_num(p.snap_metres), &trim_num(p.snap_degrees))
-        } else {
-            crate::studio::words::SNAP_OFF.to_string()
-        };
-        job.append(&snap, 18.0, egui::TextFormat::simple(small.clone(), theme::dim()));
+    if matches!(tool, Tool::Move | Tool::Rotate) || tool.armed() || drawing.is_some() {
+        job.append(
+            &crate::studio::words::snap_hint(s.snap_mode.label()),
+            18.0,
+            egui::TextFormat::simple(small.clone(), theme::dim()),
+        );
     }
     if plan {
         chip(&mut job, "RMB", 18.0);

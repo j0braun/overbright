@@ -36,6 +36,45 @@ pub enum Focus {
     Races,
 }
 
+/// How every tool that places or moves snaps (one mode for all of them, cycled with `K`): **To surface**
+/// (steps, and a prop lands on the ground there; race and collision points snap), **Keep height** (steps, the
+/// height stays; the default and what Snap always did), **Free** (nothing snaps).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum SnapMode {
+    Surface,
+    #[default]
+    KeepHeight,
+    Free,
+}
+
+impl SnapMode {
+    pub const ALL: [SnapMode; 3] = [SnapMode::Surface, SnapMode::KeepHeight, SnapMode::Free];
+
+    /// The next mode in the cycle.
+    pub fn next(self) -> SnapMode {
+        match self {
+            SnapMode::Surface => SnapMode::KeepHeight,
+            SnapMode::KeepHeight => SnapMode::Free,
+            SnapMode::Free => SnapMode::Surface,
+        }
+    }
+
+    /// The mode's name (the menu, the toolbar and the hint line).
+    pub fn label(self) -> &'static str {
+        use crate::studio::words;
+        match self {
+            SnapMode::Surface => words::SNAP_TO_SURFACE,
+            SnapMode::KeepHeight => words::SNAP_KEEP_HEIGHT,
+            SnapMode::Free => words::SNAP_FREE,
+        }
+    }
+
+    /// Whether points snap at all.
+    pub fn snaps(self) -> bool {
+        self != SnapMode::Free
+    }
+}
+
 pub use crate::tools::map::ops::RacePoint;
 pub use crate::tools::map::session::{Issue, Level, MapSession};
 
@@ -95,6 +134,8 @@ pub struct EditorState {
     pub replay: super::sim::cars::Replay,
     /// The status bar's last message.
     pub status: String,
+    /// The snap mode every placing and moving tool follows.
+    pub snap_mode: SnapMode,
     /// Road networks by base track, read on first use through `assets`
     /// (None: unreadable).
     pub nets: HashMap<u16, Option<RoadNet>>,
@@ -145,6 +186,7 @@ impl EditorState {
             point: None,
             camera,
             mode: Mode::Props,
+            snap_mode: SnapMode::default(),
             focus: Focus::Both,
             roads: true,
             nearest_road: None,

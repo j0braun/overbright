@@ -416,19 +416,21 @@ fn draw_and_pick(view: &str) {
     }
 
     // A second wall started 3 points from the first one's end snaps to it;
-    // with Alt it lands where the mouse is.
+    // in the Free snap mode it lands where the mouse is.
     let near_end = to.truncate() + Vec2::new(0.0, 3.0 * tol(&a, 1.0));
     click_mods(&mut a, near_end, none);
     click_mods(&mut a, Vec2::new(140.0, 90.0), none);
     let w = drawn_walls(&a);
     assert_eq!(w.len(), 2, "{view}");
     assert!(w[1].0.truncate().distance(to.truncate()) < 1e-3, "{view}: snapped {} to {}", w[1].0, to);
-    click_mods(&mut a, near_end, egui::Modifiers::ALT);
+    a.state.as_mut().unwrap().snap_mode = crate::editor::state::SnapMode::Free;
+    click_mods(&mut a, near_end, none);
+    a.state.as_mut().unwrap().snap_mode = crate::editor::state::SnapMode::default();
     click_mods(&mut a, Vec2::new(180.0, 90.0), none);
     let w = drawn_walls(&a);
     assert_eq!(w.len(), 3, "{view}");
-    assert!(w[2].0.truncate().distance(near_end) <= tol(&a, 1.0), "{view}: Alt places at the mouse, got {}", w[2].0);
-    assert!(w[2].0.truncate().distance(to.truncate()) > tol(&a, 1.0), "{view}: Alt did not snap");
+    assert!(w[2].0.truncate().distance(near_end) <= tol(&a, 1.0), "{view}: Free places at the mouse, got {}", w[2].0);
+    assert!(w[2].0.truncate().distance(to.truncate()) > tol(&a, 1.0), "{view}: Free did not snap");
     let three = collision_of(&a);
 
     // Undo and redo, exact (picking needs the real collision: collision_tests).

@@ -3,6 +3,7 @@
 use glam::{Vec2, Vec3};
 
 use super::*;
+use crate::editor::state::SnapMode;
 use crate::editor::validate::tests::{sprint, straight};
 use crate::tools::map::assets::GivenAssets;
 use crate::tools::map::ops::RacePoint as Point;
@@ -143,26 +144,28 @@ fn clicks_place_snapped_points_as_undo_steps() {
     s.mode = Mode::Races;
     races.tool = Tool::Checkpoint;
     // A click beside the road puts checkpoint 3 on it.
-    races.click(&mut s, Vec3::new(390.0, 6.0, 0.0), false, false);
+    races.click(&mut s, Vec3::new(390.0, 6.0, 0.0), false);
     assert_eq!(s.session.map.races[0].checkpoints[2], Vec2::new(390.0, 0.0));
     assert_eq!(s.point, cp(2));
     assert_eq!(s.session.undo.undo_label(), Some("Add checkpoint 3"));
     // Alt places it where clicked.
-    races.click(&mut s, Vec3::new(395.0, 6.0, 0.0), false, true);
+    s.snap_mode = SnapMode::Free;
+    races.click(&mut s, Vec3::new(395.0, 6.0, 0.0), false);
+    s.snap_mode = SnapMode::default();
     assert_eq!(s.session.map.races[0].checkpoints[3], Vec2::new(395.0, 6.0));
     // A click on a point picks it; dragging moves it, one step on release.
-    races.click(&mut s, Vec3::new(21.0, 1.0, 0.0), false, false);
+    races.click(&mut s, Vec3::new(21.0, 1.0, 0.0), false);
     assert_eq!(s.point, cp(0));
     // Esc during a drag puts the point back and leaves no step.
     let (before, label) = (s.session.map.races[0].checkpoints[0], s.session.undo.undo_label().map(String::from));
-    races.drag(&mut s, Vec3::new(50.0, 3.0, 0.0), false);
+    races.drag(&mut s, Vec3::new(50.0, 3.0, 0.0));
     assert_ne!(s.session.map.races[0].checkpoints[0], before);
     races.cancel_drag(&mut s);
     races.release(&mut s);
     assert_eq!(s.session.map.races[0].checkpoints[0], before);
     assert_eq!(s.session.undo.undo_label().map(String::from), label);
-    races.click(&mut s, Vec3::new(21.0, 1.0, 0.0), false, false);
-    races.drag(&mut s, Vec3::new(50.0, 3.0, 0.0), false);
+    races.click(&mut s, Vec3::new(21.0, 1.0, 0.0), false);
+    races.drag(&mut s, Vec3::new(50.0, 3.0, 0.0));
     races.release(&mut s);
     assert_eq!(s.session.map.races[0].checkpoints[0], Vec2::new(50.0, 0.0));
     assert_eq!(s.session.undo.undo_label(), Some("Move checkpoint 1"));
@@ -205,13 +208,13 @@ fn a_race_is_made_validated_and_selected() {
     let mut races = Races::new();
     races.new_race(&mut s);
     assert_eq!((s.session.map.races.len(), s.race, s.mode, races.tool), (2, Some(1), Mode::Races, Tool::Start));
-    races.click(&mut s, Vec3::new(10.0, 3.0, 0.0), false, false);
+    races.click(&mut s, Vec3::new(10.0, 3.0, 0.0), false);
     assert_eq!(races.tool, Tool::Checkpoint, "the start placed arms Checkpoint");
     for x in [120.0, 220.0, 360.0] {
-        races.click(&mut s, Vec3::new(x, -4.0, 0.0), false, false);
+        races.click(&mut s, Vec3::new(x, -4.0, 0.0), false);
     }
     races.tool = Tool::Finish;
-    races.click(&mut s, Vec3::new(395.0, 2.0, 0.0), false, false);
+    races.click(&mut s, Vec3::new(395.0, 2.0, 0.0), false);
     let r = &s.session.map.races[1];
     assert_eq!(r.checkpoints, vec![Vec2::new(120.0, 0.0), Vec2::new(220.0, 0.0), Vec2::new(360.0, 0.0)]);
     assert!(r.start.is_some() && r.finish.is_some());
@@ -268,14 +271,16 @@ fn a_select_click_on_the_road_adds_nothing() {
     s.mode = Mode::Races;
     let before = s.session.map.clone();
     for at in [Vec3::new(200.0, 0.0, 0.0), Vec3::new(300.0, 2.0, 0.0)] {
-        races.click(&mut s, at, false, false);
-        races.click(&mut s, at, true, false);
-        races.click(&mut s, at, false, true);
+        races.click(&mut s, at, false);
+        races.click(&mut s, at, true);
+        s.snap_mode = SnapMode::Free;
+        races.click(&mut s, at, false);
+        s.snap_mode = SnapMode::default();
     }
     assert_eq!(s.session.map, before);
     assert_eq!(s.session.undo.undo_label(), None);
     assert!(!s.session.dirty);
-    races.click(&mut s, Vec3::new(21.0, 0.0, 0.0), false, false);
+    races.click(&mut s, Vec3::new(21.0, 0.0, 0.0), false);
     races.release(&mut s);
     assert_eq!(s.point, cp(0));
     assert_eq!(s.session.map, before, "a pick without a move is no edit");
@@ -292,17 +297,17 @@ fn a_race_is_built_only_through_ops() {
     s.race = None;
     let mut races = Races::new();
     races.new_race(&mut s);
-    races.click(&mut s, Vec3::new(10.0, 3.0, 0.0), false, false);
+    races.click(&mut s, Vec3::new(10.0, 3.0, 0.0), false);
     for x in [120.0, 220.0, 360.0] {
-        races.click(&mut s, Vec3::new(x, -4.0, 0.0), false, false);
+        races.click(&mut s, Vec3::new(x, -4.0, 0.0), false);
     }
     // Drag checkpoint 2 along the road; the live change is one step.
-    races.click(&mut s, Vec3::new(220.0, 0.0, 0.0), false, false);
-    races.drag(&mut s, Vec3::new(230.0, 1.0, 0.0), false);
-    races.drag(&mut s, Vec3::new(240.0, 2.0, 0.0), false);
+    races.click(&mut s, Vec3::new(220.0, 0.0, 0.0), false);
+    races.drag(&mut s, Vec3::new(230.0, 1.0, 0.0));
+    races.drag(&mut s, Vec3::new(240.0, 2.0, 0.0));
     races.release(&mut s);
     crate::editor::menu::set_tool(&mut s, &mut Default::default(), &mut races, crate::editor::menu::Tool::Finish);
-    races.click(&mut s, Vec3::new(395.0, 2.0, 0.0), false, false);
+    races.click(&mut s, Vec3::new(395.0, 2.0, 0.0), false);
     races.delete_selected(&mut s);
     let mut labels = Vec::new();
     let mut u = s.session.undo.clone();

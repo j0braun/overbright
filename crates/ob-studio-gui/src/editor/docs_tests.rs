@@ -104,6 +104,10 @@ fn scan_menu(src: &str, body: &str, outer: &[&str], out: &mut Vec<(String, Optio
             out.extend(super::collision::Show::ALL.map(|c| (format!("{menu} ▸ {}", c.label()), None)));
             continue;
         }
+        if line.contains("state::SnapMode::ALL") {
+            out.extend(super::state::SnapMode::ALL.map(|c| (format!("{menu} ▸ {}", c.label()), None)));
+            continue;
+        }
         if line.contains("collision::Class::ALL") {
             out.extend(super::collision::Class::ALL.map(|c| (format!("{menu} ▸ {}", c.label()), None)));
             continue;
