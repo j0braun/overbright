@@ -150,6 +150,7 @@ pub const NO_MOD_OPEN_OPEN_ONE_ON_2: &str = "No mod open: open one on Home to se
 pub const EVERYTHING_THIS_MOD_CHANGES: &str = "Everything this mod changes";
 pub const ONLY_WHAT_LOSES: &str = "Only what loses";
 pub const ALL_VALUES: &str = "All values";
+pub const ONLY_EDITED: &str = "Only edited";
 pub const RESET: &str = "Reset";
 pub const REMOVE: &str = "Remove";
 pub const SHOW_IN_CLASHES: &str = "Show in Clashes";
@@ -163,6 +164,8 @@ pub const INSPECTOR: &str = "Inspector";
 pub const ORIGINAL: &str = "Original";
 pub const YOURS: &str = "Yours";
 pub const CHANGED_IN: &str = "Changed in";
+pub const TOUCHES: &str = "Touches";
+pub const RETURN_TO_ORIGINAL: &str = "Return to original";
 pub const PICK_SEVERAL_ROWS_SHIFT_OR_A: &str = "Pick several rows (Shift+↓, or A on each with the pad) to reset them in one step.";
 pub const RACES: &str = "Races";
 pub const PROPS: &str = "Props";
@@ -330,7 +333,7 @@ pub fn looking_only_row(who: &str) -> String {
 }
 
 /// Every word above, for the tests.
-pub const ALL: [&str; 306] = [
+pub const ALL: [&str; 309] = [
     QUIT,
     STUDIO,
     TOO_SMALL,
@@ -464,6 +467,7 @@ pub const ALL: [&str; 306] = [
     EVERYTHING_THIS_MOD_CHANGES,
     ONLY_WHAT_LOSES,
     ALL_VALUES,
+    ONLY_EDITED,
     RESET,
     REMOVE,
     SHOW_IN_CLASHES,
@@ -477,6 +481,8 @@ pub const ALL: [&str; 306] = [
     ORIGINAL,
     YOURS,
     CHANGED_IN,
+    TOUCHES,
+    RETURN_TO_ORIGINAL,
     PICK_SEVERAL_ROWS_SHIFT_OR_A,
     RACES,
     PROPS,

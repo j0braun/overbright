@@ -14,6 +14,23 @@ use super::*;
 use crate::tools::map::{MapMod, PropEdit, PropRef};
 use super::prop_collision::SceneryEdit;
 
+/// Why an edit is left out when the base set has nothing it can name (the install is not the one the mod was made
+/// for): the item is skipped, never put on the nearest other thing.
+pub fn skip_reason(e: &PropEdit) -> String {
+    match e {
+        PropEdit::Add { solid, .. } => format!("this install has no solid {solid}, so the added prop is left out"),
+        PropEdit::Move { target, .. } | PropEdit::Delete { target } => format!(
+            "this install has no {} within {:.0} cm of ({:.2}, {:.2}, {:.2}) in section {}, so the edit is left out and nothing else is moved",
+            target.solid,
+            MATCH_DISTANCE * 100.0,
+            target.at.x,
+            target.at.y,
+            target.at.z,
+            target.section
+        ),
+    }
+}
+
 /// How close (metres) an edit's `at` must be to the placement it names.
 pub const MATCH_DISTANCE: f32 = 0.05;
 
@@ -215,10 +232,18 @@ impl World {
                                 scenery.push(SceneryEdit { placement: i, from: None, to: Some(transform_of(*position, *rotation)) });
                             }
                         }
-                        None => self.map_overlay.missing += 1,
+                        None => {
+                            self.map_overlay.missing += 1;
+                            self.map_overlay.skipped.push((folder.clone(), crate::mod_packs::added_key(e.region(), folder, id), skip_reason(e)));
+                        }
                     }
                 }
-                _ => self.map_overlay.missing += 1,
+                _ => {
+                    self.map_overlay.missing += 1;
+                    if let Some(t) = e.target() {
+                        self.map_overlay.skipped.push((folder.clone(), crate::mod_packs::placement_key(t), skip_reason(e)));
+                    }
+                }
             }
         }
         self.map_overlay.collision = self.apply_map_collision(&scenery, &drawn);
@@ -228,6 +253,12 @@ impl World {
                 "map mods: {} edit(s) for {region} name a placement or solid this region does not have",
                 applied.missing
             );
+            for (pack, key, why) in applied.skipped.iter().take(20) {
+                log::warn!("map mods: {pack}: {key} skipped: {why}");
+            }
+            if applied.skipped.len() > 20 {
+                log::warn!("map mods: {} more skipped edits not listed", applied.skipped.len() - 20);
+            }
         }
         log::info!(
             "map mods on {region}: {} moved, {} deleted, {} added; static collision: {} face(s) out, {} in",
@@ -1382,5 +1413,32 @@ mod tests {
             let solid = scan.solid_named(&q.solid).unwrap();
             assert_eq!(indexed.find_placement(&q), scan.find_placement_scan(&q, solid), "{q:?}");
         }
+    }
+
+    /// A mod made for another install: the edits that name nothing here are left out one by one, each with its
+    /// reason, and the ones that name something here still apply.
+    #[test]
+    fn an_edit_for_another_install_is_skipped_by_item_not_put_on_a_neighbour() {
+        let mut w = world();
+        let good = w.placement_ref(REGION, 5).unwrap();
+        // Same solid and section, but 1 m away: another install's layout, not this one's.
+        let mut off = w.placement_ref(REGION, 9).unwrap();
+        off.at += Vec3::new(1.0, 0.0, 0.0);
+        off.nth = 0;
+        let m = MapMod {
+            name: "m".into(),
+            props: vec![
+                PropEdit::Delete { target: off.clone() },
+                PropEdit::Move { target: good.clone(), position: good.at + Vec3::X * 3.0, rotation: Mat3::IDENTITY },
+            ],
+            ..Default::default()
+        };
+        w.apply_map_mods(REGION, &[("pack-x".to_string(), m)]);
+        let o = &w.map_overlay;
+        assert_eq!((o.moved, o.deleted, o.missing), (1, 0, 1));
+        assert_eq!(o.skipped.len(), 1);
+        assert_eq!(o.skipped[0].0, "pack-x");
+        assert_eq!(o.skipped[0].1, crate::mod_packs::placement_key(&off));
+        assert!(o.skipped[0].2.contains("nothing else is moved") && o.skipped[0].2.contains(&off.solid), "{}", o.skipped[0].2);
     }
 }

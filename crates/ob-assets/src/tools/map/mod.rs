@@ -46,6 +46,9 @@ pub struct Applied {
     pub deleted: usize,
     /// Edits naming a placement or solid the world does not have.
     pub missing: usize,
+    /// The same edits one by one (the mod folder or pack, the item's key, why it was skipped): the base set is not
+    /// the one the mod was made for, so the edit is left out instead of moving the wrong thing.
+    pub skipped: Vec<(String, String, String)>,
     /// The originals indexed for naming them, and what the editor's live
     /// re-apply keeps (`World::reapply_map_mod`).
     pub index: crate::world::MapIndex,

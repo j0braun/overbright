@@ -523,6 +523,8 @@ pub struct Page {
     pub last: Drawn,
     /// The textures' thumbnails, loaded once.
     thumbs: Thumbs,
+    /// The city's section lists, for what an item touches (from the region World has loaded).
+    vis: Option<std::sync::Arc<ob_formats::formats::visibility::Visibility>>,
 }
 
 /// Thumbnails by name (`<image hash>` for a painted image, `game:<texture id>` for the game's own): None when
@@ -596,6 +598,7 @@ impl Page {
             inspector_open: false,
             last: Drawn::default(),
             thumbs: Thumbs::default(),
+            vis: None,
         }
     }
 
@@ -633,6 +636,18 @@ impl Page {
     /// How many guides (the outline of a blank-painted texture's original) the page holds (the tests).
     pub fn guides_loaded(&self) -> usize {
         self.thumbs.0.iter().filter(|(k, t)| k.starts_with("guide:") && t.is_some()).count()
+    }
+
+    /// The city's section lists (kept once): the neighbours that draw an item's sections.
+    pub fn feed_visibility(&mut self, v: &ob_formats::formats::visibility::Visibility) {
+        if self.vis.is_none() && !v.lists.is_empty() {
+            self.vis = Some(std::sync::Arc::new(v.clone()));
+        }
+    }
+
+    /// What the item `r` touches (its regions and sections, the neighbours that draw them, "affects play").
+    pub fn touches(&self, r: &Row) -> ob_studio::changes::touches::Touches {
+        ob_studio::changes::touches::touches(r, self.vis.as_deref())
     }
 
     /// The game's own textures the rows name, as thumbnails, from the region World has loaded (each read once).
@@ -789,6 +804,34 @@ impl Page {
     /// this window).
     pub fn reset_with(&mut self, session: Option<&mut MapSession>) {
         let picks = self.reset_picks();
+        self.reset_picks_with(session, picks, None);
+    }
+
+    /// "Return to original" for one object (group `g`): every value of it that is yours goes back in one step,
+    /// so a moved prop is where it was and an added one is gone.
+    pub fn reset_object(&mut self, g: usize, session: Option<&mut MapSession>) {
+        let rows = self.rows();
+        let Some(r) = rows.get(g) else { return };
+        let picks: Vec<(String, String, String)> = r
+            .values
+            .iter()
+            .filter(|v| {
+                let a = self.actions(r, v);
+                a.contains(&Action::Reset) || a.contains(&Action::Remove)
+            })
+            .map(|v| (r.kind.to_string(), r.key.clone(), v.field.clone()))
+            .collect();
+        let label = self.data().map(|d| format!("Returned {} to the original", item_words(d, full(d, r)).0));
+        self.reset_picks_with(session, picks, label);
+    }
+
+    /// The Reset of `picks` as one step named `label` (else named from the picks).
+    fn reset_picks_with(
+        &mut self,
+        session: Option<&mut MapSession>,
+        picks: Vec<(String, String, String)>,
+        label: Option<String>,
+    ) {
         let Some(d) = self.data() else { return };
         let folder = d.folder.clone();
         if picks.is_empty() {
@@ -796,7 +839,9 @@ impl Page {
             return;
         }
         let rows = self.rows();
-        let label = if picks.len() == 1 {
+        let label = if let Some(l) = label {
+            l
+        } else if picks.len() == 1 {
             let r = rows.iter().find(|r| r.key == picks[0].1).cloned();
             let item =
                 r.map_or(picks[0].1.clone(), |r| self.data().map_or(r.key.clone(), |d| item_words(d, full(d, &r)).0));
@@ -1161,6 +1206,7 @@ impl Page {
             for (s, word) in [
                 (Show::Mine, words::EVERYTHING_THIS_MOD_CHANGES),
                 (Show::Losing, words::ONLY_WHAT_LOSES),
+                (Show::Edited, words::ONLY_EDITED),
                 (Show::All, words::ALL_VALUES),
             ] {
                 let g = p.layout_no_wrap(word.into(), font(LABEL, 14.0), rgb(t.ink));
@@ -1709,6 +1755,9 @@ impl Page {
                 format!("{} · {}", txt(v.game.as_ref()), who_text(&v.from, &d.stack)),
             );
         }
+        if row.kind != tex::TEXTURE {
+            line(&clip, &mut y, None, words::TOUCHES, self.touches(row).line());
+        }
         let step = last_step(d, row);
         if let Some(s) = step {
             line(&clip, &mut y, None, words::CHANGED_IN, format!("step {} · {}", s.seq, s.label));
@@ -1727,6 +1776,14 @@ impl Page {
             && button(if acts.contains(&Action::Remove) { words::REMOVE } else { words::RESET }, &mut bx)
         {
             self.reset();
+            ask = Some(Ask::Moved);
+        }
+        if row.edited()
+            && !row.loses()
+            && self.mode == Mode::ThisMod
+            && button(words::RETURN_TO_ORIGINAL, &mut bx)
+        {
+            self.reset_object(g, None);
             ask = Some(Ask::Moved);
         }
         if let Some(s) = step

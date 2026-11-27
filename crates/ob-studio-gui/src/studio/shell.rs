@@ -1819,6 +1819,7 @@ impl Studio {
                 // The game's textures for the Looks rows' thumbnails: from the region World has loaded.
                 if let Some(s) = self.editor.as_ref().and_then(|h| h.app.state.as_ref()) {
                     self.changes.feed_originals(ui.ctx(), &s.session.world);
+                    self.changes.feed_visibility(&s.session.world.visibility);
                 }
                 let (ask, _) = self.changes.draw(ui, inner, focused, self.time());
                 match ask {

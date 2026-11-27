@@ -2520,6 +2520,9 @@ pub fn pack_detail(r: &super::model::PackRow) -> String {
     if r.new {
         parts.push("new, off".into());
     }
+    if r.affects_play {
+        parts.push("affects play".into());
+    }
     if let Some(c) = &r.clash {
         parts.push(c.clone());
     }

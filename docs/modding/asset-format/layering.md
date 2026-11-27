@@ -240,3 +240,13 @@ puts its content into a profile save:
   migrations already applied ([versioning.md](versioning.md) §4.3).
 - A save loaded without a pack it needs shows "needs <pack>" and deletes nothing. With "Use mods" off the sidecar is
   not read.
+
+How it is done (`mod_packs::sidecar`): the sidecar is `<data home>/NFS Underground 2 Mods/<name>.toml` (lower case
+name), beside the profiles' folder and never inside it (the memory-card list counts the profiles' folder's files, and
+the original reads that folder). Each profile save writes it while a pack is on, with each mounted pack's id, version,
+`affects_play` and, for a pack file, its digest; a save made with no pack on removes it, and a player with no pack
+never gets the file or the folder. A profile load reads it: an `affects_play` pack that was on at the last save and
+is off, not installed, or another version or content now is reported in the log ("this save was made with the mod pack
+X 1.0.0, which is off now (nothing was changed in the save)"); a looks-only pack is not. `affects_play` is the
+manifest's value or, when the pack's map data holds placements, races or collision edits, true (the stricter value).
+A trial run's copy (Try it once) has its own sidecar folder in its data home, so the player's own is not touched.

@@ -39,11 +39,17 @@ pub struct Inside {
     pub credits: Vec<super::credits::Credit>,
     /// Where a converted pack came from (its provenance), when it was made by `modpack convert`.
     pub converted_from: Option<String>,
+    /// It changes something a saved game depends on (the "affects play" tag; textures and looks alone do not).
+    pub affects_play: bool,
     /// Why it cannot be used with the base set in use.
     pub refused: Option<String>,
     /// What it overrules or is overruled by among the packs that are on: (pack, it wins, values).
     pub clashes: Vec<(String, bool, usize)>,
 }
+
+/// The tag lines of Look inside.
+pub const AFFECTS_PLAY: &str = "Affects play: your saves record that it was on";
+pub const LOOKS_ONLY: &str = "Looks only: your saves do not depend on it";
 
 fn n(c: usize, one: &str, many: &str) -> String {
     if c == 1 { format!("1 {one}") } else { format!("{c} {many}") }
@@ -60,6 +66,7 @@ impl Inside {
             v.push(self.description.trim().to_string());
         }
         v.push(format!("Made for {}", self.made_for));
+        v.push(if self.affects_play { AFFECTS_PLAY.into() } else { LOOKS_ONLY.into() });
         for c in &self.credits {
             v.push(format!("Credit: {}", c.line()));
         }
@@ -176,6 +183,7 @@ pub fn inside_of(p: &modpack::Installed, base: Option<&BaseId>, installed: bool)
             }
             out.regions = regions.into_iter().collect();
         }
+        out.affects_play = super::sidecar::affects_play(m, super::content::read(&root).ok().flatten().as_ref());
         let mut seen = BTreeSet::new();
         for car in [false, true] {
             for d in super::content::texture_dirs(&root, car) {

@@ -583,3 +583,81 @@ fn credits_are_kept_on_export_and_convert_and_shown() {
         let _ = std::fs::remove_dir_all(d);
     }
 }
+
+#[test]
+fn a_save_sidecar_records_the_packs_and_a_pack_that_is_off_later_is_reported() {
+    use super::sidecar::{self, Notice};
+    let _serial = serial();
+    let home = scratch("sc-home");
+    crate::platform::dirs::set_thread_data_home(home.clone());
+    let cache = scratch("sc-cache");
+    let _c = crate::cache::override_dir(cache.clone());
+    let maps = scratch("sc-maps");
+    make(&maps, "docks", &mov("Docks", 1.0), false);
+    // A looks-only pack: a texture and no map data.
+    make(&maps, "paint", &MapMod { name: "Paint".into(), ..Default::default() }, true);
+    let out = scratch("sc-out");
+    for f in ["docks", "paint"] {
+        export_map_mod(&maps, f, &out, None, &ExportOpts { derived_ok: true, ..opts() }).unwrap();
+        modpack::import(&mods_dir(), &out.join(format!("{f}-1.0.0.obpk")), &engine()).unwrap();
+    }
+    // Tags: placements affect play, a texture alone does not.
+    assert!(inside("docks", None).unwrap().lines().iter().any(|l| l.starts_with("Affects play")));
+    assert!(inside("paint", None).unwrap().lines().iter().any(|l| l.starts_with("Looks only")));
+
+    // Nothing on: a save makes no sidecar and no folder (native default).
+    assert!(mount(&[]).packs.is_empty());
+    sidecar::record("ANN");
+    assert!(!sidecar::root().exists());
+
+    modpack::set_enabled(&mods_dir(), "docks", true).unwrap();
+    modpack::set_enabled(&mods_dir(), "paint", true).unwrap();
+    let m = mount(&[]);
+    let mut on: Vec<_> = m.packs.iter().map(|p| (p.id.clone(), p.affects_play)).collect();
+    on.sort();
+    assert_eq!(on, [("docks".to_string(), true), ("paint".to_string(), false)]);
+    sidecar::record("ANN");
+    let file = sidecar::root().join("ann.toml");
+    assert!(file.is_file(), "the sidecar is its own file beside the profiles' folder");
+    assert!(!sidecar::root().starts_with(home.join(crate::platform::dirs::PROFILES_FOLDER)), "never inside the profiles' folder");
+    let text = std::fs::read_to_string(&file).unwrap();
+    assert!(text.contains("id = \"docks\"") && text.contains("affects_play = true"), "{text}");
+    assert_eq!(sidecar::parse(&text), active(), "reads back as written");
+    // Same packs on: nothing to report.
+    assert!(sidecar::check("ANN").is_empty());
+
+    // The looks-only pack off: not reported. The affects-play pack off: reported, nothing deleted.
+    modpack::set_enabled(&mods_dir(), "paint", false).unwrap();
+    mount(&[]);
+    assert!(sidecar::check("ANN").is_empty());
+    modpack::set_enabled(&mods_dir(), "docks", false).unwrap();
+    mount(&[]);
+    let n = sidecar::check("ANN");
+    assert_eq!(n, [Notice::Missing { id: "docks".into(), version: "1.0.0".into() }]);
+    assert!(n[0].line().contains("docks") && n[0].line().contains("nothing was changed"));
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), text, "loading deletes nothing");
+    // Another profile has no sidecar: no notice.
+    assert!(sidecar::check("BOB").is_empty());
+    // A save made now, with no pack on, removes the record.
+    sidecar::record("ANN");
+    assert!(!file.exists());
+
+    for d in [home, cache, maps, out] {
+        let _ = std::fs::remove_dir_all(d);
+    }
+}
+
+#[test]
+fn the_sidecar_compares_versions_and_digests() {
+    use super::sidecar::{Notice, Pack, compare, parse, to_text};
+    let p = |id: &str, v: &str, ap: bool, d: Option<&str>| Pack { id: id.into(), version: v.into(), affects_play: ap, digest: d.map(Into::into) };
+    let saved = vec![p("a", "1.0.0", true, Some("sha256:1")), p("b", "1.0.0", false, None), p("we\"ird", "2.0.0", true, None)];
+    assert_eq!(parse(&to_text(&saved)), saved);
+    assert!(parse("this is not toml [[[").is_empty());
+    let now = vec![p("a", "1.1.0", true, Some("sha256:2")), p("we\"ird", "2.0.0", true, None)];
+    assert_eq!(compare(&saved, &now), [Notice::Changed { id: "a".into(), was: "1.0.0".into(), now: "1.1.0".into() }]);
+    // Same version, other bytes in the pack file.
+    let now = vec![p("a", "1.0.0", true, Some("sha256:2")), p("we\"ird", "2.0.0", true, None)];
+    assert_eq!(compare(&saved, &now).len(), 1);
+    assert!(compare(&saved, &saved).is_empty());
+}

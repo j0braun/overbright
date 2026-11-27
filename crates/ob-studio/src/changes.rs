@@ -5,10 +5,13 @@
 //!
 //! * [`this_mod`]: every value a mod gives, against the original and against the other mods in the game.
 //! * [`compare`]: two states of one mod (a history step, a kept version), value by value.
-//! * [`reset`]: a value given back to the lower layers (the original, or what another mod gives).
+//! * [`reset`]: a value given back to the lower layers (the original, or what another mod gives); [`map::reset_object`]
+//!   gives a whole object back.
+//! * [`touches`]: what one item touches (regions, sections, the neighbours that draw them, "affects play").
 
 pub mod looks;
 pub mod map;
+pub mod touches;
 
 use std::collections::BTreeSet;
 
@@ -71,6 +74,23 @@ impl Row {
     pub fn loses(&self) -> bool {
         self.values.iter().any(Value::loses)
     }
+
+    /// The mod changes the item: it adds it, or gives a value that is not the original's (a value whose original
+    /// is not known here counts as changed).
+    pub fn edited(&self) -> bool {
+        self.added || self.values.iter().any(Value::edited)
+    }
+}
+
+impl Value {
+    /// This mod gives the value and it is not the original's.
+    pub fn edited(&self) -> bool {
+        match (&self.yours, &self.original) {
+            (Some(y), Some(o)) => !layering::same_value(y, o),
+            (Some(_), None) => true,
+            _ => false,
+        }
+    }
 }
 
 /// Which values a list shows.
@@ -80,6 +100,8 @@ pub enum Show {
     Mine,
     /// Only the values of this mod that another mod's beats.
     Losing,
+    /// Only what differs from the original: items the mod only restates are left out ("show only edited").
+    Edited,
     /// Every value of the items this mod changes, the original ones too.
     All,
 }
@@ -94,6 +116,7 @@ pub fn filter(rows: &[Row], show: Show) -> Vec<Row> {
                 .filter(|v| match show {
                     Show::Mine => v.yours.is_some(),
                     Show::Losing => v.loses(),
+                    Show::Edited => v.edited(),
                     Show::All => true,
                 })
                 .cloned()

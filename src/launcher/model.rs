@@ -744,6 +744,8 @@ pub struct PackRow {
     pub refused: Option<String>,
     /// What it overrules or is overruled by among the packs that are on: "2 values with docks".
     pub clash: Option<String>,
+    /// The "affects play" tag: it changes something a saved game depends on.
+    pub affects_play: bool,
 }
 
 /// A map mod as the Mods page shows it.
@@ -2400,9 +2402,11 @@ impl Env for RealEnv {
         use crate::mod_packs as mp;
         let base = mp::base_in_use();
         let pairs = mp::clash_pairs(base.as_ref());
+        let installed = ob_asset_format::modpack::scan(&mp::mods_dir()).packs;
         ob_asset_format::modpack::rows(&mp::mods_dir(), base.as_ref(), &mp::engine())
             .into_iter()
             .map(|r| {
+                let affects_play = installed.iter().find(|p| p.id == r.id).is_some_and(mp::pack_affects_play);
                 let clash = pairs
                     .iter()
                     .filter(|(a, b, _)| *a == r.id || *b == r.id)
@@ -2420,6 +2424,7 @@ impl Env for RealEnv {
                     new: r.new,
                     refused: r.refused,
                     clash: (!clash.is_empty()).then_some(clash),
+                    affects_play,
                 }
             })
             .collect()
@@ -3100,6 +3105,7 @@ impl Env for FakeEnv {
             new: false,
             refused: refused.map(str::to_string),
             clash: clash.map(str::to_string),
+            affects_play: id == "docks-remix",
         };
         let mut rows = vec![
             row("docks-remix", "Docks remix", true, None, Some("overrules cone-pack (3 values)")),
@@ -3116,6 +3122,7 @@ impl Env for FakeEnv {
         vec![
             "Version 1.2.0 by Ana Docks".into(),
             "Made for any copy of the game".into(),
+            "Affects play: your saves record that it was on".into(),
             "Changes 2 races, 5 moved props, 1 deleted prop, 3 textures".into(),
             "Regions Docks, Airport".into(),
             "Overrules cone-pack (3 values)".into(),

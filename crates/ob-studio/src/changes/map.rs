@@ -119,6 +119,23 @@ pub fn reset(map: &MapMod, pack: &str, kind: &str, key: &str, field: &str) -> Op
     Some(m)
 }
 
+/// `map` with the whole object `key` given back: a moved or hidden prop is as the original again, an added prop or a
+/// race is gone. None when the mod has no such object.
+pub fn reset_object(map: &MapMod, pack: &str, kind: &str, key: &str) -> Option<MapMod> {
+    let mut m = map.clone();
+    if kind == RACE {
+        let i = m.races.iter().position(|r| race_key(pack, &r.id) == key)?;
+        m.races.remove(i);
+        return Some(m);
+    }
+    let i = m.props.iter().position(|p| match p {
+        PropEdit::Move { target, .. } | PropEdit::Delete { target } => placement_key(target) == key,
+        PropEdit::Add { id, region, .. } => added_key(region, pack, id) == key,
+    })?;
+    m.props.remove(i);
+    Some(m)
+}
+
 /// Several values given back in one step (a multi-selection's Reset); None when one of them is not there.
 pub fn reset_all(map: &MapMod, pack: &str, picks: &[(String, String, String)]) -> Option<MapMod> {
     let mut m = map.clone();
