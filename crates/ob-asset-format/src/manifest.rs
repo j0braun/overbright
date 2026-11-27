@@ -13,7 +13,10 @@ use crate::{Refusal, Rule};
 /// The manifest's file name at a pack's root.
 pub const FILE: &str = "pack.toml";
 /// The newest manifest format this reader reads.
-pub const FORMAT: u32 = 2;
+pub const FORMAT: u32 = 3;
+
+/// The lowest format that may carry `items` (per-item fingerprints).
+pub const FORMAT_ITEMS: u32 = 3;
 /// The largest `pack.toml` (`MAN.8`).
 pub const MAX_BYTES: usize = 64 * 1024;
 
@@ -274,12 +277,12 @@ pub const BASE_FIELDS: &[Field] = &[
 pub const FIELDS: &[Field] = &[
     Field {
         key: "format",
-        ty: Ty::Const(2),
+        ty: Ty::Int { min: 2, max: 3 },
         req: Req::YesAs("yes in format 2"),
         doc_name: "`format`",
         doc_type: "u32",
         doc_default: "–",
-        doc_meaning: "2. A reader refuses a higher format (`MAN.1`). A file without `format` is read as a format-1 manifest by the legacy rules of §6, not as a format-2 file missing a field.",
+        doc_meaning: "2 or 3. A writer declares the lowest format that reads its file (3 only when `items` is used; versioning.md §1). A reader refuses a higher format (`MAN.1`). A file without `format` is read as a format-1 manifest by the legacy rules of §6, not as a format-2 file missing a field.",
         ..Field::BLANK
     },
     Field {
@@ -446,6 +449,15 @@ pub const FIELDS: &[Field] = &[
         doc_type: "array<string>",
         doc_default: "`[]`",
         doc_meaning: "Subset of `extensions_used` whose data a tool that does not know them may keep when it rewrites an item (conventions §9); an extension not listed is not safe to copy.",
+        ..Field::BLANK
+    },
+    Field {
+        key: "items",
+        ty: LOGICAL_PATH,
+        doc_name: "`items`",
+        doc_type: "logicalPath",
+        doc_default: "–",
+        doc_meaning: "Format 3. The pack's per-item fingerprints: the file (normally `items.toml`) listing every other file of the pack with its `xxh3-128` digest, so a changed, missing or added item is named exactly (§4.2). Absent in older packs, which load and try out as before; only in format 3 (`MAN.10`).",
         ..Field::BLANK
     },
     Field {
@@ -693,6 +705,8 @@ pub struct Manifest {
     pub tested: Vec<Tested>,
     pub base: Option<Base>,
     pub bundles: BTreeMap<String, Digest>,
+    /// The file of per-item fingerprints (format 3), when the pack has one.
+    pub items: Option<String>,
     pub extras: Option<toml::Table>,
     /// Set for format-1 manifests.
     pub legacy: Option<Legacy>,
@@ -746,7 +760,7 @@ impl Manifest {
             }
             Some(_) => return Err(at(Refusal::new(Rule::Man1, "`format` is not a format number").in_field("format"))),
         };
-        let m = if format == 1 { Manifest::legacy(&doc, container) } else { Manifest::format2(&doc, container) };
+        let m = if format == 1 { Manifest::legacy(&doc, container) } else { Manifest::format2(&doc, format, container) };
         m.map_err(at)
     }
 
@@ -820,19 +834,23 @@ impl Manifest {
             tested: Vec::new(),
             base: None,
             bundles: BTreeMap::new(),
+            items: None,
             extras: None,
             legacy: Some(Legacy { version: clean(s(doc, "version"), 40), compress, source }),
         };
         Ok((manifest, Vec::new()))
     }
 
-    fn format2(doc: &toml::Table, container: Container) -> Result<(Manifest, Vec<String>), Refusal> {
+    fn format2(doc: &toml::Table, format: u32, container: Container) -> Result<(Manifest, Vec<String>), Refusal> {
         // Rules a page names come before the generic shape rules (conventions.md §12).
         if let Some(id) = doc.get("id").and_then(|v| v.as_str()) {
             names::pack_id(id, Rule::Man2).map_err(|r| r.in_field("id"))?;
         }
         if doc.contains_key("licence") && doc.contains_key("license") {
             return Err(Refusal::new(Rule::Conv4, "both spellings `licence` and `license`").in_field("license"));
+        }
+        if format < FORMAT_ITEMS && doc.contains_key("items") {
+            return Err(Refusal::new(Rule::Man10, format!("`items` needs format {FORMAT_ITEMS}")).in_field("items"));
         }
         fields::check_table(doc, FIELDS, None)?;
         let id = s(doc, "id").expect("checked");
@@ -914,7 +932,7 @@ impl Manifest {
             .unwrap_or_default();
         let game = doc.get("game").and_then(|g| g.as_table());
         let manifest = Manifest {
-            format: 2,
+            format,
             kind,
             id,
             name: s(doc, "name").expect("checked"),
@@ -949,6 +967,7 @@ impl Manifest {
                         .collect()
                 })
                 .unwrap_or_default(),
+            items: s(doc, "items"),
             extras: doc.get("extras").and_then(|e| e.as_table()).cloned(),
             legacy: None,
         };
@@ -977,11 +996,12 @@ impl Manifest {
     /// The manifest as `pack.toml` text in the canonical layout (format 2): top-level fields in the order of
     /// [`FIELDS`], then the tables. The manifest examples of the specification read and write back byte for byte.
     pub fn to_toml(&self) -> String {
-        assert_eq!(self.format, 2, "only format 2 is written");
+        assert!((2..=FORMAT).contains(&self.format), "only formats 2 and {FORMAT} are written");
+        assert!(self.items.is_none() || self.format >= FORMAT_ITEMS, "`items` needs format {FORMAT_ITEMS}");
         let mut out = String::new();
         let mut line = |k: &str, v: String| out.push_str(&format!("{k} = {v}\n"));
         let list = |v: &[String]| format!("[{}]", v.iter().map(|s| toml_string(s)).collect::<Vec<_>>().join(", "));
-        line("format", "2".into());
+        line("format", self.format.to_string());
         line("kind", toml_string(if self.kind == PackKind::Base { "base" } else { "mod" }));
         line("id", toml_string(&self.id));
         line("name", toml_string(&self.name));
@@ -1018,6 +1038,9 @@ impl Manifest {
             if !v.is_empty() {
                 line(k, list(v));
             }
+        }
+        if let Some(i) = &self.items {
+            line("items", toml_string(i));
         }
         let section = |out: &mut String, header: &str, rows: Vec<(String, String)>| {
             out.push_str(&format!("\n{header}\n"));
@@ -1257,7 +1280,7 @@ mod tests {
     #[test]
     fn refusals() {
         let with = |from: &str, to: &str| MOD.replacen(from, to, 1);
-        assert_eq!(rule(&with("format = 2", "format = 3")), Rule::Man1);
+        assert_eq!(rule(&with("format = 2", "format = 4")), Rule::Man1);
         assert_eq!(rule(&with("format = 2", "format = \"2\"")), Rule::Man1);
         assert_eq!(rule(&with("id = \"docks-remix\"", "id = \"Docks\"")), Rule::Man2);
         assert_eq!(rule(&with("share = \"public\"", "share = \"public\"\norigin2 = 1")), Rule::Conv4);

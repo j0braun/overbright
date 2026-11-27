@@ -3,7 +3,7 @@
   "bytes": "<bytes>",
   "command": "modpack.convert",
   "exit": 0,
-  "files": 4,
+  "files": 5,
   "format": 1,
   "id": "docks-old",
   "kind": "map mod",

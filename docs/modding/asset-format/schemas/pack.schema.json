@@ -6,7 +6,9 @@
   "type": "object",
   "properties": {
     "format": {
-      "const": 2
+      "type": "integer",
+      "minimum": 2,
+      "maximum": 3
     },
     "kind": {
       "enum": [
@@ -118,6 +120,9 @@
         "minLength": 1,
         "pattern": "^[A-Z0-9]+_[a-z0-9_]+$"
       }
+    },
+    "items": {
+      "$ref": "common.schema.json#/$defs/logicalPath"
     },
     "game": {
       "type": "object",

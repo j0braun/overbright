@@ -61,8 +61,13 @@ pub struct Build<'a> {
 
 /// Writes `b` to `to` (a `.obpk` path, or a folder in which `<id>-<version>.obpk` is made; an existing file is replaced).
 pub fn write_pack(b: Build, to: &Path, base: Option<&BaseId>, o: &ExportOpts) -> Result<Exported, String> {
+    // Per-item fingerprints (format 3, manifest.md §4.2): an items file beside the pack's files.
+    let mut rest: Vec<(String, Vec<u8>)> = b.files;
+    rest.push((share::PROVENANCE.into(), b.provenance.into_bytes()));
+    let items = modpack::items_text(&rest);
+    rest.push((modpack::ITEMS_FILE.into(), items.into_bytes()));
     let mut t = format!(
-        "format = 2\nkind = \"mod\"\nid = {}\nname = {}\nversion = {}\n",
+        "format = 3\nkind = \"mod\"\nid = {}\nname = {}\nversion = {}\n",
         q(b.id),
         q(b.name),
         q(&o.version.to_string())
@@ -84,14 +89,13 @@ pub fn write_pack(b: Build, to: &Path, base: Option<&BaseId>, o: &ExportOpts) ->
         b.share
     );
     t += &format!("contents = [{}]\n", b.contents.iter().map(|c| q(c)).collect::<Vec<_>>().join(", "));
-    t += &format!("affects_play = {}\n", b.affects_play);
+    t += &format!("affects_play = {}\nitems = {}\n", b.affects_play, q(modpack::ITEMS_FILE));
     if let Some(x) = base {
         t += &format!("\n[game]\nbases = [{}]\nfingerprint = [{}]\n", q(&x.id), q(&x.identity));
     }
     Manifest::parse(t.as_bytes(), Container::Unknown).map_err(|e| format!("pack.toml: {e}"))?;
     let mut files: Vec<(String, Vec<u8>)> = vec![("pack.toml".into(), t.into_bytes())];
-    files.extend(b.files);
-    files.push((share::PROVENANCE.into(), b.provenance.into_bytes()));
+    files.extend(rest);
     let bytes = modpack::pack_file_bytes(&files).map_err(|e| e.to_string())?;
     let out = if to.extension().is_some_and(|e| e.eq_ignore_ascii_case(modpack::EXTENSION)) {
         to.to_path_buf()

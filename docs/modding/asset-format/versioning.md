@@ -16,7 +16,7 @@ https://github.com/open-goal/launcher). Avoided: OpenGOAL's dependence on a kept
 
 | What | Where | Form | Changes when |
 |---|---|---|---|
-| Manifest format | `pack.toml` `format` | integer (2) | the manifest's shape or the layering rules change incompatibly |
+| Manifest format | `pack.toml` `format` | integer (2 or 3) | the manifest's shape or the layering rules change incompatibly, or a new optional field needs a reader that knows it (format 3: `items`, [manifest.md](manifest.md) §4.2); writers declare the lowest format that reads the file |
 | Kind schema | every TOML file's `schema` | `ob.<kind>/<major>.<minor>` | §2 |
 | glTF extensions | glTF `extensions` | `OB_<name>` + its own `version` field | as a kind schema |
 | Bundle profile | [layout.md](layout.md) §4 | fixed for manifest format 2 | only with a new manifest format |
