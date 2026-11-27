@@ -219,7 +219,7 @@ impl Settings {
     }
 
     /// options.txt ([`Settings::options_text`]) written.
-    pub(crate) fn write_file(&self) -> anyhow::Result<()> {
+    pub fn write_file(&self) -> anyhow::Result<()> {
         // Through a temporary file and a rename (the folder made first), so
         // a crash or a full disk mid-write leaves the old options.txt whole
         // rather than a cut-off one; the bytes are the same either way.

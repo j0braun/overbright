@@ -19,14 +19,14 @@ Schemas: [`language`](schemas/language.schema.json), [`strings`](schemas/strings
 
 | Original | Reference install | Kind here | Engine reader today |
 |---|---|---|---|
-| `LANGUAGES/<Lang>.bin` chunk 0x39000, the string table | 14 files: the 11 languages the executable names (English, French, German, Italian, Spanish, Dutch, Swedish, Danish, Korean, Chinese, Japanese), `Thailand.bin`, `Labels.bin`, `Largest.bin`; 3,925 strings each | `ob.strings`, `ob.language`, `charmap.bin` | `src/frontend/feng/strings.rs:33`; the active language's file is read (`Assets::load_for`, `src/frontend/assets.rs`) |
-| `LANGUAGES/<Lang>.bin` chunks 0x30201 | 6 or 7 fonts per file | `ob.font` on [ui.md](ui.md) | `src/frontend/feng/font.rs:55` |
+| `LANGUAGES/<Lang>.bin` chunk 0x39000, the string table | 14 files: the 11 languages the executable names (English, French, German, Italian, Spanish, Dutch, Swedish, Danish, Korean, Chinese, Japanese), `Thailand.bin`, `Labels.bin`, `Largest.bin`; 3,925 strings each | `ob.strings`, `ob.language`, `charmap.bin` | `crates/ob-menus/src/frontend/feng/strings.rs:33`; the active language's file is read (`Assets::load_for`, `crates/ob-menus/src/frontend/assets.rs`) |
+| `LANGUAGES/<Lang>.bin` chunks 0x30201 | 6 or 7 fonts per file | `ob.font` on [ui.md](ui.md) | `crates/ob-menus/src/frontend/feng/font.rs:55` |
 | `LANGUAGES/Labels.bin` | the label names (§2) | `label` fields and the `labels` unit | not read |
 | `LANGUAGES/Largest.bin` | per label the longest text of all languages (§2) | the `largest` unit | not read |
-| `LANGUAGES/LanguageTextures.bin` | one texture pack: the glyph pages of every language's fonts (14 textures) | [textures.md](textures.md); §3.9 | `src/frontend/assets.rs:74` |
-| `CREDITS/*.TXT` | 12 files, 465,556 bytes | `ob.credits` | `src/frontend/screens/credits.rs` (`credits_file_for`) |
+| `LANGUAGES/LanguageTextures.bin` | one texture pack: the glyph pages of every language's fonts (14 textures) | [textures.md](textures.md); §3.9 | `crates/ob-menus/src/frontend/assets.rs:74` |
+| `CREDITS/*.TXT` | 12 files, 465,556 bytes | `ob.credits` | `crates/ob-menus/src/frontend/screens/credits.rs` (`credits_file_for`) |
 | `LANGUAGES/agree.*`, `agree-ucs2.chi` | 11 files, 522,076 bytes | `ob.legal-text` | not read by the engine; no file name in the executable refers to them (string scan) |
-| `memcard/LOCALE_*.loc` | 17 files, 12,308 bytes | `ob.memcard-text` | `src/frontend/profiles/memcard_text.rs` (`locale_file`); the active language's `LOCALE_<LANG>.loc` is read, the English texts built in are the fallback |
+| `memcard/LOCALE_*.loc` | 17 files, 12,308 bytes | `ob.memcard-text` | `crates/ob-menus/src/frontend/profiles/memcard_text.rs` (`locale_file`); the active language's `LOCALE_<LANG>.loc` is read, the English texts built in are the fallback |
 | `SUBTITLES/*` | 22 files, 1,456 bytes | `ob.subtitles` | not read: the original starts subtitles only in regions this edition is not (docs/formats/movies-replays.md "Subtitles") |
 
 Not on this page: the fonts themselves ([ui.md](ui.md) §3.2) and their glyph pages ([textures.md](textures.md));
@@ -157,12 +157,12 @@ bytes = "hex:44656d6f81"
 | Offset | Size | Type | Field | Unit | Notes |
 |---|---|---|---|---|---|
 | 0x0000 | 4 | u32 | `word0` | – | 256 when the region is a character map (13 tables); Korean's is 0x3D9 (**open**). |
-| 0x0004 | 6,144 | u16[3072] | `entries` | – | Entry *k* < 256 for byte *k* ≥ 0x80: 0 keeps the byte, ≥ 0x80 is the code point it shows, 1–0x7F starts a double-byte pair whose second byte *d* indexes entry *v*·128 + *d* − 0x80 (0x50D3C0, `src/frontend/feng/strings.rs:75`). |
+| 0x0004 | 6,144 | u16[3072] | `entries` | – | Entry *k* < 256 for byte *k* ≥ 0x80: 0 keeps the byte, ≥ 0x80 is the code point it shows, 1–0x7F starts a double-byte pair whose second byte *d* indexes entry *v*·128 + *d* − 0x80 (0x50D3C0, `crates/ob-menus/src/frontend/feng/strings.rs:75`). |
 
 ### 3.3 Encoding rules
 
 The engine consumes Unicode text: the parser decodes each stored text through the language's map
-(`src/frontend/feng/strings.rs:75`; the map is used only when `word0` is 256, `:45`; otherwise every byte is its
+(`crates/ob-menus/src/frontend/feng/strings.rs:75`; the map is used only when `word0` is 256, `:45`; otherwise every byte is its
 own code point). So:
 
 1. **Text form.** The importer decodes every string as the parser does, then encodes the result back through the
@@ -197,12 +197,12 @@ own code point). So:
 | `op` | enum | – | no | `merge` | §4 |
 | `bom` | bool | – | no | `true` | The original file starts with a UTF-16 byte-order mark. |
 | `line_ending` | enum | – | no | `crlf` | `crlf` or `lf`. |
-| `lines` | array<string ≤ 4,096> | – | yes | – | The lines, split at every line ending. A file that ends with a line ending has a last, empty element. These are exactly the lines the Credits screen rolls (`src/frontend/screens/credits.rs:31`: split at LF, CR removed). |
+| `lines` | array<string ≤ 4,096> | – | yes | – | The lines, split at every line ending. A file that ends with a line ending has a last, empty element. These are exactly the lines the Credits screen rolls (`crates/ob-menus/src/frontend/screens/credits.rs:31`: split at LF, CR removed). |
 
 The engine opens `CREDITS\%s%s.TXT` with a prefix and the upper-case language name (0x4B8808): in English `NA_`
-for region 0 and `UK_` for a European region (`crates/ob-core/src/region.rs:20`, `src/frontend/screens/credits.rs:20`), no prefix
+for region 0 and `UK_` for a European region (`crates/ob-core/src/region.rs:20`, `crates/ob-menus/src/frontend/screens/credits.rs:20`), no prefix
 in the other languages. In the format: `text/<language>/credits/<PREFIX><LANGUAGE>.toml`. A missing file gives an
-empty roll, as today (`src/frontend/screens/credits.rs:32`). Lines may hold U+00A0 (nine in the French file), kept
+empty roll, as today (`crates/ob-menus/src/frontend/screens/credits.rs:32`). Lines may hold U+00A0 (nine in the French file), kept
 as is. Example: [`examples/text/text/english/credits/UK_ENGLISH.toml`](examples/text/text/english/credits/UK_ENGLISH.toml).
 
 ### 3.5 Licence texts (`ob.legal-text/1.0`)
@@ -229,13 +229,13 @@ identical (measured) and both kept. Example:
 | `op` | enum | – | no | `merge` | §4 |
 | `locale` | string `[A-Z][A-Z_]{0,39}` | – | yes | – | `<LOCALE>` of `memcard/LOCALE_<LOCALE>.loc`. |
 | `header` | bytes | – | no | `"hex:"` | The `LOCH` and `LOCI` blocks (92 bytes in every shipped file). **Open**; kept as they are. |
-| `text` | array<table> | – | yes | – | The texts by index (the engine asks by index: 6 overwrite, 7 save done, … `src/frontend/profiles/memcard_text.rs:11`). |
+| `text` | array<table> | – | yes | – | The texts by index (the engine asks by index: 6 overwrite, 7 save done, … `crates/ob-menus/src/frontend/profiles/memcard_text.rs:11`). |
 | `text[].text` | string ≤ 1,024 | – | yes | – | The text (UTF-16LE in the original); `%1` is the engine's placeholder. |
 | `text[].extra_nul` | u8 ≤ 8 | – | no | 1 | Zero UTF-16 units after the terminating one (1 or 2 shipped). |
 
 The `LOCL` block is derived: tag, size (to the end of the file), 0, count, one offset per text from the tag, then
 the texts. The engine reads `LOCALE_ENGLISH` only and turns U+00A0 into spaces after reading
-(`src/frontend/profiles/memcard_text.rs:36`); the stored text keeps U+00A0. When the file or a text is missing the
+(`crates/ob-menus/src/frontend/profiles/memcard_text.rs:36`); the stored text keeps U+00A0. When the file or a text is missing the
 engine uses its own built-in English texts (`:43`), as today. Example:
 [`examples/text/text/english/memcard.toml`](examples/text/text/english/memcard.toml).
 
@@ -283,7 +283,7 @@ of hash *h*:
 2. Else, if no base-set table of *L* defines *h* (a key a pack added, or *L* is a language a pack added) and the
    merged `english` table has *h*: that entry.
 3. Else nothing: the engine's own behaviour for a missing label applies unchanged (a menu object draws its
-   authored `St` text, [ui.md](ui.md) §3.1; `Strings::label` returns the name, `src/frontend/feng/strings.rs:61`).
+   authored `St` text, [ui.md](ui.md) §3.1; `Strings::label` returns the name, `crates/ob-menus/src/frontend/feng/strings.rs:61`).
 
 With the base set alone, step 2 never applies: every imported table has the same 3,925 keys (measured), so every
 lookup is the original's. A pack's override of a key in *L* (step 1) changes only *L*. The English fallback serves

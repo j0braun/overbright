@@ -7,13 +7,11 @@ crate ob-core crates/ob-core/src
 crate ob-formats crates/ob-formats/src
 crate ob-map crates/ob-map/src
 crate ob-settings crates/ob-settings/src
-# The menus layer is still a set of modules of the library; the check keeps their references pointing
-# down until they move into a crate of their own.
 crate ob-assets crates/ob-assets/src
 crate ob-sim crates/ob-sim/src
 crate ob-audio crates/ob-audio/src
 crate ob-render crates/ob-render/src
-crate ob-frontend src
+crate ob-menus crates/ob-menus/src
 crate nfsu2 src
 
 # MODULE-PATH CRATE        the module and everything under it (longest prefix wins; <root> = the crate root's
@@ -172,8 +170,8 @@ prof::gpu ob-render
 render::enh::assets::surface::gpu ob-render
 platform::monitor ob-render
 
-frontend ob-frontend
-overlay ob-frontend
+frontend ob-menus
+overlay ob-menus
 
 # Every other module: nfsu2 (the top layer).
 
@@ -191,6 +189,7 @@ package ob-assets
 package ob-sim
 package ob-audio
 package ob-render
+package ob-menus
 package nfsu2
 package ob-studio
 package ob-studio-gui
@@ -206,6 +205,7 @@ forbid ob-assets winit cpal egui
 forbid ob-sim winit cpal egui
 forbid ob-audio winit egui
 forbid ob-render cpal egui
+forbid ob-menus egui
 forbid ob-look wgpu winit cpal egui
 forbid nfsu2 egui
 forbid ob-studio egui

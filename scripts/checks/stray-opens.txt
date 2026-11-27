@@ -28,10 +28,10 @@ src/bin/game/sim/session/replay.rs	1	the program's own data: settings, saves, lo
 src/cache/verify.rs	3	the asset cache, shader cache and cache verification (own data)
 src/diag/support.rs	15	system files (/proc, /sys, /dev, /etc) and the program's own files
 crates/ob-settings/src/extras.rs	2	the player's packs, mods and importers (user-chosen paths)
-src/frontend/enh/map_pack.rs	1	the player's packs, mods and importers (user-chosen paths)
-src/frontend/profiles/store.rs	6	the program's own data: settings, saves, logs, launcher state, the player's folders
-src/frontend/settings/gpu_rating.rs	2	system files (/proc, /sys, /dev, /etc) and the program's own files
-src/frontend/settings/options_txt.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
+crates/ob-menus/src/frontend/enh/map_pack.rs	1	the player's packs, mods and importers (user-chosen paths)
+crates/ob-menus/src/frontend/profiles/store.rs	6	the program's own data: settings, saves, logs, launcher state, the player's folders
+crates/ob-menus/src/frontend/settings/gpu_rating.rs	2	system files (/proc, /sys, /dev, /etc) and the program's own files
+crates/ob-menus/src/frontend/settings/options_txt.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
 crates/ob-assets/src/game_assets.rs	1	SPEED2.EXE, which the set does not keep, read from the folder
 crates/ob-assets/src/hud_mod.rs	5	the player's packs, mods and importers (user-chosen paths)
 crates/ob-sim/src/latency.rs	5	system files (/proc, /sys, /dev, /etc) and the program's own files
@@ -55,7 +55,7 @@ crates/ob-assets/src/mod_packs/inside.rs	2	the player's packs, mods and importer
 crates/ob-assets/src/mod_packs/pack_export.rs	2	the player's packs, mods and importers (user-chosen paths)
 crates/ob-assets/src/mod_packs/sidecar.rs	1	the program's own data: the save sidecar beside the profiles (Overbright's own small file, never a game file)
 crates/ob-assets/src/obpack/index.rs	1	the player's packs, mods and importers (user-chosen paths)
-src/overlay/system/sources.rs	13	system files (/proc, /sys, /dev, /etc) and the program's own files
+crates/ob-menus/src/overlay/system/sources.rs	13	system files (/proc, /sys, /dev, /etc) and the program's own files
 crates/ob-sim/src/pad/ff_out.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files
 crates/ob-sim/src/pad/host.rs	1	a developer tool or an override folder from the environment
 crates/ob-settings/src/qol/crash.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files

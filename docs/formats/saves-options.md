@@ -6,7 +6,7 @@ Part of [docs/formats.md](../formats.md), the traced behaviour of `SPEED2.EXE`; 
 ## Native profile saves and the Profile Manager (2026-10-29; checked against the original under Wine)
 
 Code: `crates/ob-formats/src/formats/native_save.rs` (container, payload offsets),
-`src/frontend/profiles/` (folder, list, current profile, MC texts), `Profile::from_native` / `to_native` and `NativeContext` in
+`crates/ob-menus/src/frontend/profiles/` (folder, list, current profile, MC texts), `Profile::from_native` / `to_native` and `NativeContext` in
 `career.rs`, `Settings::apply_native` / `write_native` in `options.rs`,
 `McList` / `McMessage` in `screens.rs`, `McAct` and `mc_*` in game.rs.
 Fixtures: `tests/fixtures/native_saves/*.sav` (written by SPEED2.EXE; maintainer only (private test set),

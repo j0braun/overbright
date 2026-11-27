@@ -4,7 +4,7 @@ The settings rework, first half ("Conflict & redundancy audit"). The settings pa
 data delivered here. Nothing here is native: every row audited is a clone enhancement (or a native Customize
 Display row an enhancement depends on); Original stays byte-identical (gate below).
 
-* Code: `src/frontend/settings_model.rs` (`MODEL`, `RULES`, `matrix_configs`), `qol::Enhancements::effective`
+* Code: `crates/ob-menus/src/frontend/settings_model.rs` (`MODEL`, `RULES`, `matrix_configs`), `qol::Enhancements::effective`
   (the engine rules), `options::graphics_rows` (the page shows the rules), `graphics_table::GraphicsRow::is_offered`
   (blocked tiers are not offered), `scripts/checks/matrix.sh` (the matrix; in `checks.sh full`).
 * Evidence: the maintainer's private captures (`pairs.txt` stills at the look direction spots, `pairs-bench.txt` driving frames,

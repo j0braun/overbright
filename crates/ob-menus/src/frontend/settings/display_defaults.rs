@@ -150,7 +150,7 @@ impl Settings {
     /// 0x5CECA0's detail part: the estimate stored unclamped (0 on Intel),
     /// then 0x5CED44 → 0x5BE880: the custom values follow the detail (Vsync
     /// 0), clamped to the caps (0x5BE6A0).
-    pub(crate) fn estimated_detail(&mut self, detail: u8) {
+    pub fn estimated_detail(&mut self, detail: u8) {
         self.detail = detail;
         self.custom = custom_presets(self.detail);
         self.custom_raised = [None; 22];

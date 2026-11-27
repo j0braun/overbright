@@ -774,7 +774,7 @@ PAD_START, 7 / 8 PAD_LTRIGGER / RTRIGGER, 9..0x12 PAD_BUTTON0..9
 these tables: no pad bit sends it.
 * **FE events on the PC keys** (**verified** unless marked; the clone's
   keys for them are Key::Start, Button0, Button3 and Quit in
-  `src/frontend/screens/`, bound in `fn key` in `src/bin/game.rs`;
+  `crates/ob-menus/src/frontend/screens/`, bound in `fn key` in `src/bin/game.rs`;
   BUTTON2 shares `,` with START and has no Key of its own). Pad
   messages by bit (table 0x7F7D20): 6 PAD_START 0xB5AF2461, 9 PAD_BUTTON0
   0xC519BFBF, 11 PAD_BUTTON2 0xC519BFC1, 12 PAD_BUTTON3 0xC519BFC2. No pad

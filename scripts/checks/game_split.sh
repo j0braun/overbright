@@ -1,7 +1,7 @@
 #!/bin/bash
 # game_split.sh [repo]: the refactor's size report (the maintainer's private notes).
 # Prints the line count of src/bin/game.rs and crates/ob-render/src/render/mod.rs, every .rs
-# file under src/ (and the layer crates that took library modules: crates/ob-{settings,assets,sim,audio}/src) longer than 1,500 lines, and every fn longer than 150 lines
+# file under src/ (and the layer crates that took library modules: crates/ob-{settings,assets,sim,audio,render,menus}/src) longer than 1,500 lines, and every fn longer than 150 lines
 # (file:line, its length). A brace-depth scanner that skips comments, strings,
 # raw strings and char literals; a fn without a body (`fn f();`) is not counted.
 REPO=${1:-$(cd "$(dirname "$0")/../.." && pwd)}
@@ -109,7 +109,7 @@ def long_fns(path):
 
 for p in ("src/bin/game.rs", "crates/ob-render/src/render/mod.rs"):
     print(f"lines {p}: {lines_of(p) if os.path.exists(os.path.join(repo, p)) else 'missing'}")
-files = [f for root in ("src", "crates/ob-settings/src", "crates/ob-assets/src", "crates/ob-sim/src", "crates/ob-audio/src", "crates/ob-render/src") for f in rs_files(root)]
+files = [f for root in ("src", "crates/ob-settings/src", "crates/ob-assets/src", "crates/ob-sim/src", "crates/ob-audio/src", "crates/ob-render/src", "crates/ob-menus/src") for f in rs_files(root)]
 big = [(lines_of(f), f) for f in files]
 big = [(n, f) for n, f in big if n > FILE_MAX]
 print(f"files over {FILE_MAX} lines: {len(big)}")

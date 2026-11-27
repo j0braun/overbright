@@ -419,7 +419,7 @@ mod tests {
     use super::*;
 
     fn root() -> PathBuf {
-        Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/overlay/root")
+        Path::new(env!("CARGO_MANIFEST_DIR")).join("../../tests/fixtures/overlay/root")
     }
 
     #[test]
