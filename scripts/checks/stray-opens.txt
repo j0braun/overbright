@@ -39,7 +39,7 @@ src/launcher/crash_report.rs	3	the program's own data: settings, saves, logs, la
 src/launcher/game_data.rs	5	the program's own data: settings, saves, logs, launcher state, the player's folders
 src/launcher/model.rs	10	the program's own data: settings, saves, logs, launcher state, the player's folders
 src/launcher/platform_deck.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files
-src/launcher/run.rs	4	the program's own data: settings, saves, logs, launcher state, the player's folders
+src/launcher/run.rs	5	the program's own data: settings, saves, logs, launcher state, the player's folders; /proc: the started game's resident memory for the opt-in memory cap
 src/launcher/saves/jobs.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
 src/launcher/saves/mod.rs	4	the program's own data: settings, saves, logs, launcher state, the player's folders
 src/launcher/saves/sources.rs	1	the program's own data: settings, saves, logs, launcher state, the player's folders
@@ -74,4 +74,4 @@ src/render/native/post/mod.rs	1	a developer tool or an override folder from the 
 crates/ob-assets/src/texture_mods.rs	4	the player's packs, mods and importers (user-chosen paths)
 crates/ob-assets/src/tpf_import.rs	4	the player's packs, mods and importers (user-chosen paths)
 crates/ob-assets/src/upscale_pack.rs	5	the player's packs, mods and importers (user-chosen paths)
-src/bin/game/shell/studio_link.rs	1	system files (/proc: the run's own resident memory for its memory cap)
+src/bin/game/shell/studio_link.rs	2	system files (/proc: the run's own resident memory for its memory cap) and the mod's own texture folders (the opt-in what-did-the-game-load count)

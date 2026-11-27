@@ -89,7 +89,7 @@ A menu item that cannot act now is greyed out and says why when hovered (Duplica
 | File | **File ▸ New map mod…** (Ctrl+N: a name, its folder and the region), **File ▸ Open map mod…** (Ctrl+O), the five most recent mods, **File ▸ Save** (Ctrl+S), **File ▸ Mod details…** (name, author, description), **File ▸ Import…** (a mod folder, a `map.obmap` or a `.zip`), **File ▸ Export…** (a `.zip` or a folder: the map and the mod's textures, `looks.toml` and `textures/`, never `work/` or `.editor/`; textures from the original game's pixels are warned about first; it proposes `<folder>.zip` in the `exports` folder of Overbright's data folder, made on the first export, and the status line says where the file went), **File ▸ Export as mod pack…** (a `.obpk` file for the launcher's Mods page: the placements, races and textures as the asset format's own files; it proposes `<folder>-1.0.0.obpk` in the `exports` folder), **File ▸ Quit** (Ctrl+Q; saves first, and asks only when that fails) |
 | Edit | **Edit ▸ Undo** and **Edit ▸ Redo**, named by the step they undo or redo (256 steps), **Edit ▸ Duplicate**, **Edit ▸ Delete**, **Edit ▸ Select all of this solid**, **Edit ▸ Drop to ground**, **Edit ▸ Rotate 90°**, **Edit ▸ Face camera**, **Edit ▸ Collision ▸ Draw wall**, **Edit ▸ Collision ▸ Draw ground** and **Edit ▸ Collision ▸ Remove wall** (see Removed and drawn collision) |
 | View | **View ▸ Roads** (the road network over the top view), **View ▸ Frame selection** (F), **View ▸ Reset camera** (the region's overview), **View ▸ Top view** (T), **View ▸ Isometric view**, **View ▸ Go to…**, **View ▸ Views ▸ Save view…** and the Views menu's **Delete view** submenu (see Hiding props, views and Go to), **View ▸ Collision ▸ Off**, **View ▸ Collision ▸ Invisible barriers** and **View ▸ Collision ▸ All collision**, **View ▸ Collision ▸ By kind** and **View ▸ Collision ▸ By surface** (see Collision), **View ▸ Collision ▸ Show race barriers** (only in Studio's World: the other races' barriers, off by default), **View ▸ Hide selected** (H), **View ▸ Isolate selected** (Shift+H), **View ▸ Show all** (Alt+H), **View ▸ This mod's changes only** (see Hiding props), **View ▸ Hint line** |
-| Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5), **Race ▸ Drive to record**, **Race ▸ Test car and clock…** |
+| Race | **Race ▸ New race**, **Race ▸ Test race** (F5), **Race ▸ Drive here** (Shift+F5), **Race ▸ Restart race** (Ctrl+F5), **Race ▸ Drive to record**, **Race ▸ Test without selected props**, **Race ▸ What the game loaded**, **Race ▸ Test car and clock…** |
 | Help | **Help ▸ Controls**: every key, made from the editor's key table |
 
 ## Controls
@@ -334,6 +334,15 @@ Studio sends its test focus (car, clock) at the start and with the next command 
 over; **Race ▸ Test car and clock…** sets it (a car's name in the game, like 240SX, and a clock of 1 to 3600 seconds; each
 empty means the game's own, and the game refuses a car it does not have and keeps the run as it was). Studio starts its runs with `--map-mem-cap 8192`: a run whose resident memory passes that many MiB (Linux; it is not measured elsewhere) stops itself and says so over the link, so one runaway run cannot take the machine down with the others. A simulation (`--simulate`) takes `--studio-link` as well: it answers a probe and ends on a stop command, and is
 not started over (it says so).
+
+The run copy is the mod's one unsaved-work layer: every run of the mod (the test window and the simulations) reads that
+single file, Studio writes it only when its content changes, and removes it when the last run of the data folder has
+ended, so no stale unsaved copy stays behind. **Race ▸ Test without selected props** starts a test with the selected
+props' edits (moved, deleted or added) left out of the layer for that one run: the original is there instead, the mod and
+`map.obmap` are not changed, the status bar says how many were left out, and the next test is whole again.
+**Race ▸ What the game loaded** asks the open test game for an opt-in answer (`op=loaded` over the link, the game writes
+`loaded.txt` next to `game.txt`): the mod and the file it was read from, how many props were moved, deleted and added,
+the races and collision edits, and the texture folders with their file counts. The game writes it only when asked.
 
 Test race does not save `map.obmap` itself; the status bar adds "(testing unsaved changes)" while the mod
 has steps not yet saved. `--map-file <path>` reads the mod from that file; in the run the mod is known by

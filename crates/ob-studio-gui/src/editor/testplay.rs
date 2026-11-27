@@ -166,6 +166,8 @@ pub struct TestPlay {
     /// When the next probe is due, and how often they go.
     probe_next: std::time::Instant,
     probe_every: std::time::Duration,
+    /// The number of a "what did you load" question waiting for its answer.
+    loaded: Option<u64>,
 }
 
 /// How long a probe may wait for its answer before the game counts as not
@@ -263,7 +265,11 @@ impl TestPlay {
             .stderr(Stdio::null())
             .spawn()
             .map_err(|e| format!("The game could not start ({}): {e}", exe.display()))?;
-        let unsaved = if s.session.dirty { " (testing unsaved changes)" } else { "" };
+        let unsaved = match (s.session.dirty, s.left_out.len()) {
+            (_, n) if n > 0 => format!(" (without {n} left-out prop{})", if n == 1 { "" } else { "s" }),
+            (true, _) => " (testing unsaved changes)".to_string(),
+            _ => String::new(),
+        };
         s.status = match (&target, &recording) {
             (Target::Race(_), Some((_, n))) => format!("Recording {label} as {n}…{unsaved}"),
             (Target::At(..), Some((_, n))) => format!("Recording a drive from the camera's spot as {n}…{unsaved}"),
@@ -290,6 +296,7 @@ impl TestPlay {
             probe: None,
             probe_next: std::time::Instant::now() + PROBE_EVERY,
             probe_every: PROBE_EVERY,
+            loaded: None,
         })
     }
 
@@ -384,6 +391,29 @@ impl TestPlay {
         Ok(())
     }
 
+    /// Ask the game what it loaded (the opt-in probe); its answer is read by [`TestPlay::take_loaded`].
+    pub fn ask_loaded(&mut self) -> Result<(), String> {
+        if !self.game.as_ref().is_some_and(|g| g.seq >= self.seq && g.alive(link::now_ms())) {
+            return Err("The game is not ready; try again in a moment".into());
+        }
+        let _ = std::fs::remove_file(self.link.join(link::LOADED));
+        self.seq += 1;
+        self.loaded = Some(self.seq);
+        link::write_command(&self.link, &link::Command { seq: self.seq, op: Op::Loaded, aim: None, focus: None })
+            .map_err(|e| format!("The game was not asked: {e}"))
+    }
+
+    /// The game's answer to [`TestPlay::ask_loaded`], once it is there (once).
+    pub fn take_loaded(&mut self) -> Option<link::Loaded> {
+        let q = self.loaded?;
+        let g = self.game.as_ref().filter(|g| g.seq >= q)?;
+        self.loaded = None;
+        if !g.ok {
+            return None;
+        }
+        link::read_loaded(&self.link)
+    }
+
     /// The mod changed since the game was last given it.
     pub fn changed(&self, s: &EditorState) -> bool {
         s.session.map != self.sent || s.run_focus != self.focus_sent
@@ -406,7 +436,7 @@ impl TestPlay {
 /// (`store::run_file`) for the game; `map.obmap` and `dirty` stay as they
 /// are. A mod without a name is given its folder's.
 pub fn write_run_copy(s: &EditorState) -> Result<PathBuf, String> {
-    let mut m = s.session.map.clone();
+    let mut m = s.session.map.without(&s.left_out);
     if m.name.trim().is_empty() {
         m.name = s.session.folder.clone();
     }
@@ -437,6 +467,9 @@ pub fn poll(s: &mut EditorState, test: &mut Option<TestPlay>) -> Option<bool> {
         s.status = format!("{} · kept as the run {name} (Runs)", s.status);
     }
     *test = None;
+    s.left_out.clear();
+    // The unsaved layer goes with the last run that reads it.
+    link::drop_layer_when_idle(&s.maps, &s.session.folder);
     Some(marked)
 }
 
@@ -513,6 +546,21 @@ impl TestPanel {
             }
             ctx.request_repaint();
         }
+        let ask_loaded = super::menu::take(&ctx, super::menu::Command::WhatLoaded);
+        let without = super::menu::take(&ctx, super::menu::Command::TestWithout);
+        let mut race = race;
+        if without {
+            let keys: Vec<_> = s.selection.iter().filter_map(|&i| s.session.key_of(i)).collect();
+            let named = s.session.map.without(&keys).props.len() < s.session.map.props.len();
+            if self.test.is_some() {
+                s.status = "A test is open: close its game window, then Test without selected props starts a new one".into();
+            } else if !named {
+                s.status = "Nothing to leave out: the selected props are not changed by this mod".into();
+            } else {
+                s.left_out = keys;
+                race = true;
+            }
+        }
         let restart = super::menu::take(&ctx, super::menu::Command::RestartTest);
         let record = super::menu::take(&ctx, super::menu::Command::RecordDrive);
         if record && self.test.is_some() {
@@ -522,6 +570,12 @@ impl TestPanel {
         }
         if let Some(t) = self.test.as_mut() {
             let (words, quiet, done) = (t.link_words(), t.problem(), t.done());
+            if ask_loaded && let Err(e) = t.ask_loaded() {
+                s.status = e;
+            }
+            if let Some(l) = t.take_loaded() {
+                s.status = l.words();
+            }
             if let Err(e) = t.probe_due() {
                 s.status = e;
             }
@@ -577,6 +631,9 @@ impl TestPanel {
         if restart {
             s.status = "No test is running (F5 starts one)".into();
         }
+        if ask_loaded {
+            s.status = "No test is running (F5 starts one)".into();
+        }
         let target = if race || record {
             match s.race.and_then(|k| s.session.map.races.get(k)) {
                 Some(r) => Some(Target::Race(r.id.clone())),
@@ -600,6 +657,9 @@ impl TestPanel {
                 Err(e) => s.status = e,
             }
             ctx.request_repaint_after(POLL_EVERY);
+        }
+        if self.test.is_none() {
+            s.left_out.clear();
         }
     }
 }
@@ -1035,11 +1095,42 @@ mod tests {
         s.session.dirty = true;
         assert!(!wait(&mut s, &mut test), "free roam marks nothing");
         let run = store::run_file(&s.maps, "my-map");
-        assert_eq!(store::read_file(&run).unwrap().name, "Before");
+        assert!(!run.exists(), "the unsaved layer goes with the last run");
         assert!(!s.maps.join("my-map").join(store::FILE).exists(), "Test never saves");
         let mut test = Some(start_test(&mut s, &exe, Target::At(Vec3::ZERO, 0.0)).unwrap());
         assert_eq!(store::read_file(&run).unwrap().name, "During");
         assert_eq!(s.status, "Driving from the camera's spot… (testing unsaved changes)");
+        wait(&mut s, &mut test);
+    }
+
+    /// Test without selected props: the rows are left out of the layer for that run only, the mod is not changed,
+    /// the status says how many, and the next test is whole again.
+    #[cfg(unix)]
+    #[test]
+    fn a_test_without_selected_props_leaves_them_out_of_one_run() {
+        use crate::tools::map::ops::PropKey as Named;
+        let scratch = crate::testkit::Scratch::new("testplay-without");
+        let dir = scratch.path().to_path_buf();
+        let exe = stand_in(&dir, "0.3");
+        let prop = |x: f32| crate::tools::map::PropEdit::Add {
+            id: format!("a{x}"),
+            region: "L4RA".into(),
+            solid: "XO_CONE_01".into(),
+            position: Vec3::new(x, 0.0, 0.0),
+            rotation: glam::Mat3::IDENTITY,
+        };
+        let map = MapMod { name: "Both".into(), props: vec![prop(1.0), prop(2.0)], ..Default::default() };
+        let mut s = state(&dir, map.clone());
+        s.left_out = vec![Named::Added("a1".into())];
+        let mut test = Some(start_test(&mut s, &exe, Target::At(Vec3::ZERO, 0.0)).unwrap());
+        assert_eq!(s.status, "Driving from the camera's spot… (without 1 left-out prop)");
+        let run = store::run_file(&s.maps, "my-map");
+        assert_eq!(store::read_file(&run).unwrap().props, vec![prop(2.0)], "the layer lacks the left-out row");
+        assert_eq!(s.session.map, map, "the mod keeps it");
+        wait(&mut s, &mut test);
+        assert!(s.left_out.is_empty(), "one run only");
+        let mut test = Some(start_test(&mut s, &exe, Target::At(Vec3::ZERO, 0.0)).unwrap());
+        assert_eq!(store::read_file(&run).unwrap().props.len(), 2, "the next test is whole");
         wait(&mut s, &mut test);
     }
 

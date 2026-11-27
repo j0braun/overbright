@@ -539,6 +539,19 @@ fn prop_ref(b: &Block) -> Result<PropRef, FormatError> {
 }
 
 impl MapMod {
+    /// The mod without the prop edits that name `keys` (a test layer for one run: the rows are left out, the
+    /// original or nothing is there instead; the mod itself is not changed).
+    pub fn without(&self, keys: &[super::ops::PropKey]) -> MapMod {
+        use super::ops::PropKey;
+        let named = |e: &PropEdit| {
+            keys.iter().any(|k| match k {
+                PropKey::Original(r) => e.target() == Some(r),
+                PropKey::Added(id) => e.add_id() == Some(id.as_str()),
+            })
+        };
+        MapMod { props: self.props.iter().filter(|e| !named(e)).cloned().collect(), ..self.clone() }
+    }
+
     /// The index in `props` of the add named `id`.
     pub fn add_index(&self, id: &str) -> Option<usize> {
         self.props.iter().position(|e| e.add_id() == Some(id))

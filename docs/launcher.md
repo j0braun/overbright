@@ -1023,6 +1023,14 @@ States for `--render`: `prepare-running`, `prepare-done`, `prepare-failed`. Test
 the fresh-machine walk's step p (started behind the main screen after the folder is used, its
 line, not started again, Prepare again to Done, the stamp, `prepared=1` from the probe).
 
+## Memory cap for runs the launcher starts (opt-in)
+
+With `OVERBRIGHT_RUN_MEM_CAP_MB=<MiB>` (256 to 1048576) set in the launcher's environment, the launcher looks at the
+game it started about once a second while its window polls (Linux: the game's resident memory from `/proc`; Windows: its
+working set) and stops the game when it is over the cap, with the line "the launcher stopped the game: it used N MiB,
+over the cap of M MiB" in the launcher's log and the game's last lines. Unset or out of range: no cap, and nothing is
+measured, so a normal start is as before. Studio's own test runs use `--map-mem-cap` (the game stops itself).
+
 ## Game data (your own copy)
 
 `Screen::GameData` and `launcher::game_data`: your own copy of the game, made once from the game folder by the

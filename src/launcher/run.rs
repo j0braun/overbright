@@ -84,6 +84,44 @@ pub struct Running {
     /// The start marker this start wrote (removed at the end).
     marker: PathBuf,
     pub log: Option<PathBuf>,
+    /// The resident memory (bytes) at which the launcher stops this run, and when it looked last (opt-in,
+    /// [`MEM_CAP_ENV`]; None: no cap, nothing is measured).
+    cap: Option<(u64, Instant)>,
+}
+
+/// Opt-in memory cap for the game runs the launcher starts: the resident memory in MiB (256 to 1048576) at which
+/// the launcher stops the game it started, so one runaway run cannot take the machine down. Unset: no cap, and the
+/// launcher measures nothing.
+pub const MEM_CAP_ENV: &str = "OVERBRIGHT_RUN_MEM_CAP_MB";
+
+/// The cap a value of [`MEM_CAP_ENV`] names, in bytes (None: unset or not a size in range).
+pub fn mem_cap_bytes(v: Option<&str>) -> Option<u64> {
+    let mb: u64 = v?.trim().parse().ok().filter(|m| (256..=1_048_576).contains(m))?;
+    Some(mb << 20)
+}
+
+/// The resident memory of a process the launcher started, in bytes (None: not measurable).
+#[cfg(unix)]
+fn resident_bytes(child: &Child) -> Option<u64> {
+    let t = std::fs::read_to_string(format!("/proc/{}/status", child.id())).ok()?;
+    let kb = t.lines().find_map(|l| l.strip_prefix("VmRSS:"))?.split_whitespace().next()?.parse::<u64>().ok()?;
+    Some(kb * 1024)
+}
+
+#[cfg(windows)]
+fn resident_bytes(child: &Child) -> Option<u64> {
+    use std::os::windows::io::AsRawHandle;
+    use windows::Win32::Foundation::HANDLE;
+    use windows::Win32::System::ProcessStatus::{GetProcessMemoryInfo, PROCESS_MEMORY_COUNTERS};
+    let mut c = PROCESS_MEMORY_COUNTERS { cb: std::mem::size_of::<PROCESS_MEMORY_COUNTERS>() as u32, ..Default::default() };
+    // SAFETY: the handle is the live child's own; `c` is a properly sized counters block.
+    unsafe { GetProcessMemoryInfo(HANDLE(child.as_raw_handle()), &mut c, c.cb) }.ok()?;
+    Some(c.WorkingSetSize as u64)
+}
+
+#[cfg(not(any(unix, windows)))]
+fn resident_bytes(_: &Child) -> Option<u64> {
+    None
 }
 
 /// How the game ended.
@@ -302,17 +340,38 @@ fn start_marked(
             }
         }));
     }
-    Ok(Running { child, started: Instant::now(), started_at: std::time::SystemTime::now(), shared, readers, marker, log })
+    let cap = mem_cap_bytes(std::env::var(MEM_CAP_ENV).ok().as_deref()).map(|c| (c, Instant::now()));
+    Ok(Running { child, started: Instant::now(), started_at: std::time::SystemTime::now(), shared, readers, marker, log, cap })
 }
 
 impl Running {
     /// The end, once the game has ended (None while it runs).
     pub fn poll(&mut self) -> Option<Ended> {
+        self.stop_over_cap();
         match self.child.try_wait() {
             Ok(Some(status)) => Some(self.finish(Some(status))),
             Ok(None) => None,
             Err(_) => Some(self.finish(None)),
         }
+    }
+
+    /// With a cap set, look at the game's memory about once a second and stop the game when it is over; the
+    /// launcher's log and the game's tail say why.
+    fn stop_over_cap(&mut self) {
+        let Some((cap, at)) = self.cap.as_mut() else { return };
+        if at.elapsed() < Duration::from_secs(1) {
+            return;
+        }
+        *at = Instant::now();
+        let cap = *cap;
+        let Some(used) = resident_bytes(&self.child).filter(|&u| u > cap) else { return };
+        let note = format!("the launcher stopped the game: it used {} MiB, over the cap of {} MiB", used >> 20, cap >> 20);
+        log::error!("{note}");
+        if let Ok(mut s) = self.shared.lock() {
+            s.line("err", note);
+        }
+        let _ = self.child.kill();
+        self.cap = None;
     }
 
     /// Waits for the end.
@@ -513,6 +572,47 @@ pub fn pad_back_held() -> bool {
 #[cfg(all(test, unix))]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_memory_cap_is_opt_in_and_in_range() {
+        assert_eq!(mem_cap_bytes(None), None, "unset: no cap");
+        assert_eq!(mem_cap_bytes(Some("8192")), Some(8192 << 20));
+        assert_eq!(mem_cap_bytes(Some(" 256 ")), Some(256 << 20));
+        for bad in ["", "0", "255", "1048577", "-1", "8 GB", "x"] {
+            assert_eq!(mem_cap_bytes(Some(bad)), None, "{bad}");
+        }
+    }
+
+    /// A game over its cap is stopped by the launcher (a stub that sleeps; the cap is set below what any process
+    /// uses); without a cap it is left alone.
+    #[cfg(unix)]
+    #[test]
+    fn a_game_over_the_memory_cap_is_stopped() {
+        let dir = std::env::temp_dir().join(format!("ob-run-cap-{}", crate::unique_tag()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let stub = dir.join("stub-game");
+        crate::testkit::write_script(&stub, "#!/bin/sh\nsleep 30\n");
+        let past = Instant::now() - Duration::from_secs(2);
+        let mut r = start_marked(&stub, &[], None, None, &[], dir.join("start-marker.txt")).unwrap();
+        r.cap = None;
+        assert!(r.poll().is_none(), "no cap: left alone");
+        r.cap = Some((64 << 10, past));
+        let until = Instant::now() + Duration::from_secs(10);
+        let ended = loop {
+            if let Some(e) = r.poll() {
+                break e;
+            }
+            assert!(Instant::now() < until, "not stopped");
+            if let Some(c) = r.cap.as_mut() {
+                c.1 = past;
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        };
+        assert!(ended.failed(), "{ended:?}");
+        assert!(ended.tail.iter().any(|l| l.contains("over the cap")), "{:?}", ended.tail);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     /// A stub game (a shell script) that prints a log and a panic line and
     /// exits 101: a failed start, the tail and the log file hold its lines.

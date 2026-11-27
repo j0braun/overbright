@@ -64,11 +64,21 @@ pub fn run_file(dir: &Path, folder: &str) -> PathBuf {
 /// Write `m` as the run copy of `folder` (through a temporary file, so the
 /// game never reads half a file); `map.obmap` is not touched.
 pub fn write_run_copy(dir: &Path, folder: &str, m: &MapMod) -> Result<PathBuf> {
+    write_layer(dir, folder, m).map(|l| l.0)
+}
+
+/// The unsaved-work layer: the mod as Studio has it (saved or not) written as the one file every run of the mod
+/// reads (`game --map-file`), instead of a copy per run. Nothing is written when the file already holds exactly
+/// this mod (so its time does not move and a reader sees no change); `map.obmap` is never touched. True: it changed.
+pub fn write_layer(dir: &Path, folder: &str, m: &MapMod) -> Result<(PathBuf, bool)> {
     ensure!(valid_id(folder), "`{folder}` is not a map mod folder name (a-z, 0-9, - and _)");
     let path = run_file(dir, folder);
-    crate::platform::fs::write_atomic(&path, m.write().as_bytes(), false)
-        .with_context(|| format!("writing {}", path.display()))?;
-    Ok(path)
+    let text = m.write();
+    if std::fs::read(&path).is_ok_and(|old| old == text.as_bytes()) {
+        return Ok((path, false));
+    }
+    crate::platform::fs::write_atomic(&path, text.as_bytes(), false).with_context(|| format!("writing {}", path.display()))?;
+    Ok((path, true))
 }
 
 /// The mod name a run gives a mod file it was handed (`--map-file`): for a

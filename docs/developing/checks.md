@@ -739,6 +739,12 @@ and our Xvfb (by PID) are stopped.
   to 64 KiB.
 - `w_window`: the game in its window on the Xvfb (no flags, Vulkan through Mesa's software present), reading the
   monitor and its modes and reaching the title screen (Enter skips the boot movies).
+- `w_link`: Studio's link under Wine. `game.exe --simulate-world --studio-link <folder>` runs headless on a map mod made
+  by the step; the step writes `command.txt` as Studio does (through a temporary file and a rename) and reads `game.txt`
+  and `loaded.txt`: a probe is answered, the opt-in "what did the game load" question (`op=loaded`) is answered with the
+  mod's name, and a stop ends the run, with no panic line. The link is plain files (no pipe, no socket), so what Wine
+  can break is the rename and the file times. Where Wine's GPU path fails on the host (the Vulkan submission error), the
+  step reports that as its failure like the other Wine steps: report-only in the gate.
 - Drive-letter paths: `winepath -w` cuts its answer at MAX_PATH (Wine 11: a 282-character folder came back as its
   first 257 characters, a folder that does not exist); a path outside the prefix's `drive_c` is built as `Z:` plus
   the path with backslashes instead whenever winepath's answer is a cut-off start of it.

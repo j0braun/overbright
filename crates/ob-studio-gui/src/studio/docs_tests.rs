@@ -108,3 +108,41 @@ fn every_chord_the_studio_page_names_exists_in_the_code() {
         assert!(ok, "studio.md names the key `{c}`, which no key table has");
     }
 }
+
+/// The `overbright-studio` usage block of studio.md (the first code block).
+fn usage(doc: &str) -> &str {
+    let a = doc.find("```\noverbright-studio").expect("the usage block");
+    let b = doc[a + 3..].find("```").expect("the end of the usage block");
+    &doc[a..a + 3 + b]
+}
+
+#[test]
+fn every_studio_flag_and_workspace_is_in_the_usage_block_both_ways() {
+    let doc = doc();
+    let usage = usage(&doc);
+    let p = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/bin/overbright-studio.rs");
+    let src = std::fs::read_to_string(&p).unwrap_or_else(|e| panic!("{}: {e}", p.display()));
+    // The flags the argument loop matches: `"--name" =>`.
+    let mut flags = Vec::new();
+    for l in src.lines() {
+        let l = l.trim_start();
+        if let Some(rest) = l.strip_prefix("\"--") {
+            if let Some(end) = rest.find("\" =>") {
+                flags.push(format!("--{}", &rest[..end]));
+            }
+        }
+    }
+    assert!(flags.len() >= 25, "read {} flags (the parser lost its place)", flags.len());
+    for f in &flags {
+        assert!(usage.contains(f.as_str()), "overbright-studio accepts `{f}`, the usage block of studio.md does not show it");
+    }
+    for w in usage.split(|c: char| !(c.is_ascii_alphanumeric() || c == '-')).filter(|w| w.starts_with("--")) {
+        assert!(flags.iter().any(|f| f == w), "the usage block shows `{w}`, which overbright-studio does not accept");
+    }
+    use super::workspace::Workspace;
+    let line = usage.lines().find(|l| l.contains("--workspace")).expect("the --workspace line");
+    for w in Workspace::ALL.into_iter().chain(Workspace::PAGES) {
+        let n = w.name().to_ascii_lowercase();
+        assert!(line.contains(&n), "the --workspace list does not name `{n}`");
+    }
+}

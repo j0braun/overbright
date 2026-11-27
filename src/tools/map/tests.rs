@@ -511,3 +511,46 @@ fn twin_placements_edit_independently_and_reload() {
         assert_eq!(again.placements[i].transform, ew.placements[i].transform, "placement {i}");
     }
 }
+
+/// The unsaved-work layer is one file for every run: written only when its content changes, never over the saved
+/// mod, left out of the way when no run is open; a test layer without some rows names none of them.
+#[test]
+fn the_unsaved_layer_is_one_file_that_goes_with_the_last_run() {
+    let s = testkit::Scratch::new("map-layer");
+    let dir = s.path().join("maps");
+    let m = sample();
+    store::save(&dir, "docks", &m).unwrap();
+    let saved = std::fs::read(dir.join("docks").join(store::FILE)).unwrap();
+    let mut unsaved = m.clone();
+    unsaved.name = "Docks, unsaved".into();
+    let (path, wrote) = store::write_layer(&dir, "docks", &unsaved).unwrap();
+    assert!(wrote);
+    let at = std::fs::metadata(&path).unwrap().modified().unwrap();
+    std::thread::sleep(std::time::Duration::from_millis(30));
+    assert!(!store::write_layer(&dir, "docks", &unsaved).unwrap().1, "same content: not written again");
+    assert_eq!(std::fs::metadata(&path).unwrap().modified().unwrap(), at);
+    unsaved.description = "changed".into();
+    assert!(store::write_layer(&dir, "docks", &unsaved).unwrap().1);
+    assert_eq!(std::fs::read(dir.join("docks").join(store::FILE)).unwrap(), saved, "the saved mod is untouched");
+    // A run open: the layer stays; none open: it goes.
+    let slot = link::Slot::take(&dir).unwrap();
+    assert!(!link::drop_layer_when_idle(&dir, "docks"));
+    assert!(path.is_file());
+    drop(slot);
+    assert!(link::drop_layer_when_idle(&dir, "docks"));
+    assert!(!path.exists());
+    assert!(!link::drop_layer_when_idle(&dir, "docks"), "nothing left to drop");
+}
+
+#[test]
+fn a_test_layer_without_rows_leaves_exactly_those_out() {
+    let m = sample();
+    assert!(!m.props.is_empty());
+    let keys: Vec<ops::PropKey> = m.props.iter().filter_map(|e| e.target().cloned().map(ops::PropKey::Original)).collect();
+    assert!(!keys.is_empty());
+    let w = m.without(&keys);
+    assert!(w.props.iter().all(|e| e.target().is_none()), "the named originals are out");
+    assert_eq!((w.races.clone(), w.name.clone()), (m.races.clone(), m.name.clone()), "all else is kept");
+    assert_eq!(m.without(&[]), m, "nothing named: nothing left out");
+    assert_eq!(m.without(&[ops::PropKey::Added("nope".into())]), m);
+}

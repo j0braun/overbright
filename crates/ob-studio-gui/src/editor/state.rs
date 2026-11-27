@@ -57,6 +57,9 @@ pub struct EditorState {
     /// What a test run starts with besides the place: the car and the
     /// world clock (time of day and weather); empty: the game's own.
     pub run_focus: crate::tools::map::link::Focus,
+    /// Props left out of the test layer for the one run that is open or starting (Race ▸ Test without selected
+    /// props): nothing is saved, and the list is cleared when the run ends.
+    pub left_out: Vec<crate::tools::map::ops::PropKey>,
     pub point: Option<RacePoint>,
     pub camera: Camera,
     pub mode: Mode,
@@ -133,6 +136,7 @@ impl EditorState {
             selection: Vec::new(),
             race,
             run_focus: Default::default(),
+            left_out: Vec::new(),
             point: None,
             camera,
             mode: Mode::Props,

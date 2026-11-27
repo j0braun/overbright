@@ -77,7 +77,12 @@ fn menu_command(c: Command) -> Cli {
         Command::SelectAllOfSolid => WindowOnly("a selection in the window; a script names the props it means (`props solids` lists where each is placed)"),
         Command::Rotate90 | Command::FaceCamera => Has(&["props move"]),
         Command::ResetCamera | Command::FrameSelection => WindowOnly(VIEWING),
-        Command::TestRace | Command::DriveHere | Command::RestartTest | Command::RecordDrive => {
+        Command::TestRace
+        | Command::DriveHere
+        | Command::RestartTest
+        | Command::RecordDrive
+        | Command::TestWithout
+        | Command::WhatLoaded => {
             WindowOnly("starts the game on the open mod and shows it; the command line has no game window")
         }
     }
