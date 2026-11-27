@@ -18,7 +18,7 @@ TOML. glTF 2.0 animation is offered as an export for viewing, never as stored da
 | Part-animation pivots, chunk 0x00037100, in `PARTS_ANIMATIONS.bin` | 29 × 21 matrices, 39,904 bytes | `ob.part-pivots` | `crates/ob-formats/src/formats/zam.rs:168-181` |
 | Camera tracks: 0x8003B200 route (`L4RA`, `L4RD`, `L4RG.BUN`), 0x8003B201 generic (`InGameRace`, `InGameDrag`, `InGameDrift`, `InGameFreeRoam.bun`), 0x8003B202 typed (`InGameCommon.bun`; its JDLZ twin `.lzc` holds the same) | 9 chunks, 210 groups, 486 tracks, 1,146 entries, 174,840 bytes (twin counted) | `ob.camera-tracks` | `crates/ob-formats/src/formats/camera_tracks.rs:141`, `src/shop_scene.rs:241`, the replay director (docs/formats/movies-replays.md) |
 | Scene headers, chunk 0x80037020 (0x37030 header, 0x37040 characters), one per NIS bundle | 42 scenes, 410 characters, 70,340 bytes | `ob.scene` | `src/shop_scene.rs:149-176`, `src/character.rs:496-511` |
-| Event tracks `NIS/Scene_<NAME>_EvtTrk.txt` | 35 files, 452 events, 34,097 bytes | `ob.scene-events` | `src/shop_scene.rs:546`, `src/shop_scene/{wheels,effects,audio}.rs`, `src/render/native/fx/effect_controller.rs:90` |
+| Event tracks `NIS/Scene_<NAME>_EvtTrk.txt` | 35 files, 452 events, 34,097 bytes | `ob.scene-events` | `src/shop_scene.rs:546`, `src/shop_scene/{wheels,effects,audio}.rs`, `crates/ob-render/src/render/native/fx/effect_controller.rs:90` |
 | The scene table, chunk 0x80037050 in `GLOBAL/InGameCommon.bun` (0x37060, 0x37070) | 1, 22,236 bytes | `ob.scene-table` | `src/shop_scene.rs:373-420` (0x37070 only) |
 
 Not on this page: the world-animation trees and instances (0x37080 / 0x37090) that play bank channels on scenery

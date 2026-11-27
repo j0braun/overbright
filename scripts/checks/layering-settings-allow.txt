@@ -1,103 +1,103 @@
 # scripts/checks/layering.sh rule 5: the global settings reads left in render code, one per line:
 # <file><TAB><the line's text, trimmed>. Shrinks as reads move onto FrameSettings; never grows.
 # A drawn frame's and a tick's reads all come in as values (docs/developing/frame-settings.md); what is left, and why:
-#   src/render/core/gpu.rs                      start-up: the device's caps written into the store, the crash report's adapter, the log flushed before a device panic
-#   src/render/enh/lighting/rt/scene.rs         start-up: the rows as chosen decide the device's features
-#   src/render/native/display/present.rs        pacing: the frame cap of the frame loop, not a frame read
-#   src/render/enh/assets/car_model/{fixes,smooth}.rs  loads: the car build's options
-#   src/render/enh/assets/hd_ui.rs              loads: the saved texture pack's folder
-#   src/render/core/shader/registry.rs          `world_source`, the shader text its tests read (test-only use)
-#   src/render/native/frame_settings.rs        the type's re-export: RenderOptions lives with the settings store that fills it
-#   src/render/enh/post/{hdr_output,fsr2}.rs, enh/assets/pack_select.rs   re-exports: the types and tables the settings store holds, kept at their render paths
+#   crates/ob-render/src/render/core/gpu.rs                      start-up: the device's caps written into the store, the crash report's adapter, the log flushed before a device panic
+#   crates/ob-render/src/render/enh/lighting/rt/scene.rs         start-up: the rows as chosen decide the device's features
+#   crates/ob-render/src/render/native/display/present.rs        pacing: the frame cap of the frame loop, not a frame read
+#   crates/ob-render/src/render/enh/assets/car_model/{fixes,smooth}.rs  loads: the car build's options
+#   crates/ob-render/src/render/enh/assets/hd_ui.rs              loads: the saved texture pack's folder
+#   crates/ob-render/src/render/core/shader/registry.rs          `world_source`, the shader text its tests read (test-only use)
+#   crates/ob-render/src/render/native/frame_settings.rs        the type's re-export: RenderOptions lives with the settings store that fills it
+#   crates/ob-render/src/render/enh/post/{hdr_output,fsr2}.rs, enh/assets/pack_select.rs   re-exports: the types and tables the settings store holds, kept at their render paths
 #   the rest                                    tests: the store set up and read back by the tests themselves
 #                                               (*_tests.rs, tests.rs, `#[cfg(test)]` modules)
-src/render/core/gpu.rs	crate::qol::crash::set_adapter(&adapter.get_info());
-src/render/core/gpu.rs	crate::qol::crash::set_adapter(&gpu.adapter.get_info());
-src/render/core/gpu.rs	crate::qol::log_file::flush(std::time::Duration::from_millis(300));
-src/render/core/gpu.rs	crate::qol::set_gpu_caps(device.limits().max_texture_dimension_2d, adapter.get_info().device_type);
-src/render/core/gpu.rs	crate::qol::set_gpu_class(crate::qol::classify_gpu(
-src/render/core/gpu.rs	crate::qol::set_hdr_support(hdr_supported(adapter, specific, mask));
-src/render/core/gpu.rs	crate::qol::set_msaa_support(mask);
-src/render/core/gpu.rs	crate::qol::set_rt_offered(rt::adapter_can(adapter));
-src/render/core/gpu.rs	crate::qol::set_rt_support(device.features().contains(rt::FEATURE));
-src/render/core/gpu.rs	log::info!("GPU class: {} (the presets' effect tiers)", crate::qol::gpu_class().name());
-src/render/core/shader/registry.rs	u8::from(lamps && crate::render::modern_light::enabled(&crate::render::RenderOptions::in_force())),
+crates/ob-render/src/render/core/gpu.rs	crate::qol::crash::set_adapter(&adapter.get_info());
+crates/ob-render/src/render/core/gpu.rs	crate::qol::crash::set_adapter(&gpu.adapter.get_info());
+crates/ob-render/src/render/core/gpu.rs	crate::qol::log_file::flush(std::time::Duration::from_millis(300));
+crates/ob-render/src/render/core/gpu.rs	crate::qol::set_gpu_caps(device.limits().max_texture_dimension_2d, adapter.get_info().device_type);
+crates/ob-render/src/render/core/gpu.rs	crate::qol::set_gpu_class(crate::qol::classify_gpu(
+crates/ob-render/src/render/core/gpu.rs	crate::qol::set_hdr_support(hdr_supported(adapter, specific, mask));
+crates/ob-render/src/render/core/gpu.rs	crate::qol::set_msaa_support(mask);
+crates/ob-render/src/render/core/gpu.rs	crate::qol::set_rt_offered(rt::adapter_can(adapter));
+crates/ob-render/src/render/core/gpu.rs	crate::qol::set_rt_support(device.features().contains(rt::FEATURE));
+crates/ob-render/src/render/core/gpu.rs	log::info!("GPU class: {} (the presets' effect tiers)", crate::qol::gpu_class().name());
+crates/ob-render/src/render/core/shader/registry.rs	u8::from(lamps && crate::render::modern_light::enabled(&crate::render::RenderOptions::in_force())),
 crates/ob-assets/src/render/enh/assets/car_model/fixes.rs	crate::qol::fix_models()
 crates/ob-assets/src/render/enh/assets/car_model/smooth.rs	crate::qol::smooth_cars()
 crates/ob-assets/src/render/enh/assets/hd_ui.rs	None => crate::qol::setup::saved_texture_pack()
-src/render/enh/assets/pack_reload/tests.rs	assert!(!frame(true, crate::qol::reload_packs()));
-src/render/enh/assets/pack_reload/tests.rs	crate::qol::Enhancements::default().apply();
-src/render/enh/assets/pack_reload/tests.rs	frame(false, crate::qol::reload_packs());
-src/render/enh/assets/pack_reload/tests.rs	let _g = crate::qol::test_globals();
-src/render/enh/assets/pack_reload/tests.rs	let mut r = crate::render::WorldRenderer::new(&gpu, &world, wgpu::TextureFormat::Rgba8Unorm, &crate::render::RenderOptions::in_force());
-src/render/enh/lighting/rt/scene.rs	|| crate::qol::modern_lighting_requested() == 3
-src/render/enh/lighting/rt/scene.rs	let asked = crate::qol::ssr_requested() == 3
-src/render/enh/post/blur_dof.rs	let e = crate::qol::Enhancements::default();
-src/render/enh/post/blur_dof.rs	let _globals = crate::qol::test_globals();
-src/render/enh/post/fsr.rs	assert!(crate::qol::is_fsr(f) && !crate::qol::is_fsr(v));
-src/render/enh/post/fsr.rs	assert_eq!(crate::qol::upscale_share(v), crate::qol::upscale_share(f));
-src/render/enh/post/fsr.rs	assert_eq!(crate::qol::upscale_size((3840, 2160), crate::qol::upscale_share(4).unwrap()), (2573, 1447));
-src/render/enh/post/ssr.rs	let _globals = crate::qol::test_globals();
-src/render/enh/post/ssr.rs	let mut e = crate::qol::Enhancements::default();
-src/render/enh/post/temporal.rs	assert_eq!(crate::qol::upscale_share(0), None);
-src/render/enh/post/temporal.rs	assert_eq!(crate::qol::upscale_size((1920, 1080), crate::qol::upscale_share(1).unwrap()), (1286, 724));
-src/render/enh/post/temporal.rs	assert_eq!(crate::qol::upscale_size((1920, 1080), crate::qol::upscale_share(2).unwrap()), (1114, 626));
-src/render/enh/post/temporal.rs	assert_eq!(crate::qol::upscale_size((3840, 2160), crate::qol::upscale_share(3).unwrap()), (1920, 1080));
-src/render/enh/volumes/ambient/detail/mod.rs	assert_eq!(crate::qol::Enhancements::default().ambient_detail, 0);
-src/render/enh/volumes/sky_ng/mod.rs	assert!(!enabled(&crate::render::RenderOptions::in_force()), "Original by default");
-src/render/enh/volumes/water/mod.rs	min_size: crate::render::main_min_size(&crate::render::RenderOptions::in_force()),
-src/render/native/car/mod.rs	let dry = <CarMode as CarModeExt>::current(1, false, &crate::render::RenderOptions::in_force());
-src/render/native/car/mod.rs	let mut renderer = CarRenderer::new(&gpu, &car, wgpu::TextureFormat::Rgba8Unorm, &crate::render::RenderOptions::in_force());
-src/render/native/car/mod.rs	renderer.draw_uniforms_at(lod, [0.0, 0.0], &lighting, world, &wheels, &mut uniforms, &crate::render::RenderOptions::in_force());
-src/render/native/car/mod.rs	renderer.queue(&gpu, &mut batch, Mat4::IDENTITY, Mat4::IDENTITY, &lighting, world, &wheels, &crate::render::RenderOptions::in_force());
-src/render/native/car/record.rs	crate::qol::Enhancements::default().apply();
-src/render/native/car/record.rs	crate::qol::set_temporal_frame(crate::qol::temporal());
-src/render/native/car/record.rs	crate::qol::set_temporal_frame(false);
-src/render/native/car/record.rs	let _globals = crate::qol::test_globals();
-src/render/native/car/record.rs	let mut e = crate::qol::Enhancements::default();
-src/render/native/car/record.rs	let opts = crate::render::RenderOptions::in_force();
-src/render/native/car/record.rs	use crate::qol::Preset;
-src/render/native/display/present.rs	.or_else(crate::qol::frame_cap)
+crates/ob-render/src/render/enh/assets/pack_reload/tests.rs	assert!(!frame(true, crate::qol::reload_packs()));
+crates/ob-render/src/render/enh/assets/pack_reload/tests.rs	crate::qol::Enhancements::default().apply();
+crates/ob-render/src/render/enh/assets/pack_reload/tests.rs	frame(false, crate::qol::reload_packs());
+crates/ob-render/src/render/enh/assets/pack_reload/tests.rs	let _g = crate::qol::test_globals();
+crates/ob-render/src/render/enh/assets/pack_reload/tests.rs	let mut r = crate::render::WorldRenderer::new(&gpu, &world, wgpu::TextureFormat::Rgba8Unorm, &crate::render::RenderOptions::in_force());
+crates/ob-render/src/render/enh/lighting/rt/scene.rs	|| crate::qol::modern_lighting_requested() == 3
+crates/ob-render/src/render/enh/lighting/rt/scene.rs	let asked = crate::qol::ssr_requested() == 3
+crates/ob-render/src/render/enh/post/blur_dof.rs	let e = crate::qol::Enhancements::default();
+crates/ob-render/src/render/enh/post/blur_dof.rs	let _globals = crate::qol::test_globals();
+crates/ob-render/src/render/enh/post/fsr.rs	assert!(crate::qol::is_fsr(f) && !crate::qol::is_fsr(v));
+crates/ob-render/src/render/enh/post/fsr.rs	assert_eq!(crate::qol::upscale_share(v), crate::qol::upscale_share(f));
+crates/ob-render/src/render/enh/post/fsr.rs	assert_eq!(crate::qol::upscale_size((3840, 2160), crate::qol::upscale_share(4).unwrap()), (2573, 1447));
+crates/ob-render/src/render/enh/post/ssr.rs	let _globals = crate::qol::test_globals();
+crates/ob-render/src/render/enh/post/ssr.rs	let mut e = crate::qol::Enhancements::default();
+crates/ob-render/src/render/enh/post/temporal.rs	assert_eq!(crate::qol::upscale_share(0), None);
+crates/ob-render/src/render/enh/post/temporal.rs	assert_eq!(crate::qol::upscale_size((1920, 1080), crate::qol::upscale_share(1).unwrap()), (1286, 724));
+crates/ob-render/src/render/enh/post/temporal.rs	assert_eq!(crate::qol::upscale_size((1920, 1080), crate::qol::upscale_share(2).unwrap()), (1114, 626));
+crates/ob-render/src/render/enh/post/temporal.rs	assert_eq!(crate::qol::upscale_size((3840, 2160), crate::qol::upscale_share(3).unwrap()), (1920, 1080));
+crates/ob-render/src/render/enh/volumes/ambient/detail/mod.rs	assert_eq!(crate::qol::Enhancements::default().ambient_detail, 0);
+crates/ob-render/src/render/enh/volumes/sky_ng/mod.rs	assert!(!enabled(&crate::render::RenderOptions::in_force()), "Original by default");
+crates/ob-render/src/render/enh/volumes/water/mod.rs	min_size: crate::render::main_min_size(&crate::render::RenderOptions::in_force()),
+crates/ob-render/src/render/native/car/mod.rs	let dry = <CarMode as CarModeExt>::current(1, false, &crate::render::RenderOptions::in_force());
+crates/ob-render/src/render/native/car/mod.rs	let mut renderer = CarRenderer::new(&gpu, &car, wgpu::TextureFormat::Rgba8Unorm, &crate::render::RenderOptions::in_force());
+crates/ob-render/src/render/native/car/mod.rs	renderer.draw_uniforms_at(lod, [0.0, 0.0], &lighting, world, &wheels, &mut uniforms, &crate::render::RenderOptions::in_force());
+crates/ob-render/src/render/native/car/mod.rs	renderer.queue(&gpu, &mut batch, Mat4::IDENTITY, Mat4::IDENTITY, &lighting, world, &wheels, &crate::render::RenderOptions::in_force());
+crates/ob-render/src/render/native/car/record.rs	crate::qol::Enhancements::default().apply();
+crates/ob-render/src/render/native/car/record.rs	crate::qol::set_temporal_frame(crate::qol::temporal());
+crates/ob-render/src/render/native/car/record.rs	crate::qol::set_temporal_frame(false);
+crates/ob-render/src/render/native/car/record.rs	let _globals = crate::qol::test_globals();
+crates/ob-render/src/render/native/car/record.rs	let mut e = crate::qol::Enhancements::default();
+crates/ob-render/src/render/native/car/record.rs	let opts = crate::render::RenderOptions::in_force();
+crates/ob-render/src/render/native/car/record.rs	use crate::qol::Preset;
+crates/ob-render/src/render/native/display/present.rs	.or_else(crate::qol::frame_cap)
 crates/ob-sim/src/render/native/fx/effect_controller.rs	let _g = crate::qol::test_globals();
-src/render/native/post/mod.rs	crate::qol::Enhancements::default().apply();
-src/render/native/post/mod.rs	crate::qol::Enhancements { hdr_post: 2, ..Default::default() }.apply();
-src/render/native/post/mod.rs	crate::qol::Enhancements { hdr_post: hdr, ..Default::default() }.apply();
-src/render/native/post/mod.rs	if !crate::qol::hdr_active() {
-src/render/native/post/mod.rs	if hdr != 0 && crate::qol::hdr_active() { want } else { INTERMEDIATE }
-src/render/native/post/mod.rs	let _globals = crate::qol::test_globals();
-src/render/native/post/mod.rs	let opts = crate::render::RenderOptions::in_force();
-src/render/native/post/mod.rs	let want = if hdr != 0 && crate::qol::hdr_active() {
-src/render/native/post/streak_gpu_tests.rs	crate::qol::Enhancements::default().apply();
-src/render/native/post/streak_gpu_tests.rs	crate::render::RenderOptions::in_force()
-src/render/native/post/streak_gpu_tests.rs	let _g = crate::qol::test_globals();
-src/render/native/world/reflection_tests.rs	assert!(renderer.sync_environment_size(&gpu, &crate::render::RenderOptions::in_force()));
-src/render/native/world/reflection_tests.rs	crate::qol::Enhancements::default().apply();
-src/render/native/world/reflection_tests.rs	crate::qol::Enhancements { enhanced_reflections: enhanced, ..Default::default() }.apply();
-src/render/native/world/reflection_tests.rs	crate::qol::Enhancements { enhanced_reflections: true, car_reflection: 256, ..Default::default() }.apply();
-src/render/native/world/reflection_tests.rs	crate::qol::Enhancements { enhanced_reflections: true, ..Default::default() }.apply();
-src/render/native/world/reflection_tests.rs	crate::qol::Enhancements { enhanced_reflections: true, detail_distance: 300, ..Default::default() }.apply();
-src/render/native/world/reflection_tests.rs	headlight_pools: if effects == 1 { &pools } else { &[] }, reflection_glows: if effects == 2 { &glows } else { &[] }, display: display::Display::ALL, opts: &crate::render::RenderOptions::in_force(), rear_view: None, occluders: &[] };
-src/render/native/world/reflection_tests.rs	headlight_pools: &[], reflection_glows: &[], display: display::Display::ALL, opts: &crate::render::RenderOptions::in_force(), rear_view: None, occluders: &[] };
-src/render/native/world/reflection_tests.rs	let _globals = crate::qol::test_globals();
-src/render/native/world/reflection_tests.rs	let mut renderer = car::CarRenderer::new(&gpu, &car, wgpu::TextureFormat::Rgba8Unorm, &crate::render::RenderOptions::in_force());
-src/render/native/world/reflection_tests.rs	let mut renderer = WorldRenderer::new(&gpu, &world, wgpu::TextureFormat::Rgba8Unorm, &crate::render::RenderOptions::in_force());
-src/render/native/world/reflection_tests.rs	let plan = renderer.plan_environment(&gpu, centre, axes, &FrameParams { opts: &crate::render::RenderOptions::in_force(), ..params }, faces, true);
-src/render/native/world/reflection_tests.rs	let plan = renderer.plan_environment(&gpu, Vec3::ZERO, axes, &FrameParams { opts: &crate::render::RenderOptions::in_force(), ..params }, [true, false, false, false, false, false], true);
-src/render/native/world/reflection_tests.rs	let plan = renderer.plan_environment(&gpu, Vec3::ZERO, (Vec3::X, -Vec3::Z, Vec3::Y), &FrameParams { opts: &crate::render::RenderOptions::in_force(), ..params }, [true; 6], false);
-src/render/native/world/reflection_tests.rs	let plan = renderer.plan_environment(&gpu, Vec3::ZERO, (Vec3::X, -Vec3::Z, Vec3::Y), &FrameParams { opts: &crate::render::RenderOptions::in_force(), ..params }, [true; 6], true);
-src/render/native/world/reflection_tests.rs	renderer.render(&gpu, &mut encoder, &color, &depth, camera.view_projection(4.0/3.0), view, &lighting, Mat4::IDENTITY, &[crate::car::WheelPose::default(); 4], &crate::render::RenderOptions::in_force());
-src/render/native/world/reflection_tests.rs	WorldRenderer::new(&gpu, &world, wgpu::TextureFormat::Rgba8Unorm, &crate::render::RenderOptions::in_force())
-src/render/pop_meter.rs	assert_eq!(super::super::main_min_size(&crate::render::RenderOptions::in_force()), 17.0);
-src/render/pop_meter.rs	assert_eq!(super::super::main_min_size(&crate::render::RenderOptions::in_force()), 17.0 / 2.0);
-src/render/pop_meter.rs	crate::qol::Enhancements::default().apply();
-src/render/pop_meter.rs	crate::qol::Enhancements { keep_loaded: false, detail_distance: 200, ..Default::default() }.apply();
-src/render/pop_meter.rs	crate::qol::Enhancements { keep_loaded: true, detail_distance: 200, ..Default::default() }.apply();
-src/render/pop_meter.rs	crate::qol::set_output_size((0, 0));
-src/render/pop_meter.rs	crate::qol::set_output_size((3840, 2160));
-src/render/pop_meter.rs	crate::qol::set_output_size((64, 48));
-src/render/pop_meter.rs	let _g = crate::qol::test_globals();
-src/render/pop_meter.rs	let need = super::super::main_min_size(&crate::render::RenderOptions::in_force());
-src/render/native/frame_settings.rs	pub use crate::qol::RenderOptions;
-src/render/enh/post/hdr_output.rs	pub use crate::qol::hdr_output::{Calibration, DEFAULT_PAPER, DEFAULT_PEAK, Signal, Transfer};
-src/render/enh/post/fsr2.rs	pub use crate::qol::fsr2::{MODES, ratio, render_size};
+crates/ob-render/src/render/native/post/mod.rs	crate::qol::Enhancements::default().apply();
+crates/ob-render/src/render/native/post/mod.rs	crate::qol::Enhancements { hdr_post: 2, ..Default::default() }.apply();
+crates/ob-render/src/render/native/post/mod.rs	crate::qol::Enhancements { hdr_post: hdr, ..Default::default() }.apply();
+crates/ob-render/src/render/native/post/mod.rs	if !crate::qol::hdr_active() {
+crates/ob-render/src/render/native/post/mod.rs	if hdr != 0 && crate::qol::hdr_active() { want } else { INTERMEDIATE }
+crates/ob-render/src/render/native/post/mod.rs	let _globals = crate::qol::test_globals();
+crates/ob-render/src/render/native/post/mod.rs	let opts = crate::render::RenderOptions::in_force();
+crates/ob-render/src/render/native/post/mod.rs	let want = if hdr != 0 && crate::qol::hdr_active() {
+crates/ob-render/src/render/native/post/streak_gpu_tests.rs	crate::qol::Enhancements::default().apply();
+crates/ob-render/src/render/native/post/streak_gpu_tests.rs	crate::render::RenderOptions::in_force()
+crates/ob-render/src/render/native/post/streak_gpu_tests.rs	let _g = crate::qol::test_globals();
+crates/ob-render/src/render/native/world/reflection_tests.rs	assert!(renderer.sync_environment_size(&gpu, &crate::render::RenderOptions::in_force()));
+crates/ob-render/src/render/native/world/reflection_tests.rs	crate::qol::Enhancements::default().apply();
+crates/ob-render/src/render/native/world/reflection_tests.rs	crate::qol::Enhancements { enhanced_reflections: enhanced, ..Default::default() }.apply();
+crates/ob-render/src/render/native/world/reflection_tests.rs	crate::qol::Enhancements { enhanced_reflections: true, car_reflection: 256, ..Default::default() }.apply();
+crates/ob-render/src/render/native/world/reflection_tests.rs	crate::qol::Enhancements { enhanced_reflections: true, ..Default::default() }.apply();
+crates/ob-render/src/render/native/world/reflection_tests.rs	crate::qol::Enhancements { enhanced_reflections: true, detail_distance: 300, ..Default::default() }.apply();
+crates/ob-render/src/render/native/world/reflection_tests.rs	headlight_pools: if effects == 1 { &pools } else { &[] }, reflection_glows: if effects == 2 { &glows } else { &[] }, display: display::Display::ALL, opts: &crate::render::RenderOptions::in_force(), rear_view: None, occluders: &[] };
+crates/ob-render/src/render/native/world/reflection_tests.rs	headlight_pools: &[], reflection_glows: &[], display: display::Display::ALL, opts: &crate::render::RenderOptions::in_force(), rear_view: None, occluders: &[] };
+crates/ob-render/src/render/native/world/reflection_tests.rs	let _globals = crate::qol::test_globals();
+crates/ob-render/src/render/native/world/reflection_tests.rs	let mut renderer = car::CarRenderer::new(&gpu, &car, wgpu::TextureFormat::Rgba8Unorm, &crate::render::RenderOptions::in_force());
+crates/ob-render/src/render/native/world/reflection_tests.rs	let mut renderer = WorldRenderer::new(&gpu, &world, wgpu::TextureFormat::Rgba8Unorm, &crate::render::RenderOptions::in_force());
+crates/ob-render/src/render/native/world/reflection_tests.rs	let plan = renderer.plan_environment(&gpu, centre, axes, &FrameParams { opts: &crate::render::RenderOptions::in_force(), ..params }, faces, true);
+crates/ob-render/src/render/native/world/reflection_tests.rs	let plan = renderer.plan_environment(&gpu, Vec3::ZERO, axes, &FrameParams { opts: &crate::render::RenderOptions::in_force(), ..params }, [true, false, false, false, false, false], true);
+crates/ob-render/src/render/native/world/reflection_tests.rs	let plan = renderer.plan_environment(&gpu, Vec3::ZERO, (Vec3::X, -Vec3::Z, Vec3::Y), &FrameParams { opts: &crate::render::RenderOptions::in_force(), ..params }, [true; 6], false);
+crates/ob-render/src/render/native/world/reflection_tests.rs	let plan = renderer.plan_environment(&gpu, Vec3::ZERO, (Vec3::X, -Vec3::Z, Vec3::Y), &FrameParams { opts: &crate::render::RenderOptions::in_force(), ..params }, [true; 6], true);
+crates/ob-render/src/render/native/world/reflection_tests.rs	renderer.render(&gpu, &mut encoder, &color, &depth, camera.view_projection(4.0/3.0), view, &lighting, Mat4::IDENTITY, &[crate::car::WheelPose::default(); 4], &crate::render::RenderOptions::in_force());
+crates/ob-render/src/render/native/world/reflection_tests.rs	WorldRenderer::new(&gpu, &world, wgpu::TextureFormat::Rgba8Unorm, &crate::render::RenderOptions::in_force())
+crates/ob-render/src/render/pop_meter.rs	assert_eq!(super::super::main_min_size(&crate::render::RenderOptions::in_force()), 17.0);
+crates/ob-render/src/render/pop_meter.rs	assert_eq!(super::super::main_min_size(&crate::render::RenderOptions::in_force()), 17.0 / 2.0);
+crates/ob-render/src/render/pop_meter.rs	crate::qol::Enhancements::default().apply();
+crates/ob-render/src/render/pop_meter.rs	crate::qol::Enhancements { keep_loaded: false, detail_distance: 200, ..Default::default() }.apply();
+crates/ob-render/src/render/pop_meter.rs	crate::qol::Enhancements { keep_loaded: true, detail_distance: 200, ..Default::default() }.apply();
+crates/ob-render/src/render/pop_meter.rs	crate::qol::set_output_size((0, 0));
+crates/ob-render/src/render/pop_meter.rs	crate::qol::set_output_size((3840, 2160));
+crates/ob-render/src/render/pop_meter.rs	crate::qol::set_output_size((64, 48));
+crates/ob-render/src/render/pop_meter.rs	let _g = crate::qol::test_globals();
+crates/ob-render/src/render/pop_meter.rs	let need = super::super::main_min_size(&crate::render::RenderOptions::in_force());
+crates/ob-render/src/render/native/frame_settings.rs	pub use crate::qol::RenderOptions;
+crates/ob-render/src/render/enh/post/hdr_output.rs	pub use crate::qol::hdr_output::{Calibration, DEFAULT_PAPER, DEFAULT_PEAK, Signal, Transfer};
+crates/ob-render/src/render/enh/post/fsr2.rs	pub use crate::qol::fsr2::{MODES, ratio, render_size};
 crates/ob-assets/src/render/enh/assets/pack_select.rs	pub use crate::qol::pack_choice::{choice, set_choice};

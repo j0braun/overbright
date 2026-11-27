@@ -12,4 +12,4 @@ mod tests;
 #[cfg(test)]
 mod test_kit;
 #[cfg(test)]
-pub(crate) use test_kit::{TestGlobals, test_globals};
+pub(crate) use test_kit::test_globals;

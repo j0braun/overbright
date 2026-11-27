@@ -39,9 +39,9 @@ pub mod asset_layer;
 pub mod allocator;
 pub mod frontend;
 pub mod qol;
-pub mod rear_view;
-pub mod sky;
-pub mod render;
+pub use ob_render::{rear_view, render, sky};
+#[cfg(test)]
+mod render_tests;
 // The opt-in modding tools (texture and map editors; docs/modding/texture-editor.md).
 pub mod tools;
 // The one interface Studio's crates use into this library (crates/ob-studio, crates/ob-studio-gui).
@@ -115,25 +115,11 @@ pub mod diag {
 pub mod platform {
     pub use ob_core::platform::*;
     pub mod icon;
-    pub mod monitor;
+    pub use ob_render::platform::monitor;
 }
 
-/// Timings (`ob_core::prof`) and the GPU's.
+/// Timings (`ob_core::prof`) and the GPU's (crates/ob-render).
 pub mod prof {
     pub use ob_core::prof::*;
-    /// GPU time per part of the frame, from timestamp queries (the bench
-    /// turns them on; a no-op otherwise, and on devices without
-    /// [`gpu::FEATURES`]). `gpu::mark(encoder, "x")` writes a timestamp
-    /// after the commands recorded so far: the time since the previous mark
-    /// goes to "x". Each encoder of a frame starts with a mark of its own
-    /// ([`gpu::GAP`]), so the GPU's wait between submissions is not charged
-    /// to a part.
-    ///
-    /// The read-back never stalls the frame: each frame's marks go to one of
-    /// [`gpu::RING`] query sets, resolved and copied after the frame's last
-    /// submission ([`gpu::end_frame`]) and mapped asynchronously; a frame is
-    /// read when its map has completed, a few frames later (`device.poll`
-    /// without waiting). Only when the ring comes round to a set still being
-    /// read does it wait, for that set alone.
-    pub mod gpu;
+    pub use ob_render::prof::gpu;
 }

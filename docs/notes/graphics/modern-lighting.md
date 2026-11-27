@@ -73,7 +73,7 @@ Unset or `0`: off (read once at start).
 Data: the maintainer's probe `modern_light_fit` (the fit; FIT_ROAD=1 roads only, FIT_LIST=1 bright pool
 spots, FIT_DOORS=1 shop doors, FIT_NEAR=x,y,z lamps near a point; output in
 internal evidence).
-Code: `src/render/modern_light.rs` (switch, district, fitted constants, CPU mirror, tests),
+Code: `crates/ob-render/src/render/modern_light.rs` (switch, district, fitted constants, CPU mirror, tests),
 world.wgsl `// BEGIN MODERN` … `// END MODERN` blocks (all inside LAMPS blocks), hooks in
 `lamps.rs::plan_lamps` (clusters and lamp layers at High while on, the headlight's layer only
 with the Lamp Shadows row; lamps.x = 2 + the near-car count; each uploaded
@@ -189,7 +189,7 @@ row at Original. Ids checked unused in this copy and in the main checkout (2026-
 The hidden switch of phase 1 still works (`NFSU2_MODERN_LIGHTING`, strength from
 `NFSU2_MODERN_STRENGTH`, default 0 = phase 1's look).
 
-### Design (`src/render/modern_light_bold.rs`, world.wgsl `// BEGIN MODERN` / `// BEGIN MLRT`, car_modern.wgsl)
+### Design (`crates/ob-render/src/render/modern_light_bold.rs`, world.wgsl `// BEGIN MODERN` / `// BEGIN MLRT`, car_modern.wgsl)
 Phase 1's bake-anchored relight is kept and opened up by the strength *s*:
 `light = (bake − share·k)·A + lit·k'·B + min(other lights, 0.45)·headroom`
 * **share / k** as phase 1 (the fitted lamp share, at most 85 % of the bake per channel);
@@ -267,11 +267,11 @@ module and layers alone, the rest is per light × the world's overdraw): playabl
 not at 60.
 
 ### Files and hooks
-New: `src/render/modern_light_bold.rs` (tiers, params, emitters, car lights, tagging, the cars'
+New: `crates/ob-render/src/render/modern_light_bold.rs` (tiers, params, emitters, car lights, tagging, the cars'
 lamps, the RT frame slot and group), the maintainer's probe `modern_light_inventory`,
 the maintainer's probe `modern_light_spots`, the maintainer's private captures (+ `scripts/scenes.sh`,
 `scripts/costs.sh`). Hooks: world.wgsl's MODERN block (rewritten: `MlParams`, `ml_relight` with
-the strength, `ml_near_pool`, the MLRT ray query), `src/render/car_modern.wgsl` (`car_modern`, appended to a car module form
+the strength, `ml_near_pool`, the MLRT ray query), `crates/ob-render/src/render/car_modern.wgsl` (`car_modern`, appended to a car module form
 by `modern_light_bold::car_source`, selected per draw by a negative `lamps[1].w`; `car.rs` takes the
 form as module bit 4 while the row is on — car.wgsl itself is base's text: a first build that put
 the branch into car.wgsl moved a few car pixels by 2–4 at Original through the driver's codegen,

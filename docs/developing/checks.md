@@ -250,7 +250,7 @@ in-order queue, the main thread's writes after the scene's hand-off, the
 bench's synchronous loads, the fixed clock, the post self-check verdict).
 
 Fixed with it (of the base): `assign_textures`
-(`src/render/native/world/build/textures.rs`) numbered the flip-books'
+(`crates/ob-render/src/render/native/world/build/textures.rs`) numbered the flip-books'
 frames (the world's first texture slots) in `World::texture_animations`'
 `HashMap` order, a new order every process, so two cache builds of one
 binary gave different texture slots, texture-array layouts and track cache

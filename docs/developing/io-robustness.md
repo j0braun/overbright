@@ -16,7 +16,7 @@ tests in the code that touches files, devices or user data: `crates/ob-core/src/
 counts, map lookups only), `src/frontend/options/` (options.txt),
 `crates/ob-settings/src/qol/` (saves, backups, crash reports, game-root file),
 `src/hd_ui_pack.rs`, `src/frontend/map_pack.rs`,
-`src/render/texture_pack.rs` + `src/upscale.rs` (`parse_dds`),
+`crates/ob-render/src/render/texture_pack.rs` + `src/upscale.rs` (`parse_dds`),
 `src/surface_maps.rs`, `src/bin/game/enh/photo/`. The headless check tools in
 `src/bin/game.rs` (shots, bench dumps, flows) are out of scope: they are
 meant to fail loudly. Missing game files keep their existing clear error.

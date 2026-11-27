@@ -20,9 +20,9 @@ Unless a Wine result is named, nothing on this page has been checked on a real W
 
 ## For developers
 
-Code: `src/render/core/backend.rs` (the decisions, as pure functions unit-tested on Linux),
-`src/render/core/gpu.rs` (`Gpu::new`, `new_instance`), `crates/ob-core/src/platform/{win,timer,icon}.rs`,
-`src/render/native/display/present.rs` (`sleep_margin`), `src/upscale_pack.rs` (`lower_priority`),
+Code: `crates/ob-render/src/render/core/backend.rs` (the decisions, as pure functions unit-tested on Linux),
+`crates/ob-render/src/render/core/gpu.rs` (`Gpu::new`, `new_instance`), `crates/ob-core/src/platform/{win,timer,icon}.rs`,
+`crates/ob-render/src/render/native/display/present.rs` (`sleep_margin`), `src/upscale_pack.rs` (`lower_priority`),
 `build_support/{windows_res,icon_art}.rs`.
 
 ### Graphics API and adapter

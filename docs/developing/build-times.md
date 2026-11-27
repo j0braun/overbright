@@ -18,7 +18,7 @@ baseline for splitting the code into several crates: later measurements are comp
   | area | file |
   |---|---|
   | formats | `crates/ob-formats/src/formats/bundle.rs` |
-  | render | `src/render/atmosphere.rs` |
+  | render | `crates/ob-render/src/render/atmosphere.rs` |
   | sim / AI | `src/ai/drag.rs` |
   | frontend | `src/frontend/cheats.rs` |
   | launcher | `src/launcher/font.rs` |

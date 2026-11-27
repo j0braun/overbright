@@ -39,7 +39,7 @@ Not on this page:
   (`ob.track-maps`).
 - Data no kind owns yet, kept byte for byte in the residual ([README.md](README.md) §3, "Not yet owned by a
   kind"): the collision-audio stitch records (0x8003B500), the named car light setups (0x3B700 in `FrontB.lzc`,
-  `src/render/native/car/lighting.rs:40`) and the particle effect descriptions (0x35021) in `Showroom.BIN`.
+  `crates/ob-render/src/render/native/car/lighting.rs:40`) and the particle effect descriptions (0x35021) in `Showroom.BIN`.
   `Showroom.BIN`'s placed emitters (0x35020, `src/particles/mod.rs`) are kept with them until a page takes them:
   [world.md](world.md) §3.4.6 decodes the emitters of regions only.
 - Strings, credits and every other text: [text.md](text.md). Menu behaviour (which screen does what): engine code

@@ -7,7 +7,7 @@ state was stepped with (see "A tick's settings and a frame's").
 
 ## The two values
 
-* **`render::FrameSettings`** (`src/render/native/frame_settings.rs`): what a
+* **`render::FrameSettings`** (`crates/ob-render/src/render/native/frame_settings.rs`): what a
   drawn frame reads. `display: Display` and `switches: Switches` (from the
   Customize Display values, each computed once; the window's frame computed
   each of them up to three times before), and `opts: RenderOptions`, the
@@ -165,7 +165,7 @@ comment section gives the reason per file):
 * A test-only helper: `shader::world_source` (its tests' shader text).
 * Tests: the store set up and read back by the tests themselves.
 
-Outside `src/render`, the game's draw still reads `qol::temporal()` in
+Outside `crates/ob-render/src/render`, the game's draw still reads `qol::temporal()` in
 `frame_targets` (the temporal decision itself, before the snapshot) and in
 the streak buffer's `streak_probe_due` and probe bookkeeping (a decision
 before a frame is drawn); `qol::hdr_output_active()` in the window's

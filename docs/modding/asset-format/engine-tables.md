@@ -166,7 +166,7 @@ overridable.
 | `utk_rc`, `utk_codebooks`, `utk_commands` | UTK decoder | decoder | src/audio/codec/utk.rs |
 | `mp3_huff`, `mp3_linbits`, `mp3_window_rows` | layer III decoder | decoder | src/audio/codec/mp3_tables.rs |
 | `vp6` | `Vp6Tables` | decoder | crates/ob-formats/src/formats/vp6.rs, src/movie.rs |
-| `in_game_rig`, `default_rig` | `[RigLight; 3]` | tunable | src/render/native/car/lighting.rs |
+| `in_game_rig`, `default_rig` | `[RigLight; 3]` | tunable | crates/ob-render/src/render/native/car/lighting.rs |
 | `slot_shots`, `vinyl_shots`, `suv_engine_shot` | `[[(u32, Shot); 42]; 2]`, `[[Shot; 7]; 2]`, `Shot` | tunable | src/garage.rs |
 | `world_map_zooms` | `[(f32, f32, f32, u32); 6]` | tunable | src/frontend/screens/ingame_map.rs |
 | `magazine_lines`, `dvd_lines`, `rating_lines` | `[(u32, u32); 20]`, `[(u32, u32); 10]`, `[u32; 11]` | fixed (career texts and covers) | src/frontend/dday/hints.rs |

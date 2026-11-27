@@ -1,49 +1,49 @@
-# scripts/checks/layering.sh rules 1 and 2 (src/render/core, src/render/native): the hits left, one per line:
+# scripts/checks/layering.sh rules 1 and 2 (crates/ob-render/src/render/core, crates/ob-render/src/render/native): the hits left, one per line:
 # <rule><TAB><file><TAB><the line's text, trimmed><TAB><why it stays>. Rule `enh` (the enhancement layer used),
 # `qol` (a QoL settings read), `state` (global mutable state). Shrinks as the code moves; a new hit fails.
-enh	src/render/native/car/mod.rs	use crate::render::enh::materials::car::glass;	the car glass pass lives in enh but draws in the native car pass (a move, not a small fix)
-enh	src/render/native/car/mod.rs	pub use crate::render::enh::materials::car::glass::record_glass_batch;	same: the glass batch re-exported for the native car pass
-enh	src/render/native/car/record.rs	crate::render::enh::materials::car::glass::warm(gpu, scene.target(self.color_format), samples, opts);	same: the glass pipelines warmed with the car pass
-enh	src/render/native/car/record.rs	crate::render::enh::materials::car::glass::warm(gpu, scene.target(color_format), samples, opts);	same (the warm test)
-enh	src/render/native/post/mod.rs	use crate::render::enh::post::hdr::grade_lut::*;	the native post chain bakes its grade into the HDR grade LUT (a move, not a small fix)
-enh	src/render/native/world/mod.rs	pub(in crate::render) fx_sim: crate::render::enh::weather::host::WeatherSim,	the world renderer owns the weather sim's GPU host (a move, not a small fix)
-qol	src/render/core/gpu.rs	crate::qol::crash::set_adapter(&adapter.get_info());	start-up: the crash report records the adapter
-qol	src/render/core/gpu.rs	crate::qol::crash::set_adapter(&gpu.adapter.get_info());	start-up: the crash report records the adapter
-qol	src/render/core/gpu.rs	crate::qol::log_file::flush(std::time::Duration::from_millis(300));	a device panic: the log file flushed before the abort
-qol	src/render/core/gpu.rs	crate::qol::set_gpu_caps(device.limits().max_texture_dimension_2d, adapter.get_info().device_type);	start-up: the device's caps written into the store the presets read
-qol	src/render/core/gpu.rs	crate::qol::set_gpu_class(crate::qol::classify_gpu(	start-up: the device's caps written into the store the presets read
-qol	src/render/core/gpu.rs	crate::qol::set_hdr_support(hdr_supported(adapter, specific, mask));	start-up: the device's caps written into the store the presets read
-qol	src/render/core/gpu.rs	crate::qol::set_msaa_support(mask);	start-up: the device's caps written into the store the presets read
-qol	src/render/core/gpu.rs	crate::qol::set_rt_offered(rt::adapter_can(adapter));	start-up: the device's caps written into the store the presets read
-qol	src/render/core/gpu.rs	crate::qol::set_rt_support(device.features().contains(rt::FEATURE));	start-up: the device's caps written into the store the presets read
-qol	src/render/core/gpu.rs	log::info!("GPU class: {} (the presets' effect tiers)", crate::qol::gpu_class().name());	start-up: the device's caps written into the store the presets read
-qol	src/render/native/display/present.rs	.or_else(crate::qol::frame_cap)	pacing: the frame loop's Frame Cap row beside NFSU2_FRAME_CAP, not a frame read
-state	src/render/core/device_cache.rs	static MODULES_BUILT: AtomicU64 = AtomicU64::new(0);	measuring: the pipeline build counters and times the benches and the first-frame test read
-state	src/render/core/device_cache.rs	static MODULE_NS: AtomicU64 = AtomicU64::new(0);	measuring: the pipeline build counters and times the benches and the first-frame test read
-state	src/render/core/device_cache.rs	static PIPELINE_NS: AtomicU64 = AtomicU64::new(0);	measuring: the pipeline build counters and times the benches and the first-frame test read
-state	src/render/core/device_cache.rs	std::thread_local! {	crash report: the pipeline this thread is making, named by a native crash
-state	src/render/core/device_cache.rs	static MAKING: std::cell::Cell<Option<(&'static str, &'static std::panic::Location<'static>)>> =	crash report: the pipeline this thread is making, named by a native crash
-state	src/render/core/gpu.rs	pub(crate) static PIPELINES_BUILT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);	measuring: the pipeline build counters and times the benches and the first-frame test read
-state	src/render/core/gpu.rs	static RECORDING: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);	measuring: the pipeline-build recorder (tags and call sites) of the first-frame test
-state	src/render/core/gpu.rs	static RECORDED: std::sync::Mutex<Vec<&'static std::panic::Location<'static>>> = std::sync::Mutex::new(Vec::new());	measuring: the pipeline-build recorder (tags and call sites) of the first-frame test
-state	src/render/core/gpu.rs	static NEXT_TAG: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);	measuring: the pipeline-build recorder (tags and call sites) of the first-frame test
-state	src/render/core/jobs.rs	static QUEUE: OnceLock<Mutex<Sender<Job>>> = OnceLock::new();	the render job queue's worker pool, one per process
-state	src/render/core/shader/registry.rs	static TEXTS: [std::sync::OnceLock<String>; ShaderId::ALL.len()] =	the shader texts, composed once per process
-state	src/render/native/car/shader_variants.rs	static CHECKED: std::sync::OnceLock<()> = std::sync::OnceLock::new();	the car shader forms checked once per process
-state	src/render/native/display/monitor.rs	static MONITOR: std::sync::RwLock<Option<MonitorInfo>> = std::sync::RwLock::new(None);	the monitor and its display modes as the window reports them, one per process
-state	src/render/native/display/present.rs	static MODES: std::sync::RwLock<Vec<(u32, u32)>> = std::sync::RwLock::new(Vec::new());	the monitor and its display modes as the window reports them, one per process
-state	src/render/native/display/present.rs	static VSYNC_OFF_MAILBOX: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);	the present mode vsync off asks for (Mailbox or Immediate), set at start-up
-state	src/render/native/display/sampler.rs	static TEXTURE_FILTER: AtomicU8 = AtomicU8::new(2);	native: BASETEXTUREFILTERPARAM, the device-wide anisotropy the samplers read when built
+enh	crates/ob-render/src/render/native/car/mod.rs	use crate::render::enh::materials::car::glass;	the car glass pass lives in enh but draws in the native car pass (a move, not a small fix)
+enh	crates/ob-render/src/render/native/car/mod.rs	pub use crate::render::enh::materials::car::glass::record_glass_batch;	same: the glass batch re-exported for the native car pass
+enh	crates/ob-render/src/render/native/car/record.rs	crate::render::enh::materials::car::glass::warm(gpu, scene.target(self.color_format), samples, opts);	same: the glass pipelines warmed with the car pass
+enh	crates/ob-render/src/render/native/car/record.rs	crate::render::enh::materials::car::glass::warm(gpu, scene.target(color_format), samples, opts);	same (the warm test)
+enh	crates/ob-render/src/render/native/post/mod.rs	use crate::render::enh::post::hdr::grade_lut::*;	the native post chain bakes its grade into the HDR grade LUT (a move, not a small fix)
+enh	crates/ob-render/src/render/native/world/mod.rs	pub(in crate::render) fx_sim: crate::render::enh::weather::host::WeatherSim,	the world renderer owns the weather sim's GPU host (a move, not a small fix)
+qol	crates/ob-render/src/render/core/gpu.rs	crate::qol::crash::set_adapter(&adapter.get_info());	start-up: the crash report records the adapter
+qol	crates/ob-render/src/render/core/gpu.rs	crate::qol::crash::set_adapter(&gpu.adapter.get_info());	start-up: the crash report records the adapter
+qol	crates/ob-render/src/render/core/gpu.rs	crate::qol::log_file::flush(std::time::Duration::from_millis(300));	a device panic: the log file flushed before the abort
+qol	crates/ob-render/src/render/core/gpu.rs	crate::qol::set_gpu_caps(device.limits().max_texture_dimension_2d, adapter.get_info().device_type);	start-up: the device's caps written into the store the presets read
+qol	crates/ob-render/src/render/core/gpu.rs	crate::qol::set_gpu_class(crate::qol::classify_gpu(	start-up: the device's caps written into the store the presets read
+qol	crates/ob-render/src/render/core/gpu.rs	crate::qol::set_hdr_support(hdr_supported(adapter, specific, mask));	start-up: the device's caps written into the store the presets read
+qol	crates/ob-render/src/render/core/gpu.rs	crate::qol::set_msaa_support(mask);	start-up: the device's caps written into the store the presets read
+qol	crates/ob-render/src/render/core/gpu.rs	crate::qol::set_rt_offered(rt::adapter_can(adapter));	start-up: the device's caps written into the store the presets read
+qol	crates/ob-render/src/render/core/gpu.rs	crate::qol::set_rt_support(device.features().contains(rt::FEATURE));	start-up: the device's caps written into the store the presets read
+qol	crates/ob-render/src/render/core/gpu.rs	log::info!("GPU class: {} (the presets' effect tiers)", crate::qol::gpu_class().name());	start-up: the device's caps written into the store the presets read
+qol	crates/ob-render/src/render/native/display/present.rs	.or_else(crate::qol::frame_cap)	pacing: the frame loop's Frame Cap row beside NFSU2_FRAME_CAP, not a frame read
+state	crates/ob-render/src/render/core/device_cache.rs	static MODULES_BUILT: AtomicU64 = AtomicU64::new(0);	measuring: the pipeline build counters and times the benches and the first-frame test read
+state	crates/ob-render/src/render/core/device_cache.rs	static MODULE_NS: AtomicU64 = AtomicU64::new(0);	measuring: the pipeline build counters and times the benches and the first-frame test read
+state	crates/ob-render/src/render/core/device_cache.rs	static PIPELINE_NS: AtomicU64 = AtomicU64::new(0);	measuring: the pipeline build counters and times the benches and the first-frame test read
+state	crates/ob-render/src/render/core/device_cache.rs	std::thread_local! {	crash report: the pipeline this thread is making, named by a native crash
+state	crates/ob-render/src/render/core/device_cache.rs	static MAKING: std::cell::Cell<Option<(&'static str, &'static std::panic::Location<'static>)>> =	crash report: the pipeline this thread is making, named by a native crash
+state	crates/ob-render/src/render/core/gpu.rs	pub(crate) static PIPELINES_BUILT: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);	measuring: the pipeline build counters and times the benches and the first-frame test read
+state	crates/ob-render/src/render/core/gpu.rs	static RECORDING: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);	measuring: the pipeline-build recorder (tags and call sites) of the first-frame test
+state	crates/ob-render/src/render/core/gpu.rs	static RECORDED: std::sync::Mutex<Vec<&'static std::panic::Location<'static>>> = std::sync::Mutex::new(Vec::new());	measuring: the pipeline-build recorder (tags and call sites) of the first-frame test
+state	crates/ob-render/src/render/core/gpu.rs	static NEXT_TAG: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);	measuring: the pipeline-build recorder (tags and call sites) of the first-frame test
+state	crates/ob-render/src/render/core/jobs.rs	static QUEUE: OnceLock<Mutex<Sender<Job>>> = OnceLock::new();	the render job queue's worker pool, one per process
+state	crates/ob-render/src/render/core/shader/registry.rs	static TEXTS: [std::sync::OnceLock<String>; ShaderId::ALL.len()] =	the shader texts, composed once per process
+state	crates/ob-render/src/render/native/car/shader_variants.rs	static CHECKED: std::sync::OnceLock<()> = std::sync::OnceLock::new();	the car shader forms checked once per process
+state	crates/ob-render/src/render/native/display/monitor.rs	static MONITOR: std::sync::RwLock<Option<MonitorInfo>> = std::sync::RwLock::new(None);	the monitor and its display modes as the window reports them, one per process
+state	crates/ob-render/src/render/native/display/present.rs	static MODES: std::sync::RwLock<Vec<(u32, u32)>> = std::sync::RwLock::new(Vec::new());	the monitor and its display modes as the window reports them, one per process
+state	crates/ob-render/src/render/native/display/present.rs	static VSYNC_OFF_MAILBOX: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);	the present mode vsync off asks for (Mailbox or Immediate), set at start-up
+state	crates/ob-render/src/render/native/display/sampler.rs	static TEXTURE_FILTER: AtomicU8 = AtomicU8::new(2);	native: BASETEXTUREFILTERPARAM, the device-wide anisotropy the samplers read when built
 state	crates/ob-assets/src/render/native/fx/fog.rs	static LAST_SAMPLE: std::sync::Mutex<Option<[f32; 5]>> = std::sync::Mutex::new(None);	native: 0x89E850, the fog's last row, process-wide like the original's
-state	src/render/native/post/lens_drops.rs	static PLAIN_COPY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);	tests and measurements: the switch to the older path they compare
-state	src/render/native/post/lens_drops.rs	static IN_PLACE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);	tests: the counter they read back
-state	src/render/native/post/mod.rs	static PLAIN_TINT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);	tests and measurements: the switch to the older path they compare
-state	src/render/native/post/mod.rs	static TINT_FOLDS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);	tests: the counter they read back
-state	src/render/native/ui/geom_dump.rs	static STATE: Mutex<Option<State>> = Mutex::new(None);	NFSU2_UI_GEOM's dump (debugging aid)
-state	src/render/native/ui/layout.rs	static HUD_PALETTE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);	the HUD Colours row's remap, set by the front end (a move to the frame's settings, not a small fix)
-state	src/render/native/world/plan.rs	pub static PLAIN_SSR_MASK: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);	tests and measurements: the switch to the older path they compare
-state	src/render/native/world/plan.rs	pub static MASK_FROM_MAIN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);	tests: the counter they read back
-state	src/render/native/world/plan.rs	pub static FORCE_MASK_FROM_MAIN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);	tests and measurements: the switch to the older path they compare
-state	src/render/native/world/plan.rs	pub static MASK_FROM_MAIN_DEVICE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);	tests: the counter they read back
-qol	src/render/native/frame_settings.rs	pub use crate::qol::RenderOptions;	the type's re-export: RenderOptions lives with the settings store that fills it
-state	src/render/native/ui/geom_dump.rs	static MOUSE: OnceLock<MouseHooks> = OnceLock::new();	dev-harness only: the menus layer hands over the mouse hooks once (set-once, no state changes after)
+state	crates/ob-render/src/render/native/post/lens_drops.rs	static PLAIN_COPY: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);	tests and measurements: the switch to the older path they compare
+state	crates/ob-render/src/render/native/post/lens_drops.rs	static IN_PLACE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);	tests: the counter they read back
+state	crates/ob-render/src/render/native/post/mod.rs	static PLAIN_TINT: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);	tests and measurements: the switch to the older path they compare
+state	crates/ob-render/src/render/native/post/mod.rs	static TINT_FOLDS: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);	tests: the counter they read back
+state	crates/ob-render/src/render/native/ui/geom_dump.rs	static STATE: Mutex<Option<State>> = Mutex::new(None);	NFSU2_UI_GEOM's dump (debugging aid)
+state	crates/ob-render/src/render/native/ui/layout.rs	static HUD_PALETTE: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);	the HUD Colours row's remap, set by the front end (a move to the frame's settings, not a small fix)
+state	crates/ob-render/src/render/native/world/plan.rs	pub static PLAIN_SSR_MASK: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);	tests and measurements: the switch to the older path they compare
+state	crates/ob-render/src/render/native/world/plan.rs	pub static MASK_FROM_MAIN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);	tests: the counter they read back
+state	crates/ob-render/src/render/native/world/plan.rs	pub static FORCE_MASK_FROM_MAIN: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);	tests and measurements: the switch to the older path they compare
+state	crates/ob-render/src/render/native/world/plan.rs	pub static MASK_FROM_MAIN_DEVICE: std::sync::atomic::AtomicU8 = std::sync::atomic::AtomicU8::new(0);	tests: the counter they read back
+qol	crates/ob-render/src/render/native/frame_settings.rs	pub use crate::qol::RenderOptions;	the type's re-export: RenderOptions lives with the settings store that fills it
+state	crates/ob-render/src/render/native/ui/geom_dump.rs	static MOUSE: OnceLock<MouseHooks> = OnceLock::new();	dev-harness only: the menus layer hands over the mouse hooks once (set-once, no state changes after)

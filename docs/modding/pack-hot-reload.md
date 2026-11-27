@@ -38,7 +38,7 @@ textures this way whatever the setting says, for that run only.
 
 ## How it works
 
-The rest of this page is for developers. Code: `src/render/pack_reload.rs`. The setting is
+The rest of this page is for developers. Code: `crates/ob-render/src/render/pack_reload.rs`. The setting is
 `RowId::ReloadPacks`, label `0xC1_04E0_D4`, options.txt `enh.reload_packs 1`.
 
 - **Watching.** A background thread ("pack watcher", started and stopped once a frame by

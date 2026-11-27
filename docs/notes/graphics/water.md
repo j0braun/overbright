@@ -57,7 +57,7 @@ copy of the city); L4RB / L4RG only the panorama ocean; L4RC, L4RF, L4RH, L4RR n
 What `water::build` takes (top LOD / LOD B): 141 / 130 placements, 7007 / 4444 triangles, 110 / 106
 with falling water, 687 / 645 landings.
 
-## What On does (`src/render/enh/volumes/water/`, `water.wgsl`)
+## What On does (`crates/ob-render/src/render/enh/volumes/water/`, `water.wgsl`)
 * **Replaces the water draws of the main view only.** `Draw::water` marks the draws whose texture
   is a water texture (`water::kind_of`; not on a reflective mesh); `WorldRenderer::set_hide_water`
   (set each frame by `water_prepare` in game.rs, = the row) makes the main view's draw list leave
@@ -159,7 +159,7 @@ the jackpot basin (−337, −701) and the plaza fountain (−432, −112), 5 at
 
 ## Realistic (the row's top tier: fountain water closer to a modern game)
 Clone deviation, opt-in, manual only. Nothing native to compare with: SPEED2.EXE has no water system
-(above). `src/render/enh/volumes/water/hq.rs` + `water_hq.wgsl` (appended to `water.wgsl`, whose module, pipelines
+(above). `crates/ob-render/src/render/enh/volumes/water/hq.rs` + `water_hq.wgsl` (appended to `water.wgsl`, whose module, pipelines
 and uniform for On are untouched; the tier writes one more uniform). The same triangles as On, the
 same pick (`water::pick`), the same clock; only the drawing differs. Passes, into the scene before the
 temporal pass (`Water::draw_surfaces` hands over to `water_hq::Hq::draw`), each with its own GPU
@@ -230,7 +230,7 @@ Every constant is by eye against the clone's own frames.
 ## Next-Gen (the row's fourth tier, past Realistic)
 Clone deviation, opt-in, manual only, `enh.water 3` (the row's tier names are strings: **no new label
 id**). Nothing native to compare with (SPEED2.EXE has no water system, above); every constant is by eye
-(**inferred**). `src/render/enh/volumes/water/ng.rs` (CPU: charts, allocation, slots, mist; GPU half `Ng`),
+(**inferred**). `crates/ob-render/src/render/enh/volumes/water/ng.rs` (CPU: charts, allocation, slots, mist; GPU half `Ng`),
 `water_ng_sim.wgsl` (compute, standalone), `water_ng.wgsl` (drawing, appended to `water.wgsl` +
 `water_hq.wgsl`). It builds on Realistic: its wet stone, its scene copy, its surface shading (moved into
 `surface_hq(SurfIn)`, a pure refactor: Realistic draws the same) and its pick. On's spray billboards are

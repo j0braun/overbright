@@ -738,7 +738,7 @@ follow from +0x10):
 | 0x08 | 4 | `u32` | `const` | – | 2: the version. 0x5E01A0 reads nothing else, so the importer keeps a chunk of another version in the residual and writes no sources. |
 | 0x0C | 4 | `u32` | `source_count` | – | *derived*: the number of sources. |
 
-Layout `horizon_source` (0x64 bytes, alignment 4; `src/render/native/fx/horizon_fog.rs:66`):
+Layout `horizon_source` (0x64 bytes, alignment 4; `crates/ob-render/src/render/native/fx/horizon_fog.rs:66`):
 
 | Offset | Size | Type | Field | Unit | Notes |
 |---|---|---|---|---|---|

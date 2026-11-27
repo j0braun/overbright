@@ -169,4 +169,4 @@ what a fix needs.
 
 Code: `src/diag/` (`support.rs`, `events.rs`, `native_crash.rs`), the game's hooks in
 `src/bin/game/shell/{startup,window,frame_loop,waits,support}.rs`, `src/bin/game/render/frame/mod.rs` and
-`src/render/core/gpu.rs`.
+`crates/ob-render/src/render/core/gpu.rs`.

@@ -17,8 +17,6 @@ pub use sampler::*;
 pub use surface::*;
 pub use crate::draw::ui_frame::*;
 
-#[cfg(test)]
-mod frontend_tests;
 
 #[cfg(test)]
 mod tests {

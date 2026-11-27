@@ -29,7 +29,7 @@ NFSU2 has no separate "candy" or "matte" body finish: matte materials (MATTEPLAS
 native; "candy" is the name used here for CUSTOMPAINT_* (inferred from their diffuse/specular colours
 differing in hue, e.g. CUSTOMPAINT_7 purple diffuse / blue specular), not a game term.
 
-## What the layer does (src/render/car_paint.wgsl)
+## What the layer does (crates/ob-render/src/render/car_paint.wgsl)
 Built from car.efx's own terms (the harmonic HarmonicCoeff lighting, Specular/Envmap Min/Range):
 - **Crisp reflection**: the env cube is looked up along the per-pixel reflection direction (the native
   path interpolates the vertex shader's), same cube and convention, so the mean is unchanged.

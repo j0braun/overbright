@@ -250,7 +250,7 @@ p95 2.27 × the roof's) and an isotropic w (trunk p95 1.57–2.56 × the roof's)
 lands on the trunk again, because the specular's tint is the rig's camera-fixed colour lobes and car.efx's
 SpecularMin + (n·v)^p · SpecularRange favours the panel that faces the camera. What carries the body instead
 is the environment reflection (the world cube, the scene the paint really reflects): `SCENE_ENV_GAIN` 1.15 on
-EnvmapMin/EnvmapRange (`CarLighting::env_gain`, src/render/native/car/instance.rs). **Inferred** (tuned):
+EnvmapMin/EnvmapRange (`CarLighting::env_gain`, crates/ob-render/src/render/native/car/instance.rs). **Inferred** (tuned):
 1.6 lifted the roof and quarters (which reflect the lit walls) past the trunk (trunk 57 vs roof 77) and
 2.2 made the 350Z brighter than the Original (car 101 vs 84.3) with a wet-plastic look; 1.15 keeps the trunk
 at its panels' level. Lower settings and the front end: `env_gain` 1, the native material.
@@ -407,7 +407,7 @@ every frame, Enhanced Reflections, anisotropy 16, reversed-Z, Ultra shadows, SSA
 detail 300, LOD fade, keep loaded, Enhanced Car Paint, Wet Roads, SSR Full).
 
 ### Cause (verified by reproduction and bisection)
-**Enhanced Car Paint's metallic flake (`src/render/car_paint.wgsl`), made much worse by Sharpen 100.**
+**Enhanced Car Paint's metallic flake (`crates/ob-render/src/render/car_paint.wgsl`), made much worse by Sharpen 100.**
 - Each 4 mm cell (≥ ~1.5 px) took one random tilted normal and glinted towards the dominant light with a
   power-20 lobe, switched on/off per cell (`rnd.x > 0.6`), at up to 0.5·light·tint. On a smooth lit panel
   that is a sparse set of isolated bright cells — droplets. A ±3 % per-cell grain added a fine speckle.
@@ -423,7 +423,7 @@ detail 300, LOD fade, keep loaded, Enhanced Car Paint, Wet Roads, SSR Full).
 car.efx has no wetness or rain input: its constants are HarmonicCoeff, matrices, LocalEyePos,
 Diffuse/Specular/Envmap Min/Range, SpecularPower, EnvmapPower (CTAB, formats.md "car.efx registers",
 verified against apitrace in the car-paint comparison). The original's rain drops are a screen/lens pass only (rain_drop.efx,
-0x5C7AC0, `src/render/rain.rs`), and only while it rains. So a dry or wet car is shaded the same; nothing
+0x5C7AC0, `crates/ob-render/src/render/rain.rs`), and only while it rains. So a dry or wet car is shaded the same; nothing
 drop-like belongs on the car. Wet Roads' track-load wetness (docs/notes/graphics/reflections.md "Wet Roads and Screen-Space Reflections") does not reach the
 car shader (the bisection agrees).
 

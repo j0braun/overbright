@@ -64,7 +64,7 @@ do not change: only `#[test]` items use these flags.
 * Tests marked with a plain `#[ignore = "..."]` (GPU probes, diagnostics)
   run only on request: `cargo test --release -- --ignored NAME`.
 * **Needs `spirv-val`:** `every_module_is_valid_vulkan_spirv`
-  (`src/render/core/shader/validate_tests.rs`) writes every shader module the
+  (`crates/ob-render/src/render/core/shader/validate_tests.rs`) writes every shader module the
   renderer builds to SPIR-V with the same naga the Vulkan backend uses and
   checks it with `spirv-val --target-env vulkan1.1` (from the Vulkan SDK or
   the `spirv-tools` package), because some drivers crash on invalid SPIR-V.
