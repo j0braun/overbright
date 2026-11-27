@@ -27,11 +27,6 @@ use super::ui::{Input, Key, Kind, render_on};
 
 type Surface = softbuffer::Surface<Rc<Window>, Rc<Window>>;
 
-/// A held pad direction: the first repeat after this, then one every
-/// [`REPEAT_EVERY`] (about a keyboard's).
-const REPEAT_DELAY: Duration = Duration::from_millis(400);
-const REPEAT_EVERY: Duration = Duration::from_millis(110);
-
 struct Run<'e> {
     app: App<'e>,
     fonts: Fonts,
@@ -41,16 +36,14 @@ struct Run<'e> {
     mods: ModifiersState,
     mouse: (f32, f32),
     pad: Option<gilrs::Gilrs>,
-    /// The left stick's last direction (−1, 0, 1 per axis) for edges.
-    stick: (super::pad_filter::Stick, super::pad_filter::Stick),
+    /// The pads' events as keys (settling after a connect, a pad read
+    /// wrongly ignored, the held direction's repeat).
+    nav: super::pad_filter::PadNav,
     pad_name: super::pad_filter::NameDebounce,
     pad_at: Option<Instant>,
     pad_events: u32,
     /// Input-mode switch log: (window start, switches in it, shown).
     mode_log: (Option<Instant>, u32, u32),
-    /// A direction held on the pad (d-pad or stick) and when it repeats
-    /// next, as a held arrow key does.
-    held: Option<(Key, Instant)>,
     outcome: Outcome,
     error: Option<String>,
     game: GameStart,
@@ -945,8 +938,7 @@ impl Run<'_> {
             if let Some(g) = &self.pad
                 && let Some((_, p)) = g.gamepads().find(|(_, p)| p.is_connected())
             {
-                self.stick.0.calibrate(p.value(gilrs::Axis::LeftStickX));
-                self.stick.1.calibrate(p.value(gilrs::Axis::LeftStickY));
+                self.nav.calibrate(p.value(gilrs::Axis::LeftStickX), p.value(gilrs::Axis::LeftStickY));
             }
             self.app.rebuild(&self.fonts);
             if let Some(w) = &self.window {
@@ -956,7 +948,6 @@ impl Run<'_> {
         let Some(g) = &mut self.pad else { return };
         let mut inputs = Vec::new();
         let now = Instant::now();
-        let is_move = |k: Key| matches!(k, Key::Up | Key::Down | Key::Left | Key::Right);
         let mut kind = None;
         while let Some(ev) = g.next_event() {
             // The first events of the run, to see what a pad sends.
@@ -964,86 +955,26 @@ impl Run<'_> {
                 self.pad_events += 1;
                 log::info!("gamepad event {}: {:?}", self.pad_events, ev.event);
             }
-            if matches!(ev.event, gilrs::EventType::ButtonPressed(..)) {
+            use super::pad_filter::PadEv;
+            let pe = match ev.event {
+                gilrs::EventType::Connected => PadEv::Connected,
+                gilrs::EventType::Disconnected => PadEv::Disconnected,
+                gilrs::EventType::ButtonPressed(b, c) => PadEv::Pressed(b, c.into_u32()),
+                gilrs::EventType::ButtonReleased(b, c) => PadEv::Released(b, c.into_u32()),
+                gilrs::EventType::AxisChanged(a, v, _) => PadEv::Axis(a, v),
+                _ => continue,
+            };
+            if let Some(k) = self.nav.event(usize::from(ev.id), pe, now) {
                 let p = g.gamepad(ev.id);
                 kind = Some(deck::pad_kind(p.name(), p.vendor_id()));
-            }
-            match ev.event {
-                gilrs::EventType::ButtonReleased(b, _) => {
-                    let k = match b {
-                        gilrs::Button::DPadUp => Key::Up,
-                        gilrs::Button::DPadDown => Key::Down,
-                        gilrs::Button::DPadLeft => Key::Left,
-                        gilrs::Button::DPadRight => Key::Right,
-                        _ => continue,
-                    };
-                    if self.held.is_some_and(|(h, _)| h == k) {
-                        self.held = None;
-                    }
-                }
-                gilrs::EventType::ButtonPressed(b, _) => {
-                    let k = match b {
-                        gilrs::Button::DPadUp => Key::Up,
-                        gilrs::Button::DPadDown => Key::Down,
-                        gilrs::Button::DPadLeft => Key::Left,
-                        gilrs::Button::DPadRight => Key::Right,
-                        gilrs::Button::South | gilrs::Button::Start => Key::Enter,
-                        gilrs::Button::East => Key::Escape,
-                        gilrs::Button::LeftTrigger => Key::PagePrev,
-                        gilrs::Button::RightTrigger => Key::PageNext,
-                        gilrs::Button::LeftTrigger2 => Key::MoveUp,
-                        gilrs::Button::RightTrigger2 => Key::MoveDown,
-                        gilrs::Button::West => Key::ActionX,
-                        gilrs::Button::North => Key::ActionY,
-                        _ => continue,
-                    };
-                    if is_move(k) {
-                        self.held = Some((k, now + REPEAT_DELAY));
-                    }
-                    inputs.push(Input::Key(k));
-                }
-                gilrs::EventType::AxisChanged(axis, v, _) => {
-                    match axis {
-                        gilrs::Axis::LeftStickX => {
-                            if let Some(dir) = self.stick.0.feed(v) {
-                                if self.held.is_some_and(|(h, _)| matches!(h, Key::Left | Key::Right)) {
-                                    self.held = None;
-                                }
-                                if dir != 0 {
-                                    let k = if dir > 0 { Key::Right } else { Key::Left };
-                                    self.held = Some((k, now + REPEAT_DELAY));
-                                    inputs.push(Input::Key(k));
-                                    kind = Some(deck::pad_kind(g.gamepad(ev.id).name(), g.gamepad(ev.id).vendor_id()));
-                                }
-                            }
-                        }
-                        gilrs::Axis::LeftStickY => {
-                            if let Some(dir) = self.stick.1.feed(v) {
-                                if self.held.is_some_and(|(h, _)| matches!(h, Key::Up | Key::Down)) {
-                                    self.held = None;
-                                }
-                                if dir != 0 {
-                                    // gilrs: up is positive.
-                                    let k = if dir > 0 { Key::Up } else { Key::Down };
-                                    self.held = Some((k, now + REPEAT_DELAY));
-                                    inputs.push(Input::Key(k));
-                                    kind = Some(deck::pad_kind(g.gamepad(ev.id).name(), g.gamepad(ev.id).vendor_id()));
-                                }
-                            }
-                        }
-                        // Other axes (motion sensor, triggers, right stick) are not input here.
-                        _ => {}
-                    }
-                }
-                gilrs::EventType::Disconnected => self.held = None,
-                _ => {}
+                inputs.push(Input::Key(k));
             }
         }
+        for n in self.nav.notes.drain(..) {
+            log::info!("{n}");
+        }
         // A held direction repeats (lists, the resolution row).
-        if let Some((k, at)) = self.held
-            && now >= at
-        {
-            self.held = Some((k, now + REPEAT_EVERY));
+        if let Some(k) = self.nav.tick(now) {
             inputs.push(Input::Key(k));
         }
         inputs.retain(|i| match i {
@@ -1183,7 +1114,7 @@ impl ApplicationHandler for Run<'_> {
             // release here: a focus change lets them go.
             WindowEvent::Focused(_) => {
                 self.mods = ModifiersState::empty();
-                self.held = None;
+                self.nav.release();
             }
             WindowEvent::KeyboardInput { event, .. } if event.state == ElementState::Pressed => {
                 self.app.model.pad_input = false;
@@ -1476,12 +1407,11 @@ pub fn run_with_root(env: &dyn Env, start: Start) -> Result<Outcome, String> {
         mods: ModifiersState::empty(),
         mouse: (0.0, 0.0),
         pad,
-        stick: Default::default(),
         pad_name: Default::default(),
         pad_at: None,
         pad_events: 0,
         mode_log: (None, 0, 0),
-        held: None,
+        nav: Default::default(),
         outcome: Outcome::Stay,
         error: None,
         game: start.game,
