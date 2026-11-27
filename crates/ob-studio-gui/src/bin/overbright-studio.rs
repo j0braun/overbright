@@ -272,7 +272,7 @@ fn run_shot(cli: &Cli) -> Result<()> {
         if w == Workspace::Data {
             let folder = s.open_mod().map(|m| m.folder.clone());
             s.changes.ensure(folder.as_deref());
-            s.data_reload();
+            s.data_enter();
         }
         if w == Workspace::Mod {
             let folder = s.open_mod().map(|m| m.folder.clone());

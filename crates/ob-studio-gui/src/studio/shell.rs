@@ -33,6 +33,9 @@ use ob_studio::create::Template;
 const MENUS: [&str; 7] = [words::FILE, words::EDIT, words::VIEW, words::GO, words::TEST, words::MOD, words::HELP];
 /// Home's "what each place does" rows, in rail order.
 const PLACES: [Workspace; 4] = [Workspace::World, Workspace::Races, Workspace::Changes, Workspace::Mod];
+/// The height of Home's "N more…" row under the mod rows.
+pub const MORE_H: f32 = 34.0;
+
 /// Home's "start something new" rows: Empty map mod, the templates, the sample (in that order; as many as fit).
 const NEW_ROWS: [Template; 4] = [Template::Empty, Template::Sprint, Template::Circuit, Template::Sample];
 /// The sample race pack's folder in your mods.
@@ -112,6 +115,8 @@ pub struct Studio {
     pub home_focus: usize,
     /// How many of Home's mod rows the last frame had room for.
     home_rows: usize,
+    /// Home shows a "N more…" row under the mod rows (not every mod fit).
+    home_more: bool,
     /// How many of Home's "what each place does" rows the last frame had room for.
     home_places: usize,
     /// How many of Home's "start something new" rows (Empty map mod, the templates, the sample) it had room for.
@@ -137,6 +142,8 @@ pub enum HomeAct {
     NewMod,
     /// Open one of your mods (an index into `mods`).
     Mod(usize),
+    /// "N more…": the full list of your mods (Find, on its mods).
+    MoreMods,
     /// Go to a workspace ("what each place does").
     Place(Workspace),
     /// Start a tutorial (START HERE).
@@ -185,6 +192,7 @@ impl Studio {
             new_mod: None,
             home_focus: 0,
             home_rows: 6,
+            home_more: false,
             home_places: 4,
             guide: None,
             guide_rect: None,
@@ -328,7 +336,11 @@ impl Studio {
                 None => self.changes.ensure(None),
             }
             if w == Workspace::Data {
-                self.data_reload();
+                if self.nav.workspace != Workspace::Data {
+                    self.data_enter();
+                } else {
+                    self.data_reload();
+                }
             }
         }
         if w == Workspace::Mod || (self.nav.workspace.kind() == Kind::Tool && w.kind() == Kind::Page) {
@@ -721,6 +733,9 @@ impl Studio {
             v.extend(guide::Tutorial::ALL.map(HomeAct::StartTutorial));
         }
         v.extend(self.home_order().into_iter().take(self.home_rows.min(6)).map(HomeAct::Mod));
+        if self.home_more {
+            v.push(HomeAct::MoreMods);
+        }
         v.push(HomeAct::NewMod);
         v.extend(NEW_ROWS[1..].iter().take(self.home_new.saturating_sub(1)).map(|t| HomeAct::Template(*t)));
         v
@@ -747,6 +762,7 @@ impl Studio {
                 self.switch_mod(i);
                 self.home_focus = 0;
             }
+            HomeAct::MoreMods => self.find_mods(),
             HomeAct::Place(w) => self.workspace(w),
             HomeAct::StartTutorial(t) => self.start_tutorial(t),
             HomeAct::Template(t) => self.open_template(t),
@@ -1043,6 +1059,13 @@ impl Studio {
             && !self.nav.find_open
             && !self.nav.address_text
             && self.verdict.is_none()
+    }
+
+    /// Coming to the Data page: its table on the first kind this mod has values of, from the Changes page's rows.
+    pub fn data_enter(&mut self) {
+        let rows = self.changes.data().map(|d| d.rows.clone()).unwrap_or_default();
+        self.data.open_on_values(&rows);
+        self.data_reload();
     }
 
     /// The Changes page's rows, as the Data page's table has them.
@@ -2315,6 +2338,7 @@ impl Studio {
             y += 14.0;
         }
         p.text(pos2(col.left(), y), Align2::LEFT_TOP, words::FIND_MODS, font("body", 12.0), rgb(t.dim));
+        let heading_y = y;
         y += 22.0;
         let mut rows_drawn = 0;
         // Room for the new rows under your mods, one mod row still left: all four as tall as your mods' rows, else
@@ -2325,11 +2349,20 @@ impl Studio {
         let step = if room >= 60.0 * n as f32 { 60.0 } else { 46.0 };
         let new_rows = ((room / step).floor() as usize).clamp(1, n);
         let new_h = 36.0 + step * new_rows as f32 + 22.0 * (new_rows == n) as u8 as f32;
-        for (i, m) in self.home_order().into_iter().map(|i| (i, &self.mods[i])).take(6) {
-            // As many as the slab has room for (the rest are in the Mod menu and Find).
-            if y + 56.0 > inner.bottom() - new_h {
-                break;
-            }
+        // As many rows as the slab has room for, and a "N more…" row for the rest when there are any (the full list
+        // is Find's, on your mods).
+        let room_rows = |extra: f32| (((inner.bottom() - new_h - y - extra) + 4.0) / 60.0).floor().max(0.0) as usize;
+        let total = self.mods.len();
+        let fit = total.min(6).min(room_rows(0.0));
+        // Not all fit: the rows leave room for the "more" row under them, or, in a window with room for one row
+        // only, the link sits at the end of the heading and the rows stay.
+        let (shown, more_row) = match (fit < total, room_rows(MORE_H).min(fit)) {
+            (false, _) => (fit, false),
+            (true, 0) => (fit, false),
+            (true, k) => (k, true),
+        };
+        let more = total - shown;
+        for (i, m) in self.home_order().into_iter().map(|i| (i, &self.mods[i])).take(shown) {
             rows_drawn += 1;
             let row = Rect::from_min_size(pos2(col.left(), y), vec2(col.width(), 56.0));
             let open = Some(i) == self.open;
@@ -2357,6 +2390,31 @@ impl Studio {
             let clicked = ui.interact(row, egui::Id::unique(("mod", i)), egui::Sense::click()).clicked();
             take(row, clicked, &mut target, &mut acted);
             y += 60.0;
+        }
+        if more > 0 && !more_row {
+            let text = format!("{more} {}", words::MORE.to_lowercase());
+            let g = p.layout_no_wrap(text, draw::label_font(13.0), rgb(t.lime));
+            let at = pos2(col.right() - g.size().x, heading_y - 2.0);
+            let row = Rect::from_min_size(at, g.size()).expand2(vec2(4.0, 2.0));
+            let resp = ui.interact(row, egui::Id::unique("home.more"), egui::Sense::click());
+            p.galley(at, g, rgb(t.lime));
+            take(row, resp.clicked(), &mut target, &mut acted);
+        }
+        if more > 0 && more_row {
+            let row = Rect::from_min_size(pos2(col.left(), y), vec2(col.width(), MORE_H - 4.0));
+            let resp = ui.interact(row, egui::Id::unique("home.more"), egui::Sense::click());
+            if resp.hovered() {
+                p.rect_filled(row, 6.0, theme::over(t.hover, t.slab.over(t.page)));
+            }
+            p.text(
+                pos2(row.left() + 40.0, row.center().y),
+                Align2::LEFT_CENTER,
+                format!("{more} {}", words::MORE.to_lowercase()),
+                draw::label_font(15.0),
+                rgb(t.lime),
+            );
+            take(row, resp.clicked(), &mut target, &mut acted);
+            y += MORE_H;
         }
         if self.mods.is_empty() {
             p.text(pos2(col.left(), y), Align2::LEFT_TOP, words::NONE_YET, font("body", 15.0), rgb(t.dim));
@@ -2414,6 +2472,7 @@ impl Studio {
         self.home_new = new_rows;
         let _ = target;
         self.home_rows = rows_drawn;
+        self.home_more = more > 0;
         if self.home_focus >= self.home_targets().len() {
             self.home_focus = 0;
         }

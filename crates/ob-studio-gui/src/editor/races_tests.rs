@@ -398,3 +398,33 @@ fn the_top_views_grab_keeps_its_screen_size_at_any_zoom() {
     let inn = pick_radius(Some((TopView { centre: Vec2::ZERO, half_height: 20.0 }, rect)));
     assert!(pick(&r, near, out).is_some() && pick(&r, near, inn).is_none());
 }
+
+/// The inspector's four Mode buttons sit in two columns of two, aligned, inside the panel, at the narrow dock widths.
+#[test]
+fn the_mode_buttons_are_a_deliberate_two_by_two() {
+    for width in [280.0_f32, 300.0, 380.0, 520.0] {
+        let mut s = state(sprint(&[(20.0, 0.0), (380.0, 0.0)]));
+        let mut races = Races::new();
+        let ctx = egui::Context::default();
+        for _ in 0..3 {
+            let raw = egui::RawInput {
+                screen_rect: Some(egui::Rect::from_min_size(egui::Pos2::ZERO, egui::vec2(width, 700.0))),
+                ..Default::default()
+            };
+            let _ = crate::editor::run_headless(&ctx, raw, |ui| {
+                ui.set_max_width(width - 16.0);
+                races.properties(&mut s, ui);
+            });
+        }
+        let b = &races.mode_buttons;
+        assert_eq!(b.len(), 4, "{width}");
+        assert_eq!(b[0].top(), b[1].top(), "{width}: Circuit and Sprint share a row");
+        assert_eq!(b[2].top(), b[3].top(), "{width}: StreetX and Drift share a row");
+        assert!(b[2].top() > b[0].bottom() - 1.0, "{width}: the second row is below the first");
+        assert_eq!(b[0].left(), b[2].left(), "{width}: the columns line up");
+        assert_eq!(b[1].left(), b[3].left(), "{width}: the columns line up");
+        for r in b {
+            assert!(r.right() <= width - 8.0, "{width}: a button ends at {}", r.right());
+        }
+    }
+}

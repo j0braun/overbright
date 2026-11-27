@@ -133,6 +133,16 @@ impl Page {
         }
     }
 
+    /// Coming to the page: when the shown kind has no values in this mod, open the first kind that has some.
+    pub fn open_on_values(&mut self, rows: &[Row]) {
+        if rows.iter().any(|r| r.kind == self.kind) {
+            return;
+        }
+        if let Some(k) = KINDS.into_iter().find(|k| rows.iter().any(|r| r.kind == *k)) {
+            self.set_kind(k, rows);
+        }
+    }
+
     /// The other kind's tab.
     pub fn other_kind(&self) -> &'static str {
         KINDS.into_iter().find(|k| *k != self.kind).unwrap_or(self.kind)

@@ -132,7 +132,9 @@ pub const NO_MODEL_OR_TEXTURE_MATCHES: &str = "No model or texture matches";
 pub const CHOOSE_A_RESULT_TO_SEE_IT: &str = "Choose a result to see it and where it is used";
 pub const OPEN_IN_LOOKS: &str = "Open in Looks";
 pub const DRAWING: &str = "Drawing…";
+pub const MORE: &str = "More…";
 pub const NO_PICTURE: &str = "No picture";
+pub const NO_MESH_HELPER: &str = "No mesh (helper)";
 pub const USED_BY_MODELS: &str = "Used by models";
 pub const TEXTURES: &str = "Textures";
 pub const EXPORT_GLTF: &str = "Export glTF";
@@ -496,7 +498,9 @@ pub const ALL: &[&str] = &[
     CHOOSE_A_RESULT_TO_SEE_IT,
     OPEN_IN_LOOKS,
     DRAWING,
+    MORE,
     NO_PICTURE,
+    NO_MESH_HELPER,
     USED_BY_MODELS,
     TEXTURES,
     EXPORT_GLTF,

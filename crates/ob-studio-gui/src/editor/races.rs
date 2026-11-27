@@ -77,6 +77,8 @@ pub struct Races {
     /// What the checks and previews were made from.
     seen: Option<(MapMod, Vec<u16>)>,
     pub checks: Vec<Check>,
+    /// Where the inspector's Mode buttons were drawn last (the layout test reads them).
+    pub mode_buttons: Vec<egui::Rect>,
     pub previews: Vec<Preview>,
     /// The point being dragged.
     dragging: Option<RacePoint>,
@@ -826,12 +828,23 @@ impl Races {
                 .wrap(),
             );
         });
+        // The modes in two columns, on purpose: four buttons never fit one line of the narrow panel, and a grid
+        // keeps each in the same place whatever the width (a wrapped line would split Circuit | Sprint, StreetX | Drift
+        // by chance).
+        self.mode_buttons.clear();
         row(ui, "Mode", |ui| {
-            for kind in RaceKind::ALL {
-                if ui.selectable_label(r.kind == kind, kind_title(kind)).clicked() && r.kind != kind {
-                    ops.push(Op::SetKind { race: id.clone(), kind });
+            egui::Grid::new("race-mode").num_columns(2).spacing([6.0, 4.0]).show(ui, |ui| {
+                for (i, kind) in RaceKind::ALL.into_iter().enumerate() {
+                    let resp = ui.selectable_label(r.kind == kind, kind_title(kind));
+                    self.mode_buttons.push(resp.rect);
+                    if resp.clicked() && r.kind != kind {
+                        ops.push(Op::SetKind { race: id.clone(), kind });
+                    }
+                    if i % 2 == 1 {
+                        ui.end_row();
+                    }
                 }
-            }
+            });
         });
         row(ui, "Laps", |ui| {
             let mut laps = s.session.map.races[k].laps;

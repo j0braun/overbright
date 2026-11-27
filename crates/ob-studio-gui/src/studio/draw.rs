@@ -258,7 +258,7 @@ pub fn rail_icon(p: &Painter, w: Workspace, c: Pos2, col: Color32) {
                 s,
             ));
         }
-        Workspace::World | Workspace::Changes | Workspace::Data => {
+        Workspace::World => {
             p.circle_stroke(c, 9.0, s);
             p.line_segment([c + vec2(-9.0, 0.0), c + vec2(9.0, 0.0)], s);
             let pts = |k: f32| -> Vec<Pos2> {
@@ -269,6 +269,30 @@ pub fn rail_icon(p: &Painter, w: Workspace, c: Pos2, col: Color32) {
             };
             p.add(Shape::line(pts(1.0), s));
             p.add(Shape::line(pts(-1.0), s));
+        }
+        Workspace::Changes => {
+            // A page with a plus over a minus: what you added and what you took out.
+            p.add(Shape::closed_line(
+                vec![c + vec2(-7.0, -9.0), c + vec2(7.0, -9.0), c + vec2(7.0, 9.0), c + vec2(-7.0, 9.0)],
+                s,
+            ));
+            p.line_segment([c + vec2(-3.5, -4.0), c + vec2(3.5, -4.0)], s);
+            p.line_segment([c + vec2(0.0, -7.5), c + vec2(0.0, -0.5)], s);
+            p.line_segment([c + vec2(-3.5, 5.0), c + vec2(3.5, 5.0)], s);
+        }
+        Workspace::Data => {
+            // A stack of values: the database drum.
+            let arc = |y: f32, from: f32, to: f32| -> Vec<Pos2> {
+                (0..=12)
+                    .map(|i| from + i as f32 / 12.0 * (to - from))
+                    .map(|a| c + vec2(a.cos() * 8.0, y + a.sin() * 3.0))
+                    .collect()
+            };
+            p.add(Shape::closed_line(arc(-6.0, 0.0, TAU)[..12].to_vec(), s));
+            p.add(Shape::line(arc(0.0, 0.0, PI), s));
+            p.add(Shape::line(arc(6.0, 0.0, PI), s));
+            p.line_segment([c + vec2(-8.0, -6.0), c + vec2(-8.0, 6.0)], s);
+            p.line_segment([c + vec2(8.0, -6.0), c + vec2(8.0, 6.0)], s);
         }
         Workspace::Races => {
             p.line_segment([c + vec2(-6.0, -9.0), c + vec2(-6.0, 9.0)], s);

@@ -373,3 +373,29 @@ fn a_models_viewer_has_the_mesh_numbers_the_command_prints() {
     let m = ob_studio::browser::mesh::facts(&w.solids[0], &w.textures);
     assert_eq!(m.lines()[0], "0 vertices · 1 triangles · unlit");
 }
+
+#[test]
+fn a_model_without_geometry_reads_as_a_helper_and_wears_the_no_picture_mark() {
+    let mut w = region();
+    w.solids[2].indices.clear();
+    w.solids[2].materials.clear();
+    let f = ob_studio::browser::mesh::facts(&w.solids[2], &w.textures);
+    assert!(f.is_helper());
+    assert_eq!(f.lines(), [super::words::NO_MESH_HELPER], "the command line and Studio say the same");
+    assert!(!f.lines().iter().any(|l| l.contains("0.00")), "no zero sizes");
+    // The mark: words in a picture-sized box, a stroke in a list row's thumbnail.
+    let shapes = |side: f32| {
+        let ctx = egui::Context::default();
+        let out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let p = ui.painter().clone();
+            let r = egui::Rect::from_min_size(egui::pos2(10.0, 10.0), egui::vec2(side, side));
+            super::browser::no_picture_mark(&p, r, egui::Color32::GRAY);
+        });
+        out.shapes.into_iter().map(|s| s.shape).collect::<Vec<_>>()
+    };
+    let small = shapes(26.0);
+    assert!(small.iter().any(|s| matches!(s, egui::Shape::LineSegment { .. })), "{small:?}");
+    assert!(!small.iter().any(|s| matches!(s, egui::Shape::Text(_))));
+    let big = shapes(176.0);
+    assert!(big.iter().any(|s| matches!(s, egui::Shape::Text(t) if t.galley.text() == super::words::NO_PICTURE)));
+}

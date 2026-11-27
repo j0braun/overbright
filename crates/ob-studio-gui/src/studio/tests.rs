@@ -427,3 +427,34 @@ fn a_new_mod_from_the_file_menu_and_by_mouse() {
     assert_eq!(s.open_mod().map(|m| m.folder.as_str()), Some("bridge-jumps"));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn home_says_how_many_mods_do_not_fit_and_the_row_opens_the_list() {
+    use super::shell::HomeAct;
+    let d = std::env::temp_dir().join(format!("ob-studio-shell-more-{}", std::process::id()));
+    let _ = std::fs::remove_dir_all(&d);
+    for n in 0..5 {
+        let folder = format!("mod-{n}");
+        std::fs::create_dir_all(d.join(&folder)).unwrap();
+        std::fs::write(d.join(&folder).join(store::FILE), format!("overbright-map 1\nname = Mod {n}\n")).unwrap();
+    }
+    let mut seen = (false, false);
+    for (w, h, scale) in SIZES {
+        let mut s = Studio::new(d.clone(), None);
+        let (_, l) = frames(&mut s, (w, h), scale, 3);
+        assert!(l.problems().is_empty(), "{w}x{h}: {:?}", l.problems());
+        let t = s.home_targets();
+        let rows = t.iter().filter(|a| matches!(a, HomeAct::Mod(_))).count();
+        let more = t.iter().filter(|a| **a == HomeAct::MoreMods).count();
+        // The count and the rows agree: a "more" row exactly when a mod has no row of its own.
+        assert_eq!(more, usize::from(rows < 5), "{w}x{h}: {rows} rows, {more} more rows");
+        seen = (seen.0 || more == 1, seen.1 || more == 0);
+        if more == 1 {
+            // Enter on the row opens Find on the mods.
+            s.home_focus = t.iter().position(|a| *a == HomeAct::MoreMods).unwrap();
+            s.frame(raw_input((w, h), scale, 0, vec![key(egui::Key::Enter, false, false)]));
+            assert!(s.nav.find_open, "{w}x{h}");
+        }
+    }
+    assert_eq!(seen, (true, true), "the sizes cover both a short list and a full one");
+}
