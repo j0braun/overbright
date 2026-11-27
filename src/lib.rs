@@ -35,7 +35,6 @@ mod testkit_tests {
 }
 
 pub mod asset_layer;
-pub mod audio;
 #[cfg(feature = "mimalloc")]
 pub mod allocator;
 pub mod frontend;
@@ -90,6 +89,8 @@ pub use ob_settings::extras;
 pub use ob_sim::{
     ai, ai_looks, carfx_pops, track_camera, chase, contact, drift, style, drive, event_camera, difficulty, dyno, latency, replay_cams, racer_reset, interpolate, garage, opponents, outrun, pad, photo, smackable, standings, hydraulics, weather, mark_spot, rng_sites, shop_scene, melo, screen_flash, screen_tint,
 };
+// The audio layer, crates/ob-audio: the `audio` module at its old path.
+pub use ob_audio::audio;
 pub use ob_core::{env_parsed, env_set, env_value, env_value_os, game_root, persist, persist_enum, unique_tag};
 
 // The file-format parsers and the engine's tables (docs/original/exe-tables.md),

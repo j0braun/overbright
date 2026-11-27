@@ -10,7 +10,7 @@ Success paths are unchanged (parity gate, `docs/developing/perf-gates.md`).
 
 Every `unwrap` / `expect` / `panic!` / `unreachable!` / slice index outside
 tests in the code that touches files, devices or user data: `crates/ob-core/src/cache/`,
-`src/audio/mixer/` (device open, watchdog), `src/audio/streams/`
+`crates/ob-audio/src/audio/mixer/` (device open, watchdog), `crates/ob-audio/src/audio/streams/`
 (decoder threads), `crates/ob-formats/src/formats/native_save.rs`, `src/frontend/profiles/`,
 `src/frontend/career/` (`Profile::from_native`: constant offsets, capped
 counts, map lookups only), `src/frontend/options/` (options.txt),
