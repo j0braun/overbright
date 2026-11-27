@@ -934,3 +934,44 @@ fn race_start_crowd_stands_on_the_ground() {
     assert!(worst.0.0 > -0.1, "a person's feet {} m under the ground: {}", worst.0.0, worst.0.1);
     assert!(worst.1.0 < 0.25, "a person's feet {} m over the ground: {}", worst.1.0, worst.1.1);
 }
+
+/// A race's ending scene and its characters end together (issue #337):
+/// leaving the post-race flow for the city (0x603EC0, every way out of
+/// post-race state 7, runs the NIS manager's unload 0x43B640: scene stop
+/// 0x439070, scene freed 0x43B1F0) leaves no crowd behind. A crowd kept
+/// into free roam was drawn again by the next menu over the world (the
+/// race's Engage) through a character renderer whose texture slots were
+/// another world renderer's (a region left), which panicked. Real
+/// assets, no GPU.
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn the_ending_crowd_goes_with_its_scene_at_the_city_start() {
+    testkit::game();
+    super::test_isolation::exclusive();
+    use nfsu2::shop_scene::{IntroTable, SceneKind};
+    let mut game = Game::new().unwrap();
+    let mode = screens::QrMode::Circuit;
+    game.quick.tracks = game.quick_track_select(mode, 0.0);
+    let event = game.quick_event(mode);
+    game.quick.car = Some("240SX".into());
+    game.start_race(event, true, false).unwrap();
+    let winner = game.sim.drive.as_ref().unwrap().car.car_type.handling.clone();
+    // An ending with characters (EndingNis04: the crowd round the car).
+    let table = IntroTable::load(&game.game_data.root).unwrap();
+    let seed = (0..2000)
+        .find(|seed| {
+            let mut rng = nfsu2::opponents::GameRng(*seed);
+            table
+                .pick_ending(4014, &winner, true, true, &mut rng)
+                .is_some_and(|i| IntroTable::ending_number(table.ending_list[i].hash) == Some(4))
+        })
+        .expect("a seed for EndingNis04");
+    game.rng = nfsu2::opponents::GameRng(seed);
+    game.play_race_ending(4014, Vec3::ZERO, 0.0, &winner, true, None);
+    assert!(matches!(game.scenes.shop.as_ref().map(|r| r.scene.kind), Some(SceneKind::Ending(4))));
+    assert!(game.scenes.crowd.is_some(), "the ending's characters play");
+    // Out of the post-race screens to the city.
+    game.explore(None).unwrap();
+    assert!(game.scenes.shop.is_none(), "the ending scene ended");
+    assert!(game.scenes.crowd.is_none(), "the ending's characters went with their scene");
+}

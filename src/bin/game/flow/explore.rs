@@ -38,7 +38,12 @@ impl Game {
         if let Some(p) = self.profile.as_mut() {
             p.shop_ride = None;
         }
+        // Any scene ends with its characters: leaving the post-race flow
+        // (0x603EC0, every way out of state 7) runs the NIS manager's
+        // unload 0x43B640, the scene's stop 0x439070 and its free 0x43B1F0,
+        // so a race's ending crowd is never drawn again in the city.
         self.scenes.shop = None;
+        self.scenes.crowd = None;
         // A city start ends any race: one paused and left for free roam
         // (Return to Explore Mode from its pause) must not be kept, or
         // every menu after it holds the song (`music_context_of`: Paused).

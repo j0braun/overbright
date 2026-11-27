@@ -13,6 +13,8 @@ pub mod plan;
 pub mod record;
 pub mod reflection;
 pub mod shadows;
+mod extra_slots;
+pub use extra_slots::SlotReturns;
 pub mod sprites;
 pub mod rear_view;
 mod build;
@@ -231,7 +233,9 @@ pub struct WorldRenderer {
     pub(in crate::render) shadow_vertices: wgpu::Buffer,
     /// Textures added after the build (the cars' shadows), slots after
     /// the core's: per slot its group 1, scroll and array layer.
-    pub(in crate::render) extra_textures: Vec<(wgpu::BindGroup, [f32; 8], u32)>,
+    /// Freed when their holder gives them back (a scene's characters at
+    /// the scene's end), and taken again (`extra_slots`).
+    pub(in crate::render) extra_textures: extra_slots::ExtraSlots<(wgpu::BindGroup, [f32; 8], u32)>,
     /// LOD Fade's per-instance state (clone deviation), made when the
     /// option (or the pop statistics) first asks for it.
     pub(in crate::render) fade: Option<FadeState>,
@@ -297,6 +301,8 @@ impl WorldRenderer {
             &draws,
             &animations,
         );
+        // The slots after the world's own (`extra_textures`).
+        let extra_base = texture_scrolls.len();
         drop(t_textures);
         let t_buffers = crate::prof::span("WorldRenderer::new: buffers, uniforms");
         let Buffers {
@@ -438,7 +444,7 @@ impl WorldRenderer {
             shadow_textures: HashMap::new(),
             shadow_enhanced: HashMap::new(),
             shadow_vertices,
-            extra_textures: Vec::new(),
+            extra_textures: extra_slots::ExtraSlots::new(extra_base),
             fade: None,
             lamps: { modern_light_bold::load_emitters(world); lamps::lamps_of(&world.light_packs) },
             lamp: None,

@@ -36,7 +36,6 @@ impl WorldRenderer {
             .flatten()
             .filter(|e| e.width <= max && e.height <= max);
         let bc = gpu.device.features().contains(wgpu::Features::TEXTURE_COMPRESSION_BC);
-        let slot = self.texture_scrolls.len() + self.extra_textures.len();
         let scroll = scroll_params(&t.scroll);
         let (key, bytes) = match &rebuilt {
             Some(e) => (
@@ -74,9 +73,12 @@ impl WorldRenderer {
         // The tier asked for (a rebuild too large for the device is not
         // retried every frame).
         self.shadow_enhanced.insert(t.hash, enhanced);
-        self.extra_textures.push((group, scroll, 0));
+        let slot = self.extra_textures.insert((group, scroll, 0));
         let key = PipelineKey { effect: Effect::NoFog, blend: t.blend, alpha_test: t.alpha_test };
-        self.shadow_textures.insert(t.hash, (slot, key));
+        // The tier's texture replaces the one before (its slot freed).
+        if let Some((old, _)) = self.shadow_textures.insert(t.hash, (slot, key)) {
+            self.extra_textures.returns().give_back([old]);
+        }
     }
 
     /// A texture drawn through the world pipelines outside the world's own
@@ -84,7 +86,6 @@ impl WorldRenderer {
     /// array of its own with texture arrays, else its own bind group.
     pub fn add_texture_slot(&mut self, gpu: &Gpu, t: &Texture) -> usize {
         let bc = gpu.device.features().contains(wgpu::Features::TEXTURE_COMPRESSION_BC);
-        let slot = self.texture_scrolls.len() + self.extra_textures.len();
         let scroll = scroll_params(&t.scroll);
         let group = match self.core.texture_arrays.as_ref() {
             Some(a) => {
@@ -104,8 +105,21 @@ impl WorldRenderer {
                 &t.scroll,
             ),
         };
-        self.extra_textures.push((group, scroll, 0));
-        slot
+        self.extra_textures.insert((group, scroll, 0))
+    }
+
+    /// Where a holder of [`WorldRenderer::add_texture_slot`]'s slots gives
+    /// them back when its textures go (a scene's characters at the scene's
+    /// end: the NIS unload 0x43B640 → 0x437660 unloads the scene's bundles
+    /// through 0x580EA0); the next slot taken reuses them.
+    pub fn slot_returns(&self) -> super::SlotReturns {
+        self.extra_textures.returns()
+    }
+
+    /// The slots past the world's own textures held now (the cars'
+    /// shadows' and the live scenes' characters').
+    pub fn extra_slots_in_use(&mut self) -> usize {
+        self.extra_textures.in_use()
     }
 
     /// Draw this frame's car shadows (texture hash, shadow) over the world
