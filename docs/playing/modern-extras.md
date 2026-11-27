@@ -19,7 +19,9 @@ Each is off, or at the original's value, until you change it. With all of them o
 **Low Latency** keeps only one frame waiting for the screen and starts each frame as late as it safely can,
 so your input is read closer to the moment the picture shows. On a 60 Hz screen this cuts the time from input
 to picture from about 48 ms to about 10–14 ms (measured on a model of the display, below). On a variable
-refresh rate (VRR) screen on Linux, frames are also held 3 % under the screen's top rate. The game's world
+refresh rate (VRR) screen on Linux, frames are also held 3 % under the screen's top rate. With vsync off the
+frame rate stays as high as without it: the game only keeps the graphics card from queueing frames behind
+your input. The game's world
 still updates exactly as before.
 
 **FSR** (AMD FidelityFX Super Resolution 1) draws the world at 67, 58 or 50 % of the screen size per side
@@ -133,6 +135,70 @@ larger margin under load trades latency).
 Unit tests on the pure model (`latency::tests`): FIFO 60 / 144 Hz with 2 or 5 ms of work, On is under half
 of Off and within work + 4.5 ms with no missed refresh; ±1 ms of jitter at 144 Hz holds; VRR with the cap
 leaves the queue empty; a display that never blocks leaves the pacer at 0.
+
+#### Low Latency with vsync off (report #349)
+
+**The fault in 0.7.0:** with vsync off (Mailbox, the default, or Immediate) Low Latency cut the frame rate
+to about the refresh rate (a player: 170–200 fps → 50–60 fps, GPU use 99 % → 30–40 %). Two causes, both
+in the vsync-off path:
+
+- **One frame in flight in every present mode.** wgpu's swap chain then has two images: the acquire waits for
+  the GPU work of the frame before (Vulkan's acquire fence; on DX12 the frame-latency waitable), so the CPU
+  and the GPU no longer overlap, and a Mailbox image comes back only at the next refresh.
+- **The pacer locked to the refresh even without vsync.** Any blocked wait (here the GPU's) set its refresh
+  grid, and it then started one frame per refresh.
+
+**Now** (`latency::frames_in_flight`, `Pacer::for_present`, `WindowState::jit_wait`, `Game::frame_due`):
+with vsync on nothing changes (one frame in flight, the pacer locked to the refresh). With vsync off:
+
+- two frames in flight, as with Low Latency off;
+- a **just-in-time GPU wait**: once the last frame's end has gone to the GPU (its render thread done, the
+  frame's `settle`) and before the swap chain's image is acquired, the frame waits until the GPU has finished
+  the frame before the last one (that frame's last submission). The last frame is then still running on the
+  GPU, so the GPU does not go idle, and no more than about one frame is queued (no full drain). Waiting there,
+  not at the frame's start, keeps the render thread's submission out of the wait, so the wait is the GPU's
+  alone;
+- the pacer's integrator (no refresh grid) on the time the frame was blocked after its input (that wait plus
+  the acquire). It moves that time to a sleep before the input, so the frame reaches the GPU about `SLACK`
+  (1.5 ms) before the GPU finishes the one ahead of it. When the CPU is the limit nothing blocks and the sleep
+  is 0.
+
+**The waits run in the event loop.** The frame cap, Power Saving's cap and Low Latency's sleep used to run
+inside the frame, after the window's events had been read, so a key pressed during the sleep reached the
+ticks one frame later. Now `about_to_wait` sleeps until 1.5 ms before the frame's start (`WaitUntil`) and
+the frame waits out only the rest, so input that arrives during the sleep goes into that frame's ticks.
+
+**Measured** (`NFSU2_LATENCY_GPU=1 --bench latency 500`: the racing bench on the autopilot, its real frames
+on the real GPU, offscreen, with the swap chain's waits applied as wgpu's Vulkan swap chain applies them; 4K,
+the Ultra preset; an AMD graphics card, two runs, load average about 10 from other jobs):
+
+| 4K Ultra | frames/s | main thread ms/frame | GPU busy ms/frame | input → frame done on the GPU |
+|---|---|---|---|---|
+| Off | 77.5 / 96.7 | 7.6 / 5.2 | 6.2 / 6.3 | 35.2 / 31.0 ms |
+| 0.7.0 On (Immediate) | 55.9 / 56.7 | 2.7 / 3.5 | 9.3 / 8.9 | — |
+| 0.7.0 On (Mailbox, 60 Hz) | 30.0 / 30.2 | 6.9 / 10.8 ¹ | 8.5 / 8.8 | — |
+| On now | 82.0 / 90.9 | 3.0 / 4.6 | 6.8 / 6.6 | 18.6 / 19.9 ms |
+
+¹ includes the wait for the refresh. At 1080p Original (CPU-bound, about 550–950 fps Off) 0.7.0 On held
+59–60 fps; On now runs at Off's rate or above. The model of the same pipeline (`latency::pipeline`,
+GPU-bound 5–5.5 ms frames, 1.5–2 ms of CPU, Mailbox / Immediate at 60 and 144 Hz): 0.7.0 held 60 fps at
+60 Hz and 96 fps at 144 Hz; now the frame rate equals Off's and input → frame done is 1.5–7 ms shorter
+(`vsync_off_low_latency_keeps_the_frame_rate`).
+
+#### How fast input reaches the car
+
+The world runs on fixed 1/60 s ticks (docs/original/uncapped-fps.md). A key or click is queued for the tick
+whose 1/60 s window holds its arrival (`input::queue`), so its effect is the same at any frame rate; it is
+taken at the start of that tick, which runs in the first drawn frame after the window ends. Measured with
+synthetic input (`input_reaches_its_tick_within_a_frame_of_its_window`): from a key's arrival to the frame
+that runs its tick, 8.3 ms on average (16.6 ms at worst) at 60 fps, 11.3 ms (22.4 ms) at 170 fps and 10.0
+ms (19.9 ms) at 200 fps: never more than the rest of its window plus one frame, about 1–2.5 drawn frames in
+between. No press is lost: a press and its release inside one tick both apply in that tick, and a shift
+lands in its tick at 30, 60, 120, 170 and 200 fps alike (`a_quick_shift_lands_on_its_tick_at_every_frame_rate`).
+A controller is read at each tick (a button held for less than one tick between two reads is not seen, as
+the original polls once per frame). The rest of the time to the screen is the render queue: with vsync off
+and the GPU at its limit, two frames in flight add up to two GPU frames, which Low Latency's just-in-time
+wait removes.
 
 ### 2. FSR as an upscaler choice
 
