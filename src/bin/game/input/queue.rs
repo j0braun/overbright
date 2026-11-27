@@ -416,6 +416,53 @@ mod tests {
         }
     }
 
+    /// Report #349: the time from a key's arrival to the start of the
+    /// drawn frame that runs its tick (the car sees it there), at 60, 170
+    /// and 200 frames per second: never more than the rest of its tick's
+    /// 1/60 s window plus one frame, about half a tick plus half a frame
+    /// on average; no event is dropped, and a press and its release in one
+    /// tick both reach it (`order_is_kept_and_events_wait_for_a_tick`).
+    /// Prints the means (ms) and the drawn frames in between.
+    #[test]
+    fn input_reaches_its_tick_within_a_frame_of_its_window() {
+        let period = RACE.period;
+        let arrivals: Vec<i64> = (0..2000).map(|i| period * (i / 9 + 1) + 1 + (i * 61) % (period - 2)).collect();
+        for hz in [60, 170, 200] {
+            let frames = schedule(Some(hz), 40.0, 0);
+            let frame = UNITS / i64::from(hz);
+            let ticks = applied_ticks(&frames, &arrivals);
+            // When each tick runs: the start of the frame that runs it.
+            let mut clock = TickClock::default();
+            let (mut run_at, mut t) = (Vec::new(), 0i64);
+            for &u in &frames {
+                t += u;
+                let mut f = clock.begin(u);
+                while clock.tick(&mut f, RACE).is_some() {
+                    run_at.push(t);
+                }
+            }
+            let (mut sum, mut worst, mut frames_between) = (0i64, 0i64, 0i64);
+            for (i, tick) in ticks.iter().enumerate() {
+                let tick = tick.expect("every event reaches a tick") as usize;
+                let wait = run_at[tick] - arrivals[i];
+                let window_end = (arrivals[i] / period + 1) * period;
+                assert!(wait > 0 && run_at[tick] - window_end <= frame + 1, "{hz} fps, event {i}: {wait} units");
+                sum += wait;
+                worst = worst.max(wait);
+                frames_between += (wait + frame - 1) / frame;
+            }
+            let n = arrivals.len() as f64;
+            let ms = |u: f64| u * 1000.0 / UNITS as f64;
+            eprintln!(
+                "{hz} fps: arrival -> its tick runs {:.1} ms mean, {:.1} ms worst, {:.2} drawn frames in between",
+                ms(sum as f64 / n),
+                ms(worst as f64),
+                frames_between as f64 / n
+            );
+            assert!(ms(sum as f64 / n) < ms((period / 2 + frame) as f64) + 0.5, "{hz} fps");
+        }
+    }
+
     /// A long frame: an event past the cap's ticks goes with the next
     /// frame's first tick (the stall's time beyond the cap is dropped).
     #[test]

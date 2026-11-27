@@ -82,7 +82,7 @@ pub use self::enh::post::temporal;
 pub use self::enh::volumes::water;
 pub use self::enh::volumes::water::hq as water_hq;
 pub use self::enh::volumes::water::ng as water_ng;
-pub use self::native::world::{FrameParams, WorldRenderer, overview_camera};
+pub use self::native::world::{FrameParams, SlotReturns, WorldRenderer, overview_camera};
 use self::native::world::{LOW_LOD, MAIN_LOD, MAIN_LOD_B, SKYDOME_SOLID};
 pub use self::native::world::core::WorldCore;
 pub use self::native::world::env_cube::EnvCube;

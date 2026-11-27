@@ -5,6 +5,10 @@ use crate::*;
 /// A frame interval this long (s) is an event of the diagnostics' ring.
 const STALL_EVENT_S: f32 = 0.25;
 
+/// How long before a frame's start the event loop wakes (the system's
+/// timers are coarser than the frame's own wait, `display::wait_until`).
+const WAKE_EARLY: std::time::Duration = std::time::Duration::from_micros(1500);
+
 impl Game {
     pub(crate) fn redraw(&mut self) -> Result<()> {
         // The game start's PC_Loading (only past 200 ms, or for the
@@ -36,31 +40,24 @@ impl Game {
         // (docs/notes/front-end/postrace-jitter.md).
         // Low Latency (docs/playing/modern-extras.md): with a VRR panel driven
         // variably, frames held 3 % under its top rate; then the pacer's
-        // sleep, the wait the last frames spent after their input moved
-        // before this one's.
+        // sleep (with vsync off sized from the just-in-time GPU wait in
+        // the frame, `WindowState::jit_wait`). The waits
+        // run from the event loop (`Game::frame_due`, `about_to_wait`), so
+        // the keys and the mouse that come in meanwhile are read for this
+        // frame's ticks; here only the rest of the wait (under a
+        // millisecond, or all of it on a frame the event loop did not
+        // wait for).
         let low_latency = nfsu2::extras::low_latency();
-        let mut period = nfsu2::render::display::frame_period(false);
-        // Power Saving (opt-in; Off, the default, adds nothing): the
-        // background / menu / battery cap, the longer of it and the above.
-        if let Some(cap) = self.power_cap() {
-            period = Some(period.map_or(cap, |p| p.max(cap)));
-        }
-        if low_latency {
-            if let Some(vrr) = self.vrr_period() {
-                period = Some(period.map_or(vrr, |p| p.max(vrr)));
-            }
-            self.pacing.pacer.set_period(self.pacing.refresh_hz.filter(|&hz| hz > 1.0).map(|hz| 1.0 / hz));
-        }
-        let limiter = Instant::now();
-        if let Some(period) = period {
-            nfsu2::render::display::wait_until(self.pacing.last + period);
+        let limiter = self.pacing.wait_began.take().unwrap_or_else(Instant::now);
+        let (due, period) = match self.pacing.due.take() {
+            Some(d) => d,
+            None => self.frame_due(),
+        };
+        if let Some(due) = due {
+            nfsu2::render::display::wait_until(due);
         }
         let epoch = self.pacing.started;
         let secs = |t: Instant| (t - epoch).as_secs_f64();
-        if low_latency {
-            let due = self.pacing.pacer.due(secs(Instant::now()));
-            nfsu2::render::display::wait_until(epoch + std::time::Duration::from_secs_f64(due.max(0.0)));
-        }
         let now_t = Instant::now();
         // The frame's work starts: the reader ahead gives way to a frame
         // that runs long (docs/developing/read-ahead.md).
@@ -109,14 +106,29 @@ impl Game {
                 let end = Instant::now();
                 let span = |p: Option<(Instant, Instant)>| p.filter(|(a, _)| *a >= now_t).unwrap_or((end, end));
                 let (acq, set) = (span(w.acquired.take()), span(w.settled.take()));
-                let ((ready, got), other) = if set.1 - set.0 > acq.1 - acq.0 { (set, acq) } else { (acq, set) };
-                let present = secs(end) - (other.1 - other.0).as_secs_f64();
-                self.pacing.pacer.record(nfsu2::latency::FrameTimes {
-                    input: secs(now_t),
-                    ready: secs(ready),
-                    got: secs(got),
-                    present: present.max(secs(got)),
-                });
+                if let Some((ready, got)) = w.gpu_wait.take().filter(|(a, _)| *a >= now_t) {
+                    // Vsync off: the just-in-time GPU wait and the image's
+                    // acquire, together the time the frame was blocked on
+                    // the GPU after its input, which the integrator moves
+                    // to a sleep before the input (`latency::pipeline`'s
+                    // JustInTime).
+                    let blocked = (got - ready) + (acq.1 - acq.0);
+                    self.pacing.pacer.record(nfsu2::latency::FrameTimes {
+                        input: secs(now_t),
+                        ready: secs(ready),
+                        got: secs(ready + blocked),
+                        present: secs(end),
+                    });
+                } else {
+                    let ((ready, got), other) = if set.1 - set.0 > acq.1 - acq.0 { (set, acq) } else { (acq, set) };
+                    let present = secs(end) - (other.1 - other.0).as_secs_f64();
+                    self.pacing.pacer.record(nfsu2::latency::FrameTimes {
+                        input: secs(now_t),
+                        ready: secs(ready),
+                        got: secs(got),
+                        present: present.max(secs(got)),
+                    });
+                }
             } else if self.pacing.pacer.frames != 0 {
                 self.pacing.pacer.reset();
             }
@@ -251,6 +263,58 @@ impl Game {
             log::info!("in the background: {}", if pause { "paused" } else { "resumed" });
         }
         pause
+    }
+
+    /// When the next frame starts (its input read), and the frame cap's
+    /// period: the frame limiter (`display::frame_period`, the optional
+    /// NFSU2_FRAME_CAP), Power Saving's cap, and under Low Latency the VRR
+    /// cap and the pacer's sleep (`latency::Pacer`: with vsync locked to
+    /// the refresh; with vsync off the integrator on the time the frames
+    /// were blocked on the GPU, `WindowState::jit_wait`, report #349).
+    /// None: no wait. Asked once per frame,
+    /// from `about_to_wait` (kept in `Pacing::due` until the frame) or by
+    /// the frame itself.
+    pub(crate) fn frame_due(&mut self) -> (Option<Instant>, Option<std::time::Duration>) {
+        let low_latency = nfsu2::extras::low_latency();
+        let mut period = nfsu2::render::display::frame_period(false);
+        // Power Saving (opt-in; Off, the default, adds nothing): the
+        // background / menu / battery cap, the longer of it and the above.
+        if let Some(cap) = self.power_cap() {
+            period = Some(period.map_or(cap, |p| p.max(cap)));
+        }
+        let mut due = period.map(|p| self.pacing.last + p);
+        if low_latency {
+            if let Some(vrr) = self.vrr_period() {
+                period = Some(period.map_or(vrr, |p| p.max(vrr)));
+                due = Some(self.pacing.last + period.unwrap_or(vrr));
+            }
+            let vsync = self.platform.window.as_ref().is_some_and(|w| {
+                matches!(w.config.present_mode, wgpu::PresentMode::Fifo | wgpu::PresentMode::FifoRelaxed)
+            });
+            let refresh = self.pacing.refresh_hz.filter(|&hz| hz > 1.0).map(|hz| 1.0 / hz);
+            self.pacing.pacer.set_period(nfsu2::latency::Pacer::for_present(vsync, refresh));
+            let from = due.map_or_else(Instant::now, |d| d.max(Instant::now()));
+            let epoch = self.pacing.started;
+            let at = self.pacing.pacer.due((from - epoch).as_secs_f64());
+            due = Some(epoch + std::time::Duration::from_secs_f64(at.max(0.0)));
+        }
+        (due.filter(|&d| d > Instant::now()), period)
+    }
+
+    /// The event loop between frames (`about_to_wait`): the time to
+    /// sleep before the next frame is asked for, when its start
+    /// (`frame_due`) is more than [`WAKE_EARLY`] away; the frame then
+    /// waits out the rest itself. The keys and the mouse that come in
+    /// during the sleep are read for that frame's ticks.
+    pub(crate) fn wait_for_frame(&mut self) -> Option<Instant> {
+        if self.pacing.due.is_none() {
+            self.pacing.wait_began = Some(Instant::now());
+            let due = self.frame_due();
+            self.pacing.due = Some(due);
+        }
+        let due = self.pacing.due.and_then(|(d, _)| d)?;
+        let wake = due.checked_sub(WAKE_EARLY)?;
+        (wake > Instant::now()).then_some(wake)
     }
 
     /// Power Saving's and Draw less's cap for this frame

@@ -30,6 +30,11 @@ pub struct CharacterRenderer {
     /// Each texture's world slot and pipeline (shared with the skinning
     /// job, which only asks which textures are loaded).
     textures: Arc<HashMap<u32, (usize, PipelineKey)>>,
+    /// Where the slots go back to their world renderer (the one whose
+    /// slots `textures` holds) when this is dropped (the scene's end: its bundles unloaded, 0x437660 → 0x580EA0).
+    returns: crate::render::SlotReturns,
+    /// Every slot it took (a texture listed twice took two).
+    slots: Vec<usize>,
     vertices: wgpu::Buffer,
     /// The characters' instance: the identity, marked for Modern Lighting
     /// ([`CHARACTER_MARK`]).
@@ -82,19 +87,13 @@ impl CharacterRenderer {
     pub fn new(gpu: &Gpu, world: &mut WorldRenderer, set: &SceneCharacters) -> CharacterRenderer {
         // Through the world's own texture slots, so the draws bind them as
         // the world's pipelines expect (texture arrays or not).
-        let textures = set
-            .textures
-            .iter()
-            .map(|t| {
-                (
-                    t.hash,
-                    (
-                        world.add_texture_slot(gpu, t),
-                        PipelineKey { effect: Effect::World, blend: t.blend, alpha_test: t.alpha_test },
-                    ),
-                )
-            })
-            .collect();
+        let mut textures = HashMap::new();
+        let mut slots = Vec::with_capacity(set.textures.len());
+        for t in &set.textures {
+            let slot = world.add_texture_slot(gpu, t);
+            slots.push(slot);
+            textures.insert(t.hash, (slot, PipelineKey { effect: Effect::World, blend: t.blend, alpha_test: t.alpha_test }));
+        }
         let vertices = gpu.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("characters"),
             size: (MAX_CORNERS * std::mem::size_of::<Vertex>()) as u64,
@@ -123,6 +122,8 @@ impl CharacterRenderer {
         );
         CharacterRenderer {
             textures: Arc::new(textures),
+            returns: world.slot_returns(),
+            slots,
             vertices,
             instance,
             skin: Skin::default(),
@@ -130,6 +131,13 @@ impl CharacterRenderer {
             can_cull,
             pending: None,
         }
+    }
+
+    /// Whether its textures are in `world`'s slots (the renderer it was
+    /// made with): a world renderer made since (a region left, the world
+    /// rebuilt) holds other textures at those numbers.
+    pub fn is_for(&self, world: &WorldRenderer) -> bool {
+        self.returns.is_of(&world.extra_textures)
     }
 
     /// Start skinning the scene's characters `t` seconds in, placed by
@@ -172,6 +180,7 @@ impl CharacterRenderer {
         origin: Mat4,
         lifts: &[Option<f32>],
     ) {
+        debug_assert!(self.is_for(world), "the characters' textures are another world renderer's");
         let inputs = SkinInputs::new(view_proj, t, origin, lifts);
         let started = match self.pending.take() {
             Some((at, p)) => {
@@ -241,6 +250,15 @@ impl CharacterRenderer {
             world.set_texture(&mut pass, slot, &mut bound);
             pass.draw(first..first + count, 0..1);
         }
+    }
+}
+
+impl Drop for CharacterRenderer {
+    /// The scene's textures go with it: their slots back to the world
+    /// renderer (the NIS unload 0x43B640 → 0x437660 unloads the scene's
+    /// bundles through 0x580EA0).
+    fn drop(&mut self) {
+        self.returns.give_back(std::mem::take(&mut self.slots));
     }
 }
 
@@ -400,6 +418,49 @@ mod tests {
         assert_eq!((lo, hi), ((24, 11), (51, 26)));
         let behind = Mat4::from_cols_array(&[1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, -1.0, 0.0, 0.0, 0.0, 0.0]);
         assert_eq!(screen_box(&[v(0.0, 0.0)], behind, (100, 50)), ((0, 0), (100, 50)));
+    }
+
+    /// Ending scene after ending scene with its characters, on one world
+    /// renderer (a region kept over a session): each scene's textures go
+    /// with its renderer (the NIS unload 0x43B640 → 0x437660 → 0x580EA0),
+    /// so the slots held return to their count before the scenes and the
+    /// slot table stays at one scene's size (issue #337: it grew by a
+    /// scene's textures every race).
+    #[test]
+    #[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+    #[cfg_attr(ob_game, ignore = "requires a GPU adapter; run serially with --ignored")]
+    fn ending_scenes_in_a_row_give_their_texture_slots_back() {
+        let root = crate::testkit::game_root();
+        let sets: Vec<SceneCharacters> = (1..=4)
+            .filter_map(|n| {
+                std::fs::read(std::path::Path::new(&root).join(format!("NIS/Scene_EndingNis{n:02}_BundleB.bun"))).ok()
+            })
+            .filter_map(|b| SceneCharacters::parse(&b).ok())
+            .filter(|s| !s.textures.is_empty())
+            .collect();
+        assert!(!sets.is_empty(), "ending scenes with characters");
+        let gpu = pollster::block_on(Gpu::new(
+            None,
+            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle()),
+        ))
+        .unwrap();
+        let mut world = WorldRenderer::new(
+            &gpu,
+            &crate::world::World::default(),
+            wgpu::TextureFormat::Rgba8UnormSrgb,
+            &crate::render::RenderOptions::default(),
+        );
+        let start = world.extra_slots_in_use();
+        let widest = sets.iter().map(|s| s.textures.len()).max().unwrap();
+        for round in 0..5 {
+            for (k, set) in sets.iter().enumerate() {
+                let r = CharacterRenderer::new(&gpu, &mut world, set);
+                assert_eq!(world.extra_slots_in_use(), start + set.textures.len(), "round {round} scene {k}");
+                drop(r);
+                assert_eq!(world.extra_slots_in_use(), start, "round {round} scene {k}: slots given back");
+            }
+        }
+        assert!(world.extra_textures.table_len() <= start + widest, "the slot table grew over the scenes");
     }
 
     /// The crowd skinned on a render thread ([`CharacterRenderer::start`]'s

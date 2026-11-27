@@ -275,6 +275,12 @@ impl FrameDraw<'_, '_, '_, '_> {
         // The last frame's end, which went on while this frame's
         // simulation and layout ran, before anything is written to the GPU.
         w.settle();
+        // Low Latency with vsync off (`latency::frames_in_flight`, report
+        // #349): the just-in-time wait for the GPU to finish the frame
+        // before the last one (the last one is still running, so the GPU
+        // does not idle). Here, after the last frame's end went to the GPU,
+        // the wait is the GPU's alone; the pacer moves it before the input.
+        w.jit_wait();
         // The streak buffer's cost: the GPU timings read back by now.
         self.r.state.streak.gpu_harvest(&w.gpu);
         // HDR Output switched (the Display page): the swap chain again.
@@ -309,8 +315,10 @@ impl FrameDraw<'_, '_, '_, '_> {
         nfsu2::render::display::set_vsync_off_mailbox(self.v.settings.vsync_off_mailbox);
         // g_VSyncOn: the swap chain's interval, reset when it changes.
         let present = nfsu2::render::display::present_mode_for(&self.v.settings.custom, &w.present_modes);
-        // Low Latency: one frame in flight instead of two.
-        let latency = if nfsu2::extras::low_latency() { 1 } else { 2 };
+        // Low Latency with vsync: one frame in flight instead of two (with
+        // vsync off two: `latency::frames_in_flight`, report #349).
+        let vsync = matches!(present, wgpu::PresentMode::Fifo | wgpu::PresentMode::FifoRelaxed);
+        let latency = nfsu2::latency::frames_in_flight(nfsu2::extras::low_latency(), vsync);
         if w.config.present_mode != present || w.config.desired_maximum_frame_latency != latency {
             w.config.present_mode = present;
             w.config.desired_maximum_frame_latency = latency;

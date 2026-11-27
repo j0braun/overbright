@@ -862,6 +862,12 @@ impl WorldScene<'_, '_> {
             let SceneCrowd { set, origin, id, lifts, .. } = c;
             let frame = game.poses.crowd_frame(c);
             let renderer = render.crowds.slot(id);
+            // Its textures are uploaded into the world renderer's slots: a
+            // world renderer made since (the world rebuilt under a live
+            // scene) takes them anew from the scene's own textures.
+            if renderer.as_ref().is_some_and(|c| !c.is_for(r)) {
+                *renderer = None;
+            }
             let cr = renderer.get_or_insert_with(|| nfsu2::render::characters::CharacterRenderer::new(gpu, r, set));
             cr.render(
                 gpu,

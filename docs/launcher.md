@@ -272,7 +272,12 @@ shows a busy line and greys the actions meanwhile; the page takes no input while
   by click.
   Gamepad (gilrs directly; the game's `pad::host` maps to game actions, not
   menu keys): d-pad / left stick move, A / Start use, B back, LB / RB =
-  Shift+Tab / Tab.
+  Shift+Tab / Tab. What a pad reports in its first 500 ms after it connects
+  is its state, not a press (a button held then counts once let go and
+  pressed again), and a pad that reports more than three buttons held at
+  once is not read correctly (a wired Switch Pro Controller on Windows
+  without its driver): its input is ignored until they are let go, and the
+  log says so (`launcher::pad_filter`).
 - Scale: unit u = min(w/960, h/720), at least 0.75 × the display scale
   (body text ≥ 14 px at 100 %); content at most 1100 u wide, centred; a
   screen that does not fit is rebuilt smaller down to that floor, then the
@@ -311,7 +316,7 @@ device, no log file. `key=value` lines, unknown keys ignored, exit 0 (or 1
 with `error=` and `ok=0` without an adapter):
 ```
 probe=1
-version=Overbright 0.7.0 (commit unknown, linux-x86_64)
+version=Overbright 0.7.1 (commit unknown, linux-x86_64)
 adapter.name=…            adapter.backend=Vulkan   adapter.type=DiscreteGpu
 adapter.pci=1002:1234     adapter.driver=…         adapter.vram=<bytes, 0 unknown>
 gpu.class=high            (qol::classify_gpu: the presets' tiers)

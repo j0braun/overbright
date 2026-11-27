@@ -207,6 +207,10 @@ pub(crate) struct Pacing {
     /// Low Latency (docs/playing/modern-extras.md): the pacer, the VRR probe
     /// (redone every few seconds) and the window's monitor's refresh rate.
     pub(crate) pacer: nfsu2::latency::Pacer,
+    /// The next frame's start and frame cap (`Game::frame_due`), asked by
+    /// the event loop before the frame, and when that began.
+    pub(crate) due: Option<(Option<Instant>, Option<std::time::Duration>)>,
+    pub(crate) wait_began: Option<Instant>,
     pub(crate) vrr: Option<(nfsu2::latency::vrr::Vrr, Instant)>,
     pub(crate) refresh_hz: Option<f64>,
     /// Power Saving (`nfsu2::extras::power_cap`): the window's focus and
@@ -251,6 +255,8 @@ impl Pacing {
             last: started,
             cadence: Default::default(),
             pacer: Default::default(),
+            due: None,
+            wait_began: None,
             vrr: None,
             refresh_hz: None,
             focused: true,
