@@ -1,0 +1,28 @@
+{
+  "command": "browser.strings",
+  "count": 2,
+  "exit": 0,
+  "format": 1,
+  "found": {
+    "models": 0,
+    "textures": 0
+  },
+  "hits": [
+    {
+      "hash": "0x00000010",
+      "language": "German",
+      "text": "START drücken",
+      "type": "string"
+    },
+    {
+      "hash": "0x00000020",
+      "language": "German",
+      "text": "Nochmal",
+      "type": "string"
+    }
+  ],
+  "language": "German",
+  "ok": true,
+  "region": "L4RA",
+  "text": ""
+}

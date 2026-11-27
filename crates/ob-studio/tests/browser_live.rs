@@ -52,3 +52,48 @@ fn the_real_regions_index_agrees_with_its_world() {
     let in_sec = i.search(&Query { text: format!("section:{sec}"), ..Default::default() });
     assert!(in_sec.iter().any(|h| matches!(h, Hit::Texture(_))) && in_sec.iter().any(|h| matches!(h, Hit::Model(_))));
 }
+
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn the_real_games_sounds_and_strings_list_and_decode() {
+    use ob_studio::browser::media::{GameMedia, Media, find_lines, find_sounds, wav};
+    let root = testkit::game_root();
+    let m = GameMedia::new(Path::new(&root));
+    let t0 = std::time::Instant::now();
+    let sounds = m.sounds();
+    eprintln!("{} sounds in {:?}", sounds.len(), t0.elapsed());
+    assert!(sounds.len() > 100);
+    // A sound found by name decodes to a WAV of the length the bank says.
+    let s = sounds.iter().find(|s| s.playable && s.frames > 0).expect("a playable sound");
+    let pcm = m.pcm(&s.bank, s.samples[0]).expect("decodes");
+    assert_eq!(pcm.samples.len(), s.frames as usize);
+    assert_eq!(wav(&pcm).len(), 44 + 2 * pcm.samples.len());
+    assert!(find_sounds(&sounds, &s.name).iter().any(|&i| sounds[i] == *s));
+    // The language tables: English reads, its lines are found by words and by label.
+    let langs = m.languages();
+    assert!(langs.iter().any(|l| l == "English"), "{langs:?}");
+    assert!(!langs.iter().any(|l| l.eq_ignore_ascii_case("labels")));
+    let en = m.strings("English").unwrap();
+    assert!(en.len() > 1000);
+    assert!(en.windows(2).all(|w| w[0].hash < w[1].hash));
+    let default = find_lines(&en, "IND_GRAPHICS_BODY");
+    assert_eq!(default.len(), 1);
+    assert!(m.strings("Klingon").is_none());
+}
+
+#[test]
+#[cfg_attr(not(ob_game), ignore = "needs NFSU2_ROOT (the player's own game files)")]
+fn the_real_regions_tracks_say_their_modes_and_area() {
+    use nfsu2::studio_api::map::assets::{GameAssets, MapAssets};
+    let root = testkit::game_root();
+    let tracks = GameAssets::new(root.into()).tracks("L4RA");
+    assert!(tracks.len() > 30);
+    let t = |n: u16| tracks.iter().find(|t| t.number == n).unwrap_or_else(|| panic!("track {n}"));
+    assert_eq!(t(4001).modes, ["Circuit"]);
+    assert!(t(4101).modes.contains(&"Sprint".to_string()));
+    // Each neighbourhood of the world map is named by some track, and a track says it in its list line.
+    for place in ["City Core", "Beacon Hill", "Jackson Heights", "Coal Harbor East"] {
+        assert!(tracks.iter().any(|t| t.area == place), "{place}");
+    }
+    assert_eq!(t(4001).detail(), format!("Circuit \u{b7} {}", t(4001).area));
+}

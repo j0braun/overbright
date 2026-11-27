@@ -18,6 +18,7 @@ use nfsu2::studio_api::world::World;
 use ob_formats::formats::roads::{RoadNet, Segment};
 use ob_map::tools::map::format::{CustomRace, MapMod, RaceKind, Spot};
 use ob_map::tools::map::store;
+use ob_studio::browser::media::{GivenMedia, Line, Pcm, Sound};
 use ob_studio::cli::{self, Env};
 use ob_studio::history::{self, History, disk};
 use ob_studio::registry;
@@ -73,9 +74,10 @@ fn env() -> Env {
         game: Some(PathBuf::from("game")),
         game_source: "NFSU2_ROOT",
         world: Box::new(|_, _| Ok(World::default())),
+        media: Box::new(|_| Box::new(GivenMedia::default())),
         assets: Box::new(|_| {
             Box::new(GivenAssets {
-                tracks: vec![TrackInfo { number: 4001, name: "Docks".into() }],
+                tracks: vec![TrackInfo { number: 4001, name: "Docks".into(), modes: vec!["Circuit".into(), "Sprint".into()], area: "City Core".into() }],
                 nets: HashMap::from([(4001, straight())]),
                 free_roam: Vec::new(),
                 places: Vec::new(),
@@ -93,8 +95,23 @@ fn argv(words: &[&str], dir: &Path) -> Vec<String> {
     words.iter().map(|w| w.replace("<mod>", &dir.to_string_lossy())).collect()
 }
 
+/// Every in-process call of the tool works on a cache folder of its own under the temp folder: `modpack report` and
+/// friends unpack packs into the asset cache, which without the harness feature would be the player's. Asserted on
+/// each call, so a change that brings the real folder back fails here instead of writing there.
+fn private_cache() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(|| {
+        let d = std::env::temp_dir().join(format!("ob-studio-cli-cache-{}", std::process::id()));
+        std::fs::create_dir_all(&d).unwrap();
+        std::mem::forget(ob_core::cache::override_dir(d));
+    });
+    let dir = ob_core::cache::dir().expect("the cache is on");
+    assert!(dir.starts_with(std::env::temp_dir()), "the tool's cache is not the player's: {}", dir.display());
+}
+
 /// The tool's run: (exit code, stdout, stderr).
 fn run(words: &[&str], dir: &Path, env: &Env) -> (i32, String, String) {
+    private_cache();
     let (mut out, mut err) = (Vec::new(), Vec::new());
     let code = cli::run(&argv(words, dir), env, &mut out, &mut err);
     (code, String::from_utf8(out).unwrap(), String::from_utf8(err).unwrap())
@@ -1031,4 +1048,99 @@ fn a_model_goes_out_as_gltf_and_an_edited_one_comes_back_as_a_mod_model() {
     assert_eq!(run(&imp, &dir, &e).0, cli::USAGE);
     assert_eq!(run(&["browser", "import", "--mod", "<mod>"], &dir, &e).0, cli::USAGE);
     assert_eq!(run(&[&imp[..], &["--model", "cone"]].concat(), &dir, &no_game()).0, cli::NO_GAME);
+}
+
+/// The game's sounds and language files as the Browser's viewers read them: two banks, two languages.
+fn sound(bank: &str, name: &str, samples: &[u32], playable: bool) -> Sound {
+    Sound { bank: bank.into(), name: name.into(), samples: samples.to_vec(), rate: 22050, frames: 4, playable }
+}
+
+fn lines(t: &[(u32, &str)]) -> Vec<Line> {
+    t.iter().map(|&(hash, text)| Line { hash, text: text.into() }).collect()
+}
+
+fn media() -> GivenMedia {
+    GivenMedia {
+        sounds: vec![
+            sound("SOUND/FE/FE_MB.abk", "FE_MENU_CLICK", &[3], true),
+            sound("SOUND/IG_GLOBAL/FX_MAIN_MEM_MB.abk", "FX_TURBO_01", &[0, 1], true),
+            sound("SOUND/IG_GLOBAL/FX_MAIN_MEM_MB.abk", "FX_BLOWOFF", &[2], false),
+        ],
+        pcm: vec![("SOUND/IG_GLOBAL/FX_MAIN_MEM_MB.abk".into(), 0, Pcm { rate: 22050, samples: vec![0.0, 100.0, -100.0, 5.0] })],
+        languages: vec![
+            ("English".into(), lines(&[(0x10, "Press START"), (0x20, "Race Again")])),
+            ("German".into(), lines(&[(0x10, "START dr\u{fc}cken"), (0x20, "Nochmal")])),
+        ],
+    }
+}
+
+fn media_env() -> Env {
+    Env { media: Box::new(|_| Box::new(media())), ..model_env() }
+}
+
+#[test]
+fn the_sound_and_string_commands_list_what_the_viewers_list() {
+    let (s, dir) = fixture("cli-media", false);
+    let e = media_env();
+    let cases: &[(&str, &[&str], i32)] = &[
+        ("browser-sounds", &["browser", "sounds"], cli::OK),
+        ("browser-sounds-words", &["browser", "sounds", "fx main"], cli::OK),
+        ("browser-sounds-none", &["browser", "sounds", "zebra"], cli::OK),
+        ("browser-search-sounds", &["browser", "search", "--kind", "sounds", "turbo"], cli::OK),
+        ("browser-strings", &["browser", "strings"], cli::OK),
+        ("browser-strings-words", &["browser", "strings", "race"], cli::OK),
+        ("browser-strings-german", &["browser", "strings", "--language", "ger"], cli::OK),
+        ("browser-strings-hash", &["browser", "strings", "0x20"], cli::OK),
+        ("browser-strings-bad-language", &["browser", "strings", "--language", "germn"], cli::USAGE),
+    ];
+    for (case, words, code) in cases {
+        assert_eq!(golden(case, words, &s, &dir, &e), *code, "{case}");
+    }
+    // The command line reads the same sounds the viewer does: a hit per sound, in bank order.
+    let (_, out, _) = run(&["browser", "sounds", "--json"], &dir, &e);
+    let doc: Value = serde_json::from_str(&out).unwrap();
+    assert_eq!(doc["count"], 3);
+    assert_eq!(doc["hits"][1]["name"], "FX_TURBO_01");
+    for w in [&["browser", "sounds"][..], &["browser", "strings"]] {
+        assert_eq!(run(w, &dir, &no_game()).0, cli::NO_GAME, "{w:?}");
+    }
+}
+
+#[test]
+fn a_sound_goes_out_as_a_marked_wav_and_never_into_the_game_folder() {
+    let (s, dir) = fixture("cli-wav", false);
+    let e = media_env();
+    assert_eq!(golden("browser-wav", &["browser", "wav", "turbo", "--mod", "<mod>"], &s, &dir, &e), cli::OK);
+    let out = dir.join(store::EDITOR_DIR).join("reference");
+    let wav = std::fs::read(out.join("FX_MAIN_MEM_MB-FX_TURBO_01.wav")).unwrap();
+    assert_eq!(&wav[..4], b"RIFF");
+    assert_eq!(wav.len(), 44 + 8);
+    assert!(std::fs::read_to_string(out.join("LOCAL-ONLY.txt")).unwrap().contains("local-only"));
+    let r = run(&["browser", "wav", "turbo", "--mod", "<mod>", "--to", "game/sounds"], &dir, &e);
+    assert_eq!(r.0, cli::FAILED, "{r:?}");
+    // Not decodable, unknown, ambiguous and unplaced are told apart.
+    assert_eq!(run(&["browser", "wav", "blowoff", "--mod", "<mod>"], &dir, &e).0, cli::FAILED);
+    assert_eq!(run(&["browser", "wav", "zebra", "--mod", "<mod>"], &dir, &e).0, cli::FAILED);
+    assert_eq!(run(&["browser", "wav", "fx", "--mod", "<mod>"], &dir, &e).0, cli::FAILED);
+    assert_eq!(run(&["browser", "wav", "turbo"], &dir, &e).0, cli::USAGE);
+}
+
+#[test]
+fn a_mesh_and_the_area_around_a_point_come_from_the_regions_models() {
+    let (s, dir) = fixture("cli-mesh", false);
+    let e = model_env();
+    assert_eq!(golden("browser-mesh", &["browser", "mesh", "cone"], &s, &dir, &e), cli::OK);
+    assert_eq!(run(&["browser", "mesh", "zebra"], &dir, &e).0, cli::FAILED);
+    assert_eq!(golden("browser-area", &["browser", "area", "--at", "0,0,0", "--radius", "20", "--mod", "<mod>"], &s, &dir, &e), cli::OK);
+    let out = dir.join(store::EDITOR_DIR).join("reference");
+    let doc: Value = serde_json::from_slice(&std::fs::read(out.join("area-L4RA.gltf")).unwrap()).unwrap();
+    assert_eq!(doc["asset"]["extras"]["origin"], "from-game-files");
+    assert_eq!(doc["asset"]["extras"]["share"], "local-only");
+    assert_eq!(doc["asset"]["extras"]["area"]["placements"], 1);
+    // Far from the only placement nothing stands; a bad point, a huge radius and the game folder are refused.
+    assert_eq!(run(&["browser", "area", "--at", "900,0,0", "--mod", "<mod>"], &dir, &e).0, cli::FAILED);
+    assert_eq!(run(&["browser", "area", "--at", "1,2", "--mod", "<mod>"], &dir, &e).0, cli::USAGE);
+    assert_eq!(run(&["browser", "area", "--at", "0,0,0", "--radius", "9000", "--mod", "<mod>"], &dir, &e).0, cli::FAILED);
+    assert_eq!(run(&["browser", "area", "--at", "0,0,0", "--to", "game/area"], &dir, &e).0, cli::FAILED);
+    assert_eq!(run(&["browser", "area", "--mod", "<mod>"], &dir, &e).0, cli::USAGE);
 }

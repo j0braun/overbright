@@ -1862,7 +1862,7 @@
           "type": "text",
           "required": "no",
           "merge": false,
-          "label": "all, models or textures (default all)"
+          "label": "all, models, textures, sounds or strings (default all)"
         },
         {
           "key": "category",
@@ -1877,6 +1877,104 @@
           "required": "no",
           "merge": false,
           "label": "Textures only: any, in-use, unused, animated or large"
+        }
+      ]
+    },
+    {
+      "name": "browser.sounds",
+      "kind": "read",
+      "summary": "List and search the game's sounds (sound bank events) by bank or name, as the Browser's Sounds chip does",
+      "args": [
+        {
+          "key": "text",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Words of the bank's path or the sound's name (all must be in it)"
+        }
+      ]
+    },
+    {
+      "name": "browser.strings",
+      "kind": "read",
+      "summary": "List and search a language file's lines by words, 0x hash or label, as the Browser's Strings chip does",
+      "args": [
+        {
+          "key": "text",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "Words of the text, a hash (0x1A2B3C4D) or a label (IND_GRAPHICS_BODY)"
+        },
+        {
+          "key": "language",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "The language file (default English)"
+        }
+      ]
+    },
+    {
+      "name": "browser.wav",
+      "kind": "run",
+      "summary": "Write a sound as a WAV file (marked as from the game files, local-only)",
+      "args": [
+        {
+          "key": "text",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The sound's name (all words, any case), with words of its bank when two share a name"
+        },
+        {
+          "key": "to",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "The folder to write (default the mod's .editor/reference; never inside the game's folder)"
+        }
+      ]
+    },
+    {
+      "name": "browser.mesh",
+      "kind": "read",
+      "summary": "A model's geometry in numbers (vertices, triangles, size, parts), as the Browser's model viewer shows it",
+      "args": [
+        {
+          "key": "text",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The model's name (all words, any case) or hash"
+        }
+      ]
+    },
+    {
+      "name": "browser.area",
+      "kind": "run",
+      "summary": "Write the area around a point (the camera) as one glTF reference (marked as from the game files, local-only)",
+      "args": [
+        {
+          "key": "at",
+          "type": "text",
+          "required": "yes",
+          "merge": false,
+          "label": "The centre as x,y,z in the game's metres (Z up), as the camera's place shows"
+        },
+        {
+          "key": "radius",
+          "type": "f32",
+          "required": "no",
+          "merge": false,
+          "label": "Metres around it, 1 to 300 (default 60)"
+        },
+        {
+          "key": "to",
+          "type": "text",
+          "required": "no",
+          "merge": false,
+          "label": "The folder to write (default the mod's .editor/reference; never inside the game's folder)"
         }
       ]
     },

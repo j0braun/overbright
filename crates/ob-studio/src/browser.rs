@@ -18,6 +18,7 @@ use ob_formats::formats::solid::Solid;
 use ob_formats::formats::texture::Texture;
 
 use crate::browse::{Entry, Filter};
+use media::{Line, Sound};
 use crate::looks::{Domain, TextureId};
 
 /// A model of the region.
@@ -85,16 +86,22 @@ pub enum Kind {
     All,
     Models,
     Textures,
+    /// The game's sound banks (read when asked for; not in All).
+    Sounds,
+    /// A language file's lines (read when asked for; not in All).
+    Strings,
 }
 
 impl Kind {
-    pub const ALL: [Kind; 3] = [Kind::All, Kind::Models, Kind::Textures];
+    pub const ALL: [Kind; 5] = [Kind::All, Kind::Models, Kind::Textures, Kind::Sounds, Kind::Strings];
 
     pub fn name(self) -> &'static str {
         match self {
             Kind::All => "All",
             Kind::Models => "Models",
             Kind::Textures => "Textures",
+            Kind::Sounds => "Sounds",
+            Kind::Strings => "Strings",
         }
     }
 }
@@ -153,6 +160,10 @@ pub enum Hit {
     Model(usize),
     /// An index into [`Index::textures`].
     Texture(usize),
+    /// An index into [`Index::sounds`].
+    Sound(usize),
+    /// An index into [`Index::lines`].
+    Line(usize),
 }
 
 /// The words of a search text, split into name words, a section and a hash.
@@ -190,6 +201,12 @@ pub struct Index {
     pub region: String,
     pub models: Vec<Model>,
     pub textures: Vec<Tex>,
+    /// The game's sounds, once read ([`Index::set_sounds`]).
+    pub sounds: Option<Vec<Sound>>,
+    /// The language shown and the lines of its file, once read ([`Index::set_lines`]), and the languages there are.
+    pub language: String,
+    pub languages: Vec<String>,
+    pub lines: Option<Vec<Line>>,
     tex_at: HashMap<u32, usize>,
     model_at: HashMap<usize, usize>,
 }
@@ -201,6 +218,11 @@ impl Index {
     /// What `world` and the mod's prop count make of the index; an index with the same signature is current.
     pub fn signature(region: &str, world: &World, mod_props: usize) -> Signature {
         (region.to_string(), world.solids.len(), world.placements.len(), world.textures.len(), mod_props)
+    }
+
+    /// An index of a region with nothing in it (the sounds and lines are read into it without a world).
+    pub fn empty(region: &str) -> Index {
+        Index { region: region.to_string(), ..Index::default() }
     }
 
     /// The index of a loaded region.
@@ -298,7 +320,7 @@ impl Index {
         textures.sort_by(|a, b| a.name.cmp(&b.name).then(a.hash.cmp(&b.hash)));
         let tex_at = textures.iter().enumerate().map(|(i, t)| (t.hash, i)).collect();
         let model_at = models.iter().enumerate().map(|(i, m)| (m.solid, i)).collect();
-        Index { region: region.to_string(), models, textures, tex_at, model_at }
+        Index { region: region.to_string(), models, textures, tex_at, model_at, ..Default::default() }
     }
 
     /// The model of world solid `solid`.
@@ -338,7 +360,7 @@ impl Index {
             (!p.words.is_empty() || p.hash.is_none()) && p.words.iter().all(|w| n.contains(w.as_str()))
         };
         let mut out = vec![];
-        if q.kind != Kind::Textures {
+        if matches!(q.kind, Kind::All | Kind::Models) {
             for (i, m) in self.models.iter().enumerate() {
                 if named(&m.name, m.hash)
                     && q.models.matches(&m.entry())
@@ -348,7 +370,7 @@ impl Index {
                 }
             }
         }
-        if q.kind != Kind::Models {
+        if matches!(q.kind, Kind::All | Kind::Textures) {
             for (i, t) in self.textures.iter().enumerate() {
                 if !named(&t.name, t.hash) || !p.section.is_none_or(|s| self.texture_in_section(t, s)) {
                     continue;
@@ -365,7 +387,35 @@ impl Index {
                 }
             }
         }
+        if q.kind == Kind::Sounds {
+            let all = self.sounds.as_deref().unwrap_or_default();
+            out.extend(media::find_sounds(all, &q.text).into_iter().map(Hit::Sound));
+        }
+        if q.kind == Kind::Strings {
+            let all = self.lines.as_deref().unwrap_or_default();
+            out.extend(media::find_lines(all, &q.text).into_iter().map(Hit::Line));
+        }
         out
+    }
+
+    /// Hand the index the game's sounds (read once, on the first look at them).
+    pub fn set_sounds(&mut self, sounds: Vec<Sound>) {
+        self.sounds = Some(sounds);
+    }
+
+    /// Hand the index a language file's lines, and which languages there are.
+    pub fn set_lines(&mut self, language: &str, languages: Vec<String>, lines: Vec<Line>) {
+        self.language = language.to_string();
+        self.languages = languages;
+        self.lines = Some(lines);
+    }
+
+    /// How many sounds and lines the words of `text` find (0 until they are read), for the kind chips.
+    pub fn media_counts(&self, text: &str) -> (usize, usize) {
+        (
+            self.sounds.as_deref().map_or(0, |s| media::find_sounds(s, text).len()),
+            self.lines.as_deref().map_or(0, |l| media::find_lines(l, text).len()),
+        )
     }
 
     /// How many models and textures the words of `text` find (every filter at its widest), for the kind chips.
@@ -381,6 +431,8 @@ impl Index {
         match h {
             Hit::Model(i) => &self.models[i].name,
             Hit::Texture(i) => &self.textures[i].name,
+            Hit::Sound(i) => self.sounds.as_deref().and_then(|s| s.get(i)).map_or("", |s| s.name.as_str()),
+            Hit::Line(i) => self.lines.as_deref().and_then(|l| l.get(i)).map_or("", |l| l.text.as_str()),
         }
     }
 
@@ -438,6 +490,8 @@ impl Index {
 
 pub mod gltf;
 pub mod import;
+pub mod media;
+pub mod mesh;
 pub mod worker;
 
 #[cfg(test)]

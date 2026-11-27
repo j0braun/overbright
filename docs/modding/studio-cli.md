@@ -53,7 +53,7 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `looks watch` | run | Watch the work files and take each save in as one step (optional `--seconds`; default until Ctrl+C) |
 | `looks list` | read | The mod's changed textures and work files, with where their pixels started |
 | `props solids` | read | The region's placeable solids, as the prop browser lists them (`--filter` words of the name, `--category` knock-over, barriers, signs, street, trees or all; default all), with where they are placed; needs the game |
-| `race tracks` | read | The region's base tracks a race can be on, as the race panel lists them (number and name); needs the game |
+| `race tracks` | read | The region's base tracks a race can be on, as the race panel lists them (number, name, the race modes the career runs on it and its neighbourhood); needs the game |
 | `looks find` | read | Find the region's world textures by name words or hash: `looks find road` or `--text 0x1A2B3C4D`; gives each texture's id for `looks open`, name, hash, size and where it is used (the models that draw it and the sections they are in), the same search as Studio's Browser; needs the game |
 | `collision show` | read | What the World view's collision layer shows in `--mode` `off`, `invisible` (invisible walls and the race and career barriers) or `all` (default; also the walls behind scenery and the floors), counted as the window builds it; with `--mod` the mod's removed and drawn collision applies; needs the game |
 | `runs list` | read | The mod's kept runs (simulations and recordings), newest first, as the Runs workspace lists them |
@@ -67,6 +67,11 @@ and its schema export (`crates/ob-studio/schema/studio.json`) use, so `help` is 
 | `data set` | edit | Write one cell as the grid does (`--kind`, `--row` the row's key as `data show` gives it, `--field` the column, `--value` as typed into the cell): one undo step, with a request, a diff and `--dry-run` like any edit |
 | `browser search` | read | Search the region's models and textures as the Browser workspace does: words of the name, a hash or `section:N` (after the command or `--text`), `--kind` all, models or textures, `--category` for models, `--textures` any, in-use, unused, animated or large; needs the game |
 | `browser used` | read | Where a model or texture is used: a model's placements, sections and textures, a texture's models and sections; needs the game |
+| `browser sounds` | read | List and search the game's sounds (sound bank events) by words of the bank's path or the sound's name, as the Browser's Sounds chip does; needs the game |
+| `browser strings` | read | List and search a language file's lines by words, a hash (`0x1A2B3C4D`) or a label, as the Browser's Strings chip does (`--language`, default English, a unique start is enough); needs the game |
+| `browser wav` | run | Write a sound's first sample as a WAV (16 bit, one channel) as the Browser's Export does (the sound's name after the command or `--text`, with words of its bank when two share a name; `--to` a folder, else the mod's `.editor/reference/`; never inside the game's folder), marked as from the game files like a model's export; needs the game |
+| `browser mesh` | read | A model's geometry in numbers (vertices, triangles, size, its parts), as the Browser's model viewer shows it; needs the game |
+| `browser area` | run | Write the area around a point as one glTF 2.0 reference (`--at x,y,z` in the game's metres, Z up, as the camera's place shows; `--radius` 1 to 300, default 60; `--to` a folder, else the mod's `.editor/reference/`), marked and refused as `browser export` is; needs the game |
 | `browser export` | run | Write a model as a glTF 2.0 file for an outside 3D program, as the Browser's Export glTF does (the model's name or hash after the command or `--text`; `--to` a folder, else the mod's `.editor/reference/`; never inside the game's folder). The files say `origin = "from-game-files"`, `share = "local-only"`; needs the game |
 | `browser import` | run | Bring an edited glTF back as a mod model (`--file`, optional `--model`, default the one the file says it was exported from; needs `--mod` and the game). The file's materials are mapped onto the original model's parts by name; a material that is not a part, a part with no triangles, texture coordinates or (lit models) normals missing, more than 65,535 vertices, or a file for another model is refused with the reason (exit 1). A model made from your game files is kept in the mod's `.editor/models/` and never shared; `--own` says the model is entirely your own work: it goes to `models/` (shared) without the game's pictures, and is refused while the file is still marked from the game's files or the shape is the game's unchanged. The file is read by an isolated worker process (20 s, 3 GB of memory on Linux and macOS, bounded output): a file that crashes or hangs it is refused and nothing else is touched |
 | `game find` | read | The game folder the tool uses and where it came from: `--game`, `NFSU2_ROOT` or the launcher's choice (exit 4 when none, or it does not exist) |
@@ -132,7 +137,7 @@ no name (`no_name`), a name over 60 characters (`long_name`), a folder name with
 `-` and `_` (`bad_folder`) or a bad `--region` (`bad_region`) is a usage error (exit 2).
 
 `props solids` gives `region`, `count` and `solids` (each `name`, `knock_over`, `placed`, `categories`); `race tracks`
-gives `region`, `count` and `tracks` (`number`, `name`); `looks find` gives `region`, `text`, `count` and `textures`
+gives `region`, `count` and `tracks` (`number`, `name`, `modes`, `area`); `looks find` gives `region`, `text`, `count` and `textures`
 (`texture`, `name`, `hash`, `width`, `height`, `animated`, `materials`, `used`, `used_by` (`model`, `materials`) and `sections` (`section`, `placements`)); `game find` gives `game` and `source` (`--game`, `NFSU2_ROOT` or `launcher`).
 The first three read the same lists the window shows (the prop browser, the race panel's tracks, Looks' textures), so
 the same words give the same answer. On a near miss (`--filter barier`, `looks find raod`, `--category barier`,
@@ -160,6 +165,12 @@ row another mod owns, is refused by `data set` with `error.reason` `bad_value` a
 (a model's `name`, `hash`, `placed`, `shown`, `sections`, `triangles`, `textures`, `used`; a texture's `name`, `texture`
 (its Looks id), `width`, `height`, `animated`, `models`, `materials`, `used`). `browser used` gives `found`: those hits with
 a model's `placements`, `as_lod`, `section_list` and `texture_list`, or a texture's `model_list` and `section_list`.
+`browser sounds` and `browser strings` are `browser search` with `--kind sounds` or `strings` (no world is loaded for
+them): a sound hit has `name`, `bank`, `samples`, `rate`, `frames`, `seconds` and `playable`, a string hit `hash`,
+`text` and `language`. `browser wav` gives `sound`, `bank`, `wav`, `rate`, `seconds`, `origin` and `share`;
+`browser mesh` gives `region`, `model`, `hash`, `vertices`, `triangles`, `lit`, `min`, `max`, `size`, `markers` and
+`parts` (`name`, `triangles`, `texture`); `browser area` gives `region`, `gltf`, `bin`, `textures`, `note`, `at`,
+`radius`, `placements`, `models`, `skipped`, `origin` and `share`.
 
 `pack export` gives `to`, `files`, `bytes`, `derived` (the textures from the original game's pixels) and
 `build`; refused for derived textures, its `error.reason` is `derived` and `derived` lists them.

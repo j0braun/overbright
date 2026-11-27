@@ -218,7 +218,8 @@ mod saved with props hidden is byte for byte the mod saved without.
   checkpoints. With Checkpoint armed, Shift+click on the route inserts a checkpoint into that leg. Grid adds a
   slot (8 at most; with a slot selected, a click moves it).
 - **Properties** of a race: name, mode (circuit, sprint, street X, drift), laps, **Base track** (which race track
-  lends the road network, barriers, AI lanes, traffic and opponents), **Direction** (forward or backward),
+  lends the road network, barriers, AI lanes, traffic and opponents; the list names each track's race modes and
+  neighbourhood), **Direction** (forward or backward),
   length, status, **Delete race**; of a race point its position.
 - **Race** (bottom tab): the selected race as one strip, S · 1 · 2 · … · F, with the length of each leg's road and
   whether a road leads through it (a leg without one is dashed red, with **Show** and its fix); a circuit ends with

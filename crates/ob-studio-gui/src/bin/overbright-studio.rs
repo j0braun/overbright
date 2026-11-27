@@ -9,7 +9,7 @@
 //!                   [--workspace home|world|races|browser|runs|mod|settings|changes|data] [--input mouse|keyboard|xbox|playstation|deck]
 //!                   [--focus rail|address|toolbar|left|view|right|bottom] [--drawer] [--files] [--warning] [--find] [--address]
 //!                   [--run NAME] [--compare NAME] [--car ID] [--at SECONDS]
-//!                   [--select N] [--collision off|invisible|all] [--search WORDS] [--kind models|textures] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME]
+//!                   [--select N] [--collision off|invisible|all] [--search WORDS] [--kind models|textures|sounds|strings] [--row N] [--places] [--job WORDS] [--right-tab inspector|history|help] [--new-mod NAME]
 //!                                   the whole window drawn off-screen into a PNG (no window)
 //! ```
 //! A `--shot` prints one line "studio layout: fits …" or "studio layout: clipped: …" (the clip and overlap check).
@@ -382,6 +382,8 @@ fn run_shot(cli: &Cli) -> Result<()> {
         match cli.kind.as_deref() {
             Some("models") => s.browser.query.kind = Kind::Models,
             Some("textures") => s.browser.query.kind = Kind::Textures,
+            Some("sounds") => s.browser.query.kind = Kind::Sounds,
+            Some("strings") => s.browser.query.kind = Kind::Strings,
             _ => {}
         }
         shot::frames(&mut s, size, scale, 2);

@@ -66,7 +66,7 @@ fn editor(s: &Scratch, view: &str) -> App {
     a.new_mod("r", "Races", "L4RA").unwrap();
     let st = a.state.as_mut().unwrap();
     st.assets = Box::new(GivenAssets {
-        tracks: vec![TrackInfo { number: 4001, name: "Test road".into() }],
+        tracks: vec![TrackInfo { number: 4001, name: "Test road".into(), modes: vec![], area: String::new() }],
         nets: [(4001, straight(false))].into(),
         ..Default::default()
     });

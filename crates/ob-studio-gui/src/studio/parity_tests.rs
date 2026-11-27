@@ -31,7 +31,7 @@ fn workspace(w: Workspace) -> Cli {
         Workspace::Home => Has(&["pack create", "game find"]),
         Workspace::World => Has(&["props move", "props add", "collision show", "collision wall", "checks run"]),
         Workspace::Races => Has(&["race create", "race set", "race point add", "race tracks", "checks run"]),
-        Workspace::Browser => Has(&["browser search", "browser used", "browser export", "browser import", "props solids", "looks find"]),
+        Workspace::Browser => Has(&["browser search", "browser used", "browser export", "browser import", "browser sounds", "browser strings", "browser wav", "browser mesh", "browser area", "props solids", "looks find"]),
         Workspace::Runs => Has(&["runs list", "runs show", "runs telemetry", "runs compare", "runs rename", "runs delete"]),
         Workspace::Mod => Has(&["pack details", "pack export", "modpack export", "modpack convert", "modpack report", "history show"]),
         Workspace::Settings => WindowOnly("Studio's own settings: layout, units and the look of the window"),
