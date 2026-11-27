@@ -101,7 +101,7 @@ fn the_summary_is_shown_and_walked_with_the_keyboard() {
     {
         let st = a.state.as_mut().unwrap();
         st.assets = Box::new(GivenAssets {
-            tracks: vec![TrackInfo { number: 4001, name: "Test road".into() }],
+            tracks: vec![TrackInfo { number: 4001, name: "Test road".into(), modes: vec![], area: String::new() }],
             nets: [(4001, crate::editor::validate::tests::straight(false))].into(),
             ..Default::default()
         });

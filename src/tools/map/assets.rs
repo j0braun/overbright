@@ -17,6 +17,25 @@ use crate::frontend::career::tracks::Track;
 pub struct TrackInfo {
     pub number: u16,
     pub name: String,
+    /// The race modes the career runs on it (`Circuit`, `Sprint`, `Street X`, `Drag`, `Drift`, `Special`), by
+    /// name, sorted; none when no event races it.
+    pub modes: Vec<String>,
+    /// The neighbourhood the world map's window on it is centred in (empty: none, or the whole map).
+    pub area: String,
+}
+
+impl TrackInfo {
+    /// What the lists say after the name: the modes and the area (`Circuit, Sprint · City Core`), empty when
+    /// neither is known.
+    pub fn detail(&self) -> String {
+        let modes = self.modes.join(", ");
+        match (modes.is_empty(), self.area.is_empty()) {
+            (true, true) => String::new(),
+            (false, true) => modes,
+            (true, false) => self.area.clone(),
+            (false, false) => format!("{modes} · {}", self.area),
+        }
+    }
 }
 
 /// A named neighbourhood: the world rectangle (x, y) the game's own world map shows under its name.
@@ -114,12 +133,34 @@ impl MapAssets for GameAssets {
 
     fn tracks(&self, region: &str) -> Vec<TrackInfo> {
         let Some(career) = self.career() else { return Vec::new() };
+        let places = self.places(region);
+        // The events that race a track: each of a tournament's races, or the event's own track.
+        let races_on = |n: u16| {
+            career.events.iter().filter(move |e| {
+                if e.races.is_empty() { e.track == n } else { e.races.iter().any(|r| r.0 == n) }
+            })
+        };
         let mut list: Vec<TrackInfo> = career
             .tracks
             .values()
             .filter(|t| t.region == region)
             .filter(|t| career.events.iter().any(|e| e.races.first().map_or(e.track, |r| r.0) == t.number))
-            .map(|t| TrackInfo { number: t.number, name: t.name.clone() })
+            .map(|t| {
+                let mut modes: Vec<String> = races_on(t.number).map(|e| e.kind.label().to_string()).collect();
+                modes.sort();
+                modes.dedup();
+                // The world map's window on the track (texels of the 512 texel map; size 0: the whole map, no
+                // neighbourhood) centred, taken to the world through the map's frame.
+                let [wl, wt, ws] = t.map_window;
+                let area = if ws > 0.0 {
+                    let (u, v) = (wl + ws / 2.0, wt + ws / 2.0);
+                    let centre = glam::Vec2::new(t.map_left + u / 512.0 * t.map_size, t.map_top - v / 512.0 * t.map_size);
+                    place_at(&places, centre).map_or_else(String::new, |p| p.name.clone())
+                } else {
+                    String::new()
+                };
+                TrackInfo { number: t.number, name: t.name.clone(), modes, area }
+            })
             .collect();
         list.sort_by_key(|t| t.number);
         list

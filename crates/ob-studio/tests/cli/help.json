@@ -1005,7 +1005,7 @@
         },
         {
           "flag": "--kind",
-          "label": "all, models or textures (default all)",
+          "label": "all, models, textures, sounds or strings (default all)",
           "needed": false,
           "type": "text"
         },
@@ -1025,6 +1025,100 @@
       "kind": "read",
       "summary": "Search the region's models and textures by name, hash or `section:N`, as the Browser workspace does",
       "words": "browser search"
+    },
+    {
+      "command": "browser.sounds",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "Words of the bank's path or the sound's name (all must be in it)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "List and search the game's sounds (sound bank events) by bank or name, as the Browser's Sounds chip does",
+      "words": "browser sounds"
+    },
+    {
+      "command": "browser.strings",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "Words of the text, a hash (0x1A2B3C4D) or a label (IND_GRAPHICS_BODY)",
+          "needed": false,
+          "type": "text"
+        },
+        {
+          "flag": "--language",
+          "label": "The language file (default English)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "List and search a language file's lines by words, 0x hash or label, as the Browser's Strings chip does",
+      "words": "browser strings"
+    },
+    {
+      "command": "browser.wav",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "The sound's name (all words, any case), with words of its bank when two share a name",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--to",
+          "label": "The folder to write (default the mod's .editor/reference; never inside the game's folder)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "run",
+      "summary": "Write a sound as a WAV file (marked as from the game files, local-only)",
+      "words": "browser wav"
+    },
+    {
+      "command": "browser.mesh",
+      "flags": [
+        {
+          "flag": "--text",
+          "label": "The model's name (all words, any case) or hash",
+          "needed": true,
+          "type": "text"
+        }
+      ],
+      "kind": "read",
+      "summary": "A model's geometry in numbers (vertices, triangles, size, parts), as the Browser's model viewer shows it",
+      "words": "browser mesh"
+    },
+    {
+      "command": "browser.area",
+      "flags": [
+        {
+          "flag": "--at",
+          "label": "The centre as x,y,z in the game's metres (Z up), as the camera's place shows",
+          "needed": true,
+          "type": "text"
+        },
+        {
+          "flag": "--radius",
+          "label": "Metres around it, 1 to 300 (default 60)",
+          "needed": false,
+          "type": "f32"
+        },
+        {
+          "flag": "--to",
+          "label": "The folder to write (default the mod's .editor/reference; never inside the game's folder)",
+          "needed": false,
+          "type": "text"
+        }
+      ],
+      "kind": "run",
+      "summary": "Write the area around a point (the camera) as one glTF reference (marked as from the game files, local-only)",
+      "words": "browser area"
     },
     {
       "command": "browser.used",

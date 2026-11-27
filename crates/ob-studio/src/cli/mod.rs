@@ -90,6 +90,8 @@ pub struct Env {
     pub game_source: &'static str,
     /// The region `.1` of the game folder `.0` as loaded without map mods.
     pub world: Box<dyn Fn(&Path, &str) -> Result<World, String>>,
+    /// The game's sound banks and language files the Browser's viewers read, from the game folder.
+    pub media: Box<dyn Fn(&Path) -> Box<dyn crate::browser::media::Media>>,
     /// The game data the checks read, from the game folder.
     pub assets: Box<dyn Fn(&Path) -> Box<dyn MapAssets>>,
     /// How often an answer from the inbox is looked for.
@@ -107,6 +109,7 @@ impl Env {
                 "launcher"
             },
             world: Box::new(|root, region| World::load(root, region).map_err(|e| format!("{e:#}"))),
+            media: Box::new(|root| Box::new(crate::browser::media::GameMedia::new(root))),
             assets: Box::new(|root| Box::new(GameAssets::new(root.to_path_buf()))),
             poll: Duration::from_millis(50),
         }
@@ -193,7 +196,8 @@ fn dispatch(line: &args::Line, env: &Env) -> Done {
         }
         "data.kinds" | "data.show" => with_mod(line, |m| data::run(cmd.name, line, m)),
         "collision.show" => collision::show(line, env),
-        "browser.search" | "browser.used" | "browser.export" => browser::run(cmd.name, line, env),
+        "browser.search" | "browser.used" | "browser.export" | "browser.sounds" | "browser.strings" | "browser.wav"
+        | "browser.mesh" | "browser.area" => browser::run(cmd.name, line, env),
         "browser.import" => with_mod(line, |m| browser::import(line, env, &m.dir)),
         "looks.open" | "looks.import" | "looks.watch" | "looks.list" => {
             with_mod(line, |m| crate::cli::looks::run(cmd.name, line, env, m))

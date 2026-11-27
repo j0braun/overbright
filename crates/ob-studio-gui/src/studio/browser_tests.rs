@@ -2,6 +2,7 @@
 
 use ob_formats::formats::solid::{Material, Solid};
 use ob_formats::formats::texture::{Blend, PixelFormat, Scroll, Texture};
+use ob_studio::browser::media::{GivenMedia, Line, Sound};
 use ob_studio::browser::{Hit, Kind, TexFilter};
 
 use super::Studio;
@@ -70,7 +71,7 @@ fn region() -> World {
 
 fn page(w: &World) -> Page {
     let mut p = Page::new();
-    p.ensure(&Source { region: "L4RA", world: w, mod_props: 0, thumbs: None });
+    p.ensure(&Source { region: "L4RA", world: w, mod_props: 0, thumbs: None, game: None });
     p
 }
 
@@ -91,7 +92,7 @@ fn the_focus_runs_over_the_chips_then_the_results() {
     p.step_focus(1);
     p.step_chip(1);
     assert_eq!(p.query.textures, TexFilter::InUse);
-    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None });
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
     assert_eq!(p.hits().len(), 2, "TEX_2 is drawn only by an unplaced model");
 }
 
@@ -100,16 +101,16 @@ fn a_result_takes_to_its_place() {
     let w = region();
     let mut p = page(&w);
     p.query.text = "bench".into();
-    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None });
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
     p.focus = FIRST_RESULT;
     assert_eq!(p.activate(), Some(Act::ShowModel { solid: 1, name: "XB_BENCH_01".into(), placement: Some(2) }));
     p.query.text = "tex_1".into();
-    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None });
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
     p.focus = FIRST_RESULT;
     assert_eq!(p.activate(), Some(Act::OpenTexture { hash: 11, name: "TEX_1".into() }));
     // A model nothing places says so: no placement to show.
     p.query.text = "sign".into();
-    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None });
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
     p.focus = FIRST_RESULT;
     assert!(matches!(p.activate(), Some(Act::ShowModel { placement: None, .. })));
 }
@@ -120,7 +121,7 @@ fn a_used_by_link_shows_that_result() {
     let mut p = page(&w);
     let tex = p.index().unwrap().texture_of_hash(10).unwrap();
     p.select(Hit::Texture(tex));
-    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None });
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
     assert_eq!(p.focused_name().as_deref(), Some("TEX_0"));
     assert_eq!(p.query.text, "TEX_0");
 }
@@ -131,7 +132,7 @@ fn the_index_follows_the_world() {
     let mut p = page(&w);
     assert_eq!(p.index().unwrap().models[0].placed() + p.index().unwrap().models[1].placed(), 3);
     w.placements.pop();
-    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None });
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
     let placed: usize = p.index().unwrap().models.iter().map(|m| m.placed()).sum();
     assert_eq!(placed, 2, "made again when the placements change");
 }
@@ -169,7 +170,7 @@ fn it_draws_inside_its_slab_at_each_size() {
         let inner = egui::Rect::from_min_size(egui::pos2(20.0, 20.0), egui::vec2(width - 100.0, height - 150.0));
         for _ in 0..2 {
             let mut out = ctx.run_ui(raw_input((width as u32, height as u32), 1.0, 1, vec![]), |ui| {
-                p.draw(ui, inner, true, true, Some(Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None }));
+                p.draw(ui, inner, true, true, Some(Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None }));
             });
             out.textures_delta.clear();
         }
@@ -190,16 +191,157 @@ fn a_model_exports_and_a_texture_does_not() {
     let w = region();
     let mut p = page(&w);
     p.query.text = "bench".into();
-    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None });
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
     p.focus = FIRST_RESULT;
     assert_eq!(p.export_act(), Some(Act::ExportModel { solid: 1, name: "XB_BENCH_01".into() }));
     // Bring back is for the same model; a texture has neither.
     assert_eq!(p.import_act(), Some(Act::ImportModel { solid: 1, name: "XB_BENCH_01".into() }));
     p.query.text = "tex_1".into();
-    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None });
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
     assert_eq!(p.export_act(), None, "a texture has no glTF");
     assert_eq!(p.import_act(), None);
     // On a chip line nothing is focused to export.
     p.focus = 0;
     assert_eq!(p.export_act(), None);
+}
+
+fn media() -> GivenMedia {
+    let sound = |bank: &str, name: &str, samples: &[u32], playable: bool| Sound {
+        bank: bank.into(),
+        name: name.into(),
+        samples: samples.to_vec(),
+        rate: 22050,
+        frames: 11025,
+        playable,
+    };
+    let lines = |t: &[(u32, &str)]| t.iter().map(|&(hash, text)| Line { hash, text: text.into() }).collect::<Vec<_>>();
+    GivenMedia {
+        sounds: vec![
+            sound("SOUND/FE/FE_MB.abk", "FE_MENU_CLICK", &[3], true),
+            sound("SOUND/IG_GLOBAL/FX_MAIN_MEM_MB.abk", "FX_TURBO_01", &[7, 8], true),
+            sound("SOUND/IG_GLOBAL/FX_MAIN_MEM_MB.abk", "FX_BLOWOFF", &[2], false),
+        ],
+        pcm: vec![],
+        languages: vec![
+            ("English".into(), lines(&[(0x10, "Press START"), (0x20, "Race Again")])),
+            ("German".into(), lines(&[(0x10, "START dr\u{fc}cken"), (0x20, "Nochmal")])),
+        ],
+    }
+}
+
+fn media_page(w: &World) -> Page {
+    let mut p = page(w);
+    p.set_media(Box::new(media()));
+    p
+}
+
+#[test]
+fn the_sounds_chip_reads_the_sounds_once_and_the_results_are_searched() {
+    let w = region();
+    let mut p = media_page(&w);
+    assert!(p.index().unwrap().sounds.is_none(), "nothing is read until the chip is chosen");
+    p.query.kind = Kind::Sounds;
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
+    assert_eq!(p.hits().len(), 3);
+    p.query.text = "fx main".into();
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
+    assert_eq!(p.hits().len(), 2);
+    p.query.text = "turbo".into();
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
+    p.focus = FIRST_RESULT;
+    // Enter plays its first sample; Ctrl+E writes the WAV; neither is a model's.
+    assert_eq!(
+        p.activate(),
+        Some(Act::PlaySound { bank: "SOUND/IG_GLOBAL/FX_MAIN_MEM_MB.abk".into(), sample: 7, name: "FX_TURBO_01".into() })
+    );
+    assert_eq!(
+        p.export_act(),
+        Some(Act::ExportSound { bank: "SOUND/IG_GLOBAL/FX_MAIN_MEM_MB.abk".into(), sample: 7, name: "FX_TURBO_01".into() })
+    );
+    assert_eq!(p.import_act(), None);
+    assert_eq!(p.focused_name().as_deref(), Some("FX_TURBO_01"));
+    // The world's index changing keeps what was read.
+    let mut w2 = region();
+    w2.placements.pop();
+    p.ensure(&Source { region: "L4RA", world: &w2, mod_props: 0, thumbs: None, game: None });
+    assert!(p.index().unwrap().sounds.is_some());
+    assert_eq!(p.hits().len(), 1);
+}
+
+#[test]
+fn the_strings_chip_shows_a_language_and_its_chips_change_it() {
+    let w = region();
+    let mut p = media_page(&w);
+    p.query.kind = Kind::Strings;
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
+    assert_eq!(p.index().unwrap().language, "English");
+    assert_eq!(p.hits().len(), 2);
+    p.query.text = "race".into();
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
+    p.focus = FIRST_RESULT;
+    assert_eq!(p.focused_name().as_deref(), Some("0x00000020"), "a line is named by its hash");
+    // A line is read, not taken anywhere or exported.
+    assert_eq!(p.activate(), None);
+    assert_eq!(p.export_act(), None);
+    // ← → on the filters line pick the language; the lines follow.
+    p.query.text.clear();
+    p.focus = 1;
+    assert!(p.step_chip(1));
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
+    assert_eq!(p.index().unwrap().language, "German");
+    p.query.text = "nochmal".into();
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
+    assert_eq!(p.hits().len(), 1);
+}
+
+#[test]
+fn without_a_game_folder_the_kinds_say_so() {
+    let w = region();
+    let mut p = page(&w);
+    p.query.kind = Kind::Sounds;
+    p.ensure(&Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None });
+    assert!(p.hits().is_empty());
+    assert!(p.index().unwrap().sounds.is_none());
+    // The pad's X on a kind line exports the area; on a result it exports that result.
+    p.focus = 0;
+    assert_eq!(p.export_or_area_act(), Some(Act::ExportArea));
+}
+
+#[test]
+fn the_media_kinds_draw_inside_their_slab_at_each_size() {
+    let w = region();
+    for kind in [Kind::Sounds, Kind::Strings] {
+        for (width, height) in [(960.0, 600.0), (1280.0, 800.0), (1920.0, 1080.0)] {
+            let ctx = egui::Context::default();
+            crate::editor::theme::apply(&ctx);
+            let mut p = media_page(&w);
+            p.query.kind = kind;
+            let inner = egui::Rect::from_min_size(egui::pos2(20.0, 20.0), egui::vec2(width - 100.0, height - 150.0));
+            for _ in 0..3 {
+                let mut out = ctx.run_ui(raw_input((width as u32, height as u32), 1.0, 1, vec![]), |ui| {
+                    p.draw(ui, inner, true, true, Some(Source { region: "L4RA", world: &w, mod_props: 0, thumbs: None, game: None }));
+                });
+                out.textures_delta.clear();
+            }
+            let d = &p.last;
+            let inside = inner.expand(1.0);
+            for r in d.rows.iter().chain(&d.chips).chain(d.viewer.iter()).chain(&d.buttons).chain(d.search.iter()).chain(d.area_button.iter()) {
+                assert!(inside.contains_rect(*r), "{kind:?} {width}x{height}: {r:?} outside {inner:?}");
+            }
+            assert!(!d.rows.is_empty() && d.viewer.is_some(), "{kind:?} {width}x{height}");
+            assert_eq!(d.chips.len(), 5 + 2 * usize::from(kind == Kind::Strings), "the kinds, and the languages of Strings");
+            let v = d.viewer.unwrap();
+            assert!(d.rows.iter().all(|r| !r.intersects(v)));
+            // The area button is clear of the search field and the chips.
+            let a = d.area_button.unwrap();
+            assert!(!a.intersects(d.search.unwrap()) && d.chips.iter().all(|c| !c.intersects(a)));
+        }
+    }
+}
+
+#[test]
+fn a_models_viewer_has_the_mesh_numbers_the_command_prints() {
+    let w = region();
+    let m = ob_studio::browser::mesh::facts(&w.solids[0], &w.textures);
+    assert_eq!(m.lines()[0], "0 vertices · 1 triangles · unlit");
 }

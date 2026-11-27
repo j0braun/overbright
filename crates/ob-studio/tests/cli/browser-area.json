@@ -1,0 +1,24 @@
+{
+  "at": [
+    0.0,
+    0.0,
+    0.0
+  ],
+  "bin": "<tmp>/docks/.editor/reference/area-L4RA.bin",
+  "command": "browser.area",
+  "exit": 0,
+  "format": 1,
+  "gltf": "<tmp>/docks/.editor/reference/area-L4RA.gltf",
+  "models": 1,
+  "note": "<tmp>/docks/.editor/reference/LOCAL-ONLY.txt",
+  "ok": true,
+  "origin": "from-game-files",
+  "placements": 1,
+  "radius": 20.0,
+  "region": "L4RA",
+  "share": "local-only",
+  "skipped": 0,
+  "textures": [
+    "<tmp>/docks/.editor/reference/area-L4RA-ROAD.png"
+  ]
+}

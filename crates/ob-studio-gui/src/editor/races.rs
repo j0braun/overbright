@@ -783,7 +783,9 @@ impl Races {
                 tracks.iter().find(|t| t.number == r.track).map_or_else(|| format!("{}", r.track), |t| t.name.clone());
             egui::ComboBox::from_id_salt("race-track").selected_text(current).show_ui(ui, |ui| {
                 for t in &tracks {
-                    if ui.selectable_label(t.number == r.track, &t.name).clicked() && t.number != r.track {
+                    let detail = t.detail();
+                    let label = if detail.is_empty() { t.name.clone() } else { format!("{}  ({detail})", t.name) };
+                    if ui.selectable_label(t.number == r.track, label).clicked() && t.number != r.track {
                         ops.push(Op::SetTrack { race: id.clone(), track: t.number });
                     }
                 }

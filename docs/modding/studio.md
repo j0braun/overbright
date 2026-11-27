@@ -175,7 +175,7 @@ Changes on that texture's row. A history step or a version compare lists the tex
 Ctrl+4 (MAKE ▸ Browser, `ob://<mod id>/@browser`) searches the game's assets of the region the open mod is edited
 on: its models (the solids the region draws) and its textures, by name across both kinds. Type words of a name (all
 must be in it), a hash (`0x1A2B3C4D`) or `section:1407` (what is placed or seen in that streaming section). The chips
-under the field pick the kind (All, Models, Textures, each with how many the words find) and that kind's filter:
+under the field pick the kind (All, Models, Textures, Sounds, Strings, each with how many the words find) and that kind's filter:
 models by category (the prop browser's), textures by use (In use, Unused, Animated, Large).
 
 Every result says where it is used, worked out once from the loaded region and kept while it stays the same: a
@@ -201,6 +201,21 @@ The mod model is kept in `.editor/models/` with a record (`<name>.model.toml`): 
 local-only and a shared copy leaves it out. The file is read by a worker process of its own with a time and
 memory limit, so a file that crashes the reader cannot take Studio down. `browser export` and `browser import`
 do the same from the command line (`--own` there says a model is entirely your own work).
+The model viewer also gives the mesh in numbers: vertices, triangles, whether it is lit, its size in metres (Z up)
+and its parts with their triangles (`browser mesh` prints the same lines). Export area (the button at the top right,
+Ctrl+Shift+E, X on the pad while a chip line has the focus) writes the area of 60 metres around the World camera as
+one glTF reference, `area-<region>.gltf`: each model once as a mesh, each placement a node with its place, shown
+placements only, at most 12,000 of them (a smaller radius is the way out, `browser area --radius`). It is marked and
+kept like a model's export: from the game files, local-only, in `.editor/reference/`, never into the game's folder.
+
+The Sounds chip lists the game's sound banks by event (`FX_TURBO_01`, with its bank, length and rate); Strings lists
+a language file's lines by their hash, with the language chips under the kind chips (English unless another is
+chosen), and finds a line by words, by `0x` hash or by its label. Both are read from the game folder the first time
+the chip is chosen and kept; they are searched by the same field. Enter (A) on a sound plays it on the audio output:
+the output is opened by that first click and never before, and nothing plays by itself. Export WAV (Ctrl+E, X)
+writes the sound as a 16-bit mono WAV into `.editor/reference/`, marked as from the game files like a glTF; only the
+banks' own codec is decoded, the others are listed and say so. `browser sounds`, `browser strings` and `browser wav`
+do the same from the command line, and `browser area` the area export.
 ↑ ↓ and Tab move over the chips and results, ← → change a chip (in the results they move in the search field), Esc
 (B) goes back. Cars and regions the mod is not edited on are not indexed yet.
 

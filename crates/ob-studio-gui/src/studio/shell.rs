@@ -91,6 +91,10 @@ pub struct Studio {
     pub mod_page: mod_page::Page,
     /// The Browser workspace.
     pub browser: browser::Page,
+    /// The game folder the Browser's sounds and language files are read from, looked up on first use.
+    game: Option<Option<std::path::PathBuf>>,
+    /// The sound output of the Browser's Play button: opened by the first click, never before.
+    pub(super) player: Option<nfsu2::studio_api::media::Player>,
     /// The Runs workspace's list.
     pub runs: super::runs::Page,
     /// The New mod dialog, while it is open.
@@ -166,6 +170,8 @@ impl Studio {
             data: data::Page::default(),
             mod_page: mod_page::Page::new(maps.clone()),
             browser: browser::Page::new(),
+            game: None,
+            player: None,
             runs: Default::default(),
             new_mod: None,
             home_focus: 0,
@@ -543,7 +549,7 @@ impl Studio {
                 Pad::Left => Some(self.browser.step_chip(-1)).map(|_| None),
                 Pad::Right => Some(self.browser.step_chip(1)).map(|_| None),
                 Pad::A => Some(self.browser.activate()),
-                Pad::X => Some(self.browser.export_act()),
+                Pad::X => Some(self.browser.export_or_area_act()),
                 _ => None,
             };
             if let Some(act) = handled {
@@ -812,6 +818,74 @@ impl Studio {
                     }
                 });
             }
+            browser::Act::PlaySound { bank, sample, name } => {
+                let Some(game) = self.game.clone().flatten() else {
+                    self.verdict = Some(words::GAME_FOLDER_NOT_SET.into());
+                    return;
+                };
+                let m = ob_studio::browser::media::GameMedia::new(&game);
+                use ob_studio::browser::media::Media;
+                self.verdict = match m.pcm(&bank, sample) {
+                    None => Some(format!("{name} cannot be decoded: only the banks' own codec plays")),
+                    Some(pcm) => self
+                        .player
+                        .get_or_insert_with(nfsu2::studio_api::media::Player::new)
+                        .play(pcm.rate, pcm.samples)
+                        .err(),
+                };
+            }
+            browser::Act::ExportSound { bank, sample, name } => {
+                let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+                let Some(game) = self.game.clone().flatten() else {
+                    self.verdict = Some(words::GAME_FOLDER_NOT_SET.into());
+                    return;
+                };
+                let m = ob_studio::browser::media::GameMedia::new(&game);
+                let dir = ob_studio::browser::gltf::reference_dir(std::path::Path::new(&folder));
+                let sound = ob_studio::browser::media::Sound {
+                    bank,
+                    name: name.clone(),
+                    samples: vec![sample],
+                    rate: 0,
+                    frames: 0,
+                    playable: true,
+                };
+                self.verdict = Some(match ob_studio::browser::media::write_wav(&dir, Some(&game), &m, &sound) {
+                    Ok(f) => format!(
+                        "{name} written to {}: from your game files, for your own use, never shared with the mod",
+                        f.parent().unwrap_or(&dir).display()
+                    ),
+                    Err(e) => format!("{name} was not written: {e}"),
+                });
+            }
+            browser::Act::ExportArea => {
+                let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
+                let Some(st) = self.editor.as_ref().and_then(|h| h.app.state.as_ref()) else { return };
+                let game = nfsu2::studio_api::qol::setup::game_root();
+                let dir = ob_studio::browser::gltf::reference_dir(std::path::Path::new(&folder));
+                let w = &st.session.world;
+                let radius = ob_studio::browser::gltf::AREA_RADIUS;
+                self.verdict = Some(
+                    match ob_studio::browser::gltf::write_area(
+                        &dir,
+                        game.as_deref(),
+                        &w.placements,
+                        &w.solids,
+                        &w.textures,
+                        &st.session.region,
+                        st.camera.position,
+                        radius,
+                    ) {
+                        Ok(r) => format!(
+                            "The area around the camera ({} placements of {} models within {radius} m) exported to {}: from your game files, for your own 3D program, never shared with the mod",
+                            r.placements,
+                            r.models,
+                            r.files.gltf.parent().unwrap_or(&dir).display()
+                        ),
+                        Err(e) => format!("The area was not exported: {e}"),
+                    },
+                );
+            }
             browser::Act::ImportModel { solid, name } => {
                 let Some(folder) = self.open_mod().map(|m| m.folder.clone()) else { return };
                 let Some(st) = self.editor.as_ref().and_then(|h| h.app.state.as_ref()) else { return };
@@ -1056,6 +1130,7 @@ impl Studio {
         let browser_chips = browser_rows && self.browser.focus < browser::FIRST_RESULT;
         let mut chip_keys = vec![];
         let mut export_key = false;
+        let mut area_key = false;
         let mut import_key = false;
         let runs_rows = self.nav.workspace == Workspace::Runs && self.runs.row_focused(&self.ctx);
         let mut runs_steps: Vec<i32> = vec![];
@@ -1098,6 +1173,12 @@ impl Studio {
                 if browser_rows && modifiers.command && !modifiers.alt && !modifiers.shift =>
             {
                 export_key = true;
+                false
+            }
+            egui::Event::Key { key: egui::Key::E, pressed: true, modifiers, .. }
+                if browser_rows && modifiers.command && !modifiers.alt && modifiers.shift =>
+            {
+                area_key = true;
                 false
             }
             egui::Event::Key { key: egui::Key::I, pressed: true, modifiers, .. }
@@ -1213,8 +1294,12 @@ impl Studio {
             self.nav.input = InputKind::Keyboard;
             match self.browser.export_act() {
                 Some(a) => self.browser_act(a),
-                None => self.verdict = Some(words::CHOOSE_A_MODEL_TO_EXPORT_IT.into()),
+                None => self.verdict = Some(words::CHOOSE_A_MODEL_OR_SOUND_TO_EXPORT.into()),
             }
+        }
+        if area_key {
+            self.nav.input = InputKind::Keyboard;
+            self.browser_act(browser::Act::ExportArea);
         }
         if import_key {
             self.nav.input = InputKind::Keyboard;
@@ -1860,6 +1945,7 @@ impl Studio {
                     && self.new_mod.is_none();
                 let has_mod = self.open_mod().is_some();
                 let a = {
+                    let game = self.game.get_or_insert_with(nfsu2::studio_api::qol::setup::game_root).clone();
                     let Studio { editor, browser, .. } = self;
                     match editor.as_ref().and_then(|h| h.app.state.as_ref().map(|s| (h, s))) {
                         Some((h, s)) if has_mod => {
@@ -1869,6 +1955,7 @@ impl Studio {
                                 world: &s.session.world,
                                 mod_props: s.session.map.props.len(),
                                 thumbs: Some(&mut guard.thumbs),
+                                game: game.as_deref(),
                             };
                             browser.draw(ui, inner, focused, typing, Some(src))
                         }

@@ -1,0 +1,11 @@
+{
+  "command": "browser.strings",
+  "error": {
+    "kind": "usage",
+    "message": "no language `germn`: the game has English, German. Did you mean `German`?",
+    "reason": "bad_language"
+  },
+  "exit": 2,
+  "format": 1,
+  "ok": false
+}

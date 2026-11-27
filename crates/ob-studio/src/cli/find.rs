@@ -114,11 +114,17 @@ fn tracks(line: &args::Line, env: &Env) -> Done {
     };
     let region = region(line);
     let list = (env.assets)(&root).tracks(&region);
-    let mut lines: Vec<String> = list.iter().map(|t| format!("{:>5}  {}", t.number, t.name)).collect();
+    let mut lines: Vec<String> = list
+        .iter()
+        .map(|t| match t.detail() {
+            d if d.is_empty() => format!("{:>5}  {}", t.number, t.name),
+            d => format!("{:>5}  {:<34} {d}", t.number, t.name),
+        })
+        .collect();
     let mut doc = json!({
         "region": region,
         "count": list.len(),
-        "tracks": list.iter().map(|t| json!({ "number": t.number, "name": t.name })).collect::<Vec<_>>(),
+        "tracks": list.iter().map(|t| json!({ "number": t.number, "name": t.name, "modes": t.modes, "area": t.area })).collect::<Vec<_>>(),
     });
     if list.is_empty() {
         lines.push(format!("No base tracks in region {region}"));

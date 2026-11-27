@@ -3,6 +3,8 @@ use std::collections::HashMap;
 use ob_formats::formats::solid::{Material, Solid, Vertex};
 use ob_formats::formats::texture::{Blend, PixelFormat, Scroll, Texture};
 
+use nfsu2::studio_api::world::{HIDDEN_FLAG, Placement};
+
 use super::*;
 
 fn v(p: [f32; 3], uv: [f32; 2]) -> Vertex {
@@ -148,4 +150,92 @@ fn names_cannot_leave_the_folder_and_the_mod_default_is_unshared() {
     assert_eq!(file_stem(""), "model");
     let r = reference_dir(Path::new("/m/mymod"));
     assert!(r.starts_with("/m/mymod/.editor"));
+}
+
+fn placed(solid: usize, at: [f32; 3], flags: u16) -> Placement {
+    Placement {
+        solid,
+        low_solid: None,
+        mid_solid: None,
+        transform: glam::Mat4::from_translation(glam::Vec3::from(at)),
+        section: 1407,
+        flags,
+        cull_radius: 1.0,
+    }
+}
+
+/// A cone placed twice near the origin (once hidden), once far away, and a second model nearby.
+fn area_world() -> (Vec<Placement>, Vec<Solid>) {
+    let mut other = quad(false);
+    other.name = "XB_BENCH_01".into();
+    other.hash = 0xCD;
+    (
+        vec![
+            placed(0, [5.0, 0.0, 0.0], 0),
+            placed(0, [-9.0, 3.0, 0.0], 0),
+            placed(0, [1.0, 1.0, 0.0], HIDDEN_FLAG),
+            placed(0, [500.0, 0.0, 0.0], 0),
+            placed(1, [20.0, 0.0, 1.0], 0),
+        ],
+        vec![quad(true), other],
+    )
+}
+
+#[test]
+fn an_area_holds_each_near_shown_placement_once_per_model() {
+    let (p, s) = area_world();
+    let d = dir("area");
+    let r = write_area(&d, None, &p, &s, &textures(), "L4RA", glam::Vec3::ZERO, 30.0).unwrap();
+    assert_eq!((r.placements, r.models, r.skipped), (3, 2, 0));
+    assert!(r.files.gltf.ends_with("area-L4RA.gltf"), "{:?}", r.files.gltf);
+    let doc: Value = serde_json::from_slice(&std::fs::read(&r.files.gltf).unwrap()).unwrap();
+    assert_eq!(doc["asset"]["extras"]["origin"], "from-game-files");
+    assert_eq!(doc["asset"]["extras"]["share"], "local-only");
+    assert_eq!(doc["asset"]["extras"]["area"]["radius"], 30.0);
+    // The root, then the nearest first: the cone at 5 m carries its translation as a matrix.
+    let nodes = doc["nodes"].as_array().unwrap();
+    assert_eq!(nodes.len(), 4);
+    assert_eq!(nodes[1]["name"], "XC_CONE/01");
+    assert_eq!(nodes[1]["matrix"][12], 5.0);
+    assert_eq!(nodes[1]["mesh"], nodes[2]["mesh"], "the two cones share their mesh");
+    assert_ne!(nodes[1]["mesh"], nodes[3]["mesh"]);
+    // The texture both models draw is one material and one file.
+    assert_eq!(r.files.textures.len(), 1);
+    let len = std::fs::metadata(&r.files.bin).unwrap().len();
+    assert_eq!(doc["buffers"][0]["byteLength"].as_u64().unwrap(), len);
+    for bv in doc["bufferViews"].as_array().unwrap() {
+        assert!(bv["byteOffset"].as_u64().unwrap() + bv["byteLength"].as_u64().unwrap() <= len);
+    }
+    assert!(std::fs::read_to_string(&r.files.note).unwrap().contains("local-only"));
+    let _ = std::fs::remove_dir_all(&d);
+}
+
+#[test]
+fn an_area_refuses_the_game_folder_an_empty_area_and_a_huge_one() {
+    let (p, s) = area_world();
+    let game = dir("area-game");
+    std::fs::create_dir_all(&game).unwrap();
+    let e = write_area(&game.join("x"), Some(&game), &p, &s, &textures(), "L4RA", glam::Vec3::ZERO, 30.0).unwrap_err();
+    assert!(e.contains("game's own folder"), "{e}");
+    assert!(!game.join("x").exists());
+    let d = dir("area-empty");
+    let e = write_area(&d, None, &p, &s, &textures(), "L4RA", glam::Vec3::new(9000.0, 0.0, 0.0), 30.0).unwrap_err();
+    assert!(e.contains("nothing with geometry"), "{e}");
+    assert!(!d.exists(), "nothing is made for an empty area");
+    let e = write_area(&d, None, &p, &s, &textures(), "L4RA", glam::Vec3::ZERO, 5000.0).unwrap_err();
+    assert!(e.contains("radius"), "{e}");
+    let many: Vec<Placement> = (0..AREA_MAX_PLACEMENTS + 1).map(|_| placed(0, [1.0, 0.0, 0.0], 0)).collect();
+    let e = write_area(&d, None, &many, &s, &textures(), "L4RA", glam::Vec3::ZERO, 30.0).unwrap_err();
+    assert!(e.contains("too many"), "{e}");
+    let _ = std::fs::remove_dir_all(&game);
+}
+
+#[test]
+fn a_model_without_geometry_is_left_out_and_counted() {
+    let (p, mut s) = area_world();
+    s[1].vertices.clear();
+    let d = dir("area-skip");
+    let r = write_area(&d, None, &p, &s, &textures(), "L4RA", glam::Vec3::ZERO, 30.0).unwrap();
+    assert_eq!((r.placements, r.models, r.skipped), (2, 1, 1));
+    let _ = std::fs::remove_dir_all(&d);
 }

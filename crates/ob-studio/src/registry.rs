@@ -571,9 +571,49 @@ pub const COMMANDS: &[Command] = &[
         summary: "Search the region's models and textures by name, hash or `section:N`, as the Browser workspace does",
         args: &[
             f("text", TEXT, Req::No, "Words of the name, a hash (0x1A2B3C4D) or section:N"),
-            f("kind", TEXT, Req::No, "all, models or textures (default all)"),
+            f("kind", TEXT, Req::No, "all, models, textures, sounds or strings (default all)"),
             f("category", TEXT, Req::No, "Models only: knock-over, barriers, signs, street, trees or all"),
             f("textures", TEXT, Req::No, "Textures only: any, in-use, unused, animated or large"),
+        ],
+    },
+    Command {
+        name: "browser.sounds",
+        kind: CommandKind::Read,
+        summary: "List and search the game's sounds (sound bank events) by bank or name, as the Browser's Sounds chip does",
+        args: &[f("text", TEXT, Req::No, "Words of the bank's path or the sound's name (all must be in it)")],
+    },
+    Command {
+        name: "browser.strings",
+        kind: CommandKind::Read,
+        summary: "List and search a language file's lines by words, 0x hash or label, as the Browser's Strings chip does",
+        args: &[
+            f("text", TEXT, Req::No, "Words of the text, a hash (0x1A2B3C4D) or a label (IND_GRAPHICS_BODY)"),
+            f("language", TEXT, Req::No, "The language file (default English)"),
+        ],
+    },
+    Command {
+        name: "browser.wav",
+        kind: CommandKind::Run,
+        summary: "Write a sound as a WAV file (marked as from the game files, local-only)",
+        args: &[
+            f("text", TEXT, Req::Yes, "The sound's name (all words, any case), with words of its bank when two share a name"),
+            f("to", TEXT, Req::No, "The folder to write (default the mod's .editor/reference; never inside the game's folder)"),
+        ],
+    },
+    Command {
+        name: "browser.mesh",
+        kind: CommandKind::Read,
+        summary: "A model's geometry in numbers (vertices, triangles, size, parts), as the Browser's model viewer shows it",
+        args: &[f("text", TEXT, Req::Yes, "The model's name (all words, any case) or hash")],
+    },
+    Command {
+        name: "browser.area",
+        kind: CommandKind::Run,
+        summary: "Write the area around a point (the camera) as one glTF reference (marked as from the game files, local-only)",
+        args: &[
+            f("at", TEXT, Req::Yes, "The centre as x,y,z in the game's metres (Z up), as the camera's place shows"),
+            f("radius", F32, Req::No, "Metres around it, 1 to 300 (default 60)"),
+            f("to", TEXT, Req::No, "The folder to write (default the mod's .editor/reference; never inside the game's folder)"),
         ],
     },
     Command {

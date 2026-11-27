@@ -11,6 +11,7 @@ use std::collections::HashMap;
 
 use egui::{Align2, Color32, Pos2, Rect, Stroke, StrokeKind, pos2, vec2};
 use ob_studio::browse::{Filter, categories};
+use ob_studio::browser::media::{self, GameMedia, Media};
 use ob_studio::browser::{Hit, Index, Kind, Query, Signature, TexFilter};
 
 use super::changes::{small_button, thumb_image_at};
@@ -43,6 +44,8 @@ pub struct Source<'a> {
     pub mod_props: usize,
     /// The prop browser's pictures (None: models show no picture).
     pub thumbs: Option<&'a mut Thumbs>,
+    /// The game folder, where the sounds and the language files are read from (None: they cannot be).
+    pub game: Option<&'a std::path::Path>,
 }
 
 /// What the page asks the window to do.
@@ -56,6 +59,12 @@ pub enum Act {
     ExportModel { solid: usize, name: String },
     /// Bring the model's exported file, edited outside, back as a mod model (from `.editor/reference/`).
     ImportModel { solid: usize, name: String },
+    /// Play a sound's first sample on the audio output (only on a click or Enter: nothing plays by itself).
+    PlaySound { bank: String, sample: u32, name: String },
+    /// Write a sound as a WAV (into the mod's `.editor/reference/`, marked as from the game files).
+    ExportSound { bank: String, sample: u32, name: String },
+    /// Export the area around the World camera as one glTF reference.
+    ExportArea,
 }
 
 /// What the page drew where (the layout check).
@@ -67,6 +76,8 @@ pub struct Drawn {
     pub viewer: Option<Rect>,
     pub focus: Option<Rect>,
     pub buttons: Vec<Rect>,
+    /// The title line's Export area button.
+    pub area_button: Option<Rect>,
 }
 
 /// The first line the results have (lines 0 and 1 are the chip rows).
@@ -87,6 +98,14 @@ pub struct Page {
     pick: Option<Pick>,
     /// The focus to keep when the results are made again for a picked result.
     pending_focus: Option<usize>,
+    /// Where the sounds and language lines are read from, once known (the game folder, or a test's own).
+    media: Option<Box<dyn Media>>,
+    /// Why the chosen kind cannot be read (no game folder, a language the game has not).
+    media_error: Option<String>,
+    /// The language chosen for the Strings (empty: English).
+    pub language: String,
+    /// How many sounds and lines the words find, kept with the results.
+    media_counts: (usize, usize),
 }
 
 #[derive(Clone, Debug)]
@@ -120,7 +139,16 @@ impl Page {
             last: Drawn::default(),
             pick: None,
             pending_focus: None,
+            media: None,
+            media_error: None,
+            language: String::new(),
+            media_counts: (0, 0),
         }
+    }
+
+    /// Read the sounds and the language lines from `m` instead of the game folder (tests).
+    pub fn set_media(&mut self, m: Box<dyn Media>) {
+        self.media = Some(m);
     }
 
     /// The index of the loaded region, once made.
@@ -143,6 +171,10 @@ impl Page {
             }
             Kind::Models => q.textures = TexFilter::Any,
             Kind::Textures => q.models = Filter::All,
+            Kind::Sounds | Kind::Strings => {
+                q.models = Filter::All;
+                q.textures = TexFilter::Any;
+            }
         }
         q
     }
@@ -151,15 +183,23 @@ impl Page {
     pub fn ensure(&mut self, src: &Source) {
         let sig = Index::signature(src.region, src.world, src.mod_props);
         if self.index.as_ref().is_none_or(|i| i.0 != sig) {
-            self.index = Some((sig.clone(), Index::build(src.region, src.world)));
+            let mut fresh = Index::build(src.region, src.world);
+            // What was read from the game's files is not the world's: it stays when the world changes.
+            if let Some((_, old)) = self.index.take() {
+                (fresh.sounds, fresh.lines, fresh.language, fresh.languages) =
+                    (old.sounds, old.lines, old.language, old.languages);
+            }
+            self.index = Some((sig.clone(), fresh));
             self.hits_for = None;
             self.tex_thumbs.clear();
             self.preview = None;
         }
         let q = self.effective();
+        self.load_media(src.game, q.kind);
         if self.hits_for.as_ref().is_none_or(|h| h.0 != sig || h.1 != q) {
             let first = self.hits_for.is_none();
             self.hits = self.index.as_ref().map_or(vec![], |i| i.1.search(&q));
+            self.media_counts = self.index.as_ref().map_or((0, 0), |i| i.1.media_counts(&q.text));
             self.hits_for = Some((sig, q));
             if let Some(f) = self.pending_focus.take() {
                 self.focus = f;
@@ -170,6 +210,25 @@ impl Page {
             }
         }
         self.focus = self.focus.min(FIRST_RESULT + self.hits.len().saturating_sub(1));
+    }
+
+    /// Read what the chosen kind looks at when it is not read yet: the sounds, or the language's lines.
+    fn load_media(&mut self, game: Option<&std::path::Path>, kind: Kind) {
+        if !matches!(kind, Kind::Sounds | Kind::Strings) {
+            return;
+        }
+        if self.media.is_none() {
+            self.media = game.map(|g| Box::new(GameMedia::new(g)) as Box<dyn Media>);
+        }
+        let (Some(m), Some((_, ix))) = (self.media.as_deref(), self.index.as_mut()) else {
+            self.media_error = Some(words::GAME_FOLDER_NOT_SET.into());
+            return;
+        };
+        let was = (ix.sounds.is_some(), ix.lines.is_some(), ix.language.clone());
+        self.media_error = media::load(ix, m, kind, &self.language).err();
+        if was != (ix.sounds.is_some(), ix.lines.is_some(), ix.language.clone()) {
+            self.hits_for = None;
+        }
     }
 
     /// The lines the focus runs over.
@@ -199,7 +258,12 @@ impl Page {
             1 => match self.query.kind {
                 Kind::Models => self.query.models = cycle(&Self::model_filters(), self.query.models, d),
                 Kind::Textures => self.query.textures = cycle(&TexFilter::ALL, self.query.textures, d),
-                Kind::All => return false,
+                Kind::Strings => {
+                    let Some(ix) = self.index().filter(|i| !i.languages.is_empty()) else { return false };
+                    let i = ix.languages.iter().position(|l| *l == ix.language).unwrap_or(0) as i32;
+                    self.language = ix.languages[(i + d).rem_euclid(ix.languages.len() as i32) as usize].clone();
+                }
+                Kind::All | Kind::Sounds => return false,
             },
             _ => return false,
         }
@@ -237,6 +301,12 @@ impl Page {
                 let t = idx.textures.get(i)?;
                 Some(Act::OpenTexture { hash: t.hash, name: t.name.clone() })
             }
+            Hit::Sound(i) => {
+                let s = idx.sounds.as_deref()?.get(i)?;
+                Some(Act::PlaySound { bank: s.bank.clone(), sample: *s.samples.first()?, name: s.name.clone() })
+            }
+            // A line is read, not taken anywhere.
+            Hit::Line(_) => None,
         }
     }
 
@@ -247,7 +317,11 @@ impl Page {
                 let m = self.index()?.models.get(i)?;
                 Some(Act::ExportModel { solid: m.solid, name: m.name.clone() })
             }
-            Hit::Texture(_) => None,
+            Hit::Sound(i) => {
+                let s = self.index()?.sounds.as_deref()?.get(i)?;
+                Some(Act::ExportSound { bank: s.bank.clone(), sample: *s.samples.first()?, name: s.name.clone() })
+            }
+            Hit::Texture(_) | Hit::Line(_) => None,
         }
     }
 
@@ -259,16 +333,30 @@ impl Page {
         }
     }
 
+    /// What X on the pad does: on a chip line the area around the camera is exported, on a result that result.
+    pub fn export_or_area_act(&self) -> Option<Act> {
+        if self.focus < FIRST_RESULT { Some(Act::ExportArea) } else { self.export_act() }
+    }
+
     /// The address of the focused result, as the shell copies it: `looks`' texture id or the model's name.
     pub fn focused_name(&self) -> Option<String> {
-        self.focused_hit().and_then(|h| self.index().map(|i| i.name(h).to_string()))
+        let h = self.focused_hit()?;
+        let ix = self.index()?;
+        match h {
+            Hit::Line(i) => ix.lines.as_deref()?.get(i).map(|l| format!("0x{:08X}", l.hash)),
+            _ => Some(ix.name(h).to_string()),
+        }
     }
 
     /// Look at `h`: the search narrows to its name and it is the focused result.
     pub fn select(&mut self, h: Hit) {
         let Some(name) = self.index().map(|i| i.name(h).to_string()) else { return };
         self.query.text = name;
-        self.query.kind = Kind::All;
+        self.query.kind = match h {
+            Hit::Sound(_) => Kind::Sounds,
+            Hit::Line(_) => Kind::Strings,
+            _ => Kind::All,
+        };
         let q = self.effective();
         let hits = self.index().map(|i| i.search(&q)).unwrap_or_default();
         self.focus = FIRST_RESULT + hits.iter().position(|x| *x == h).unwrap_or(0);
@@ -340,7 +428,16 @@ impl Page {
 
         // The title line: the name, and what is indexed.
         let sub = match (&src, self.index()) {
-            (Some(_), Some(i)) => format!("{} models · {} textures in {}", i.models.len(), i.textures.len(), i.region),
+            (Some(_), Some(i)) => {
+                let mut sub = format!("{} models · {} textures in {}", i.models.len(), i.textures.len(), i.region);
+                if let Some(s) = &i.sounds {
+                    sub.push_str(&format!(" · {} sounds", s.len()));
+                }
+                if let Some(l) = &i.lines {
+                    sub.push_str(&format!(" · {} {} lines", l.len(), i.language));
+                }
+                sub
+            }
             _ => String::new(),
         };
         let tg = clip.layout_no_wrap(words::BROWSER.into(), font(TITLE, 24.0), rgb(t.lime));
@@ -353,6 +450,15 @@ impl Page {
             font("body", 14.0),
             rgb(t.dim),
         );
+        // The area around the camera, as one glTF reference (Ctrl+Shift+E; X on the pad's kind line).
+        if src.is_some() {
+            let w = 110.0;
+            let br = Rect::from_min_size(pos2(inner.right() - w, inner.top() + 2.0), vec2(w, 24.0));
+            if ui.put(br, small_button(words::EXPORT_AREA, false)).clicked() {
+                act = Some(Act::ExportArea);
+            }
+            drawn.area_button = Some(br);
+        }
         let Some(mut src) = src.take() else {
             clip.text(
                 pos2(inner.left(), inner.top() + 60.0),
@@ -371,7 +477,11 @@ impl Page {
         let field = ui.put(
             search,
             egui::TextEdit::singleline(&mut self.query.text)
-                .hint_text(words::SEARCH_MODELS_AND_TEXTURES_BY_NAME)
+                .hint_text(match self.query.kind {
+                    Kind::Sounds => words::SEARCH_SOUNDS_BY_BANK_OR_NAME,
+                    Kind::Strings => words::SEARCH_LINES_BY_WORDS,
+                    _ => words::SEARCH_MODELS_AND_TEXTURES_BY_NAME,
+                })
                 .font(font("body", 15.0))
                 .desired_width(search.width()),
         );
@@ -383,6 +493,8 @@ impl Page {
 
         // The chip lines.
         let (nm, nt) = self.index().map_or((0, 0), |i| i.counts(&self.query.text));
+        let (ns, nl) = self.media_counts;
+        let (sounds_read, lines_read) = self.index().map_or((false, false), |i| (i.sounds.is_some(), i.lines.is_some()));
         let mut x = inner.left();
         let kinds: Vec<(String, bool, Kind)> = Kind::ALL
             .iter()
@@ -391,8 +503,17 @@ impl Page {
                     Kind::All => nm + nt,
                     Kind::Models => nm,
                     Kind::Textures => nt,
+                    Kind::Sounds => ns,
+                    Kind::Strings => nl,
                 };
-                (format!("{} {n}", k.name()), self.query.kind == k, k)
+                // The sounds and lines are counted once they are read (the first look at them reads them).
+                let counted = match k {
+                    Kind::Sounds => sounds_read,
+                    Kind::Strings => lines_read,
+                    _ => true,
+                };
+                let label = if counted { format!("{} {n}", k.name()) } else { k.name().to_string() };
+                (label, self.query.kind == k, k)
             })
             .collect();
         let line0 = Rect::from_min_size(pos2(inner.left(), top), vec2(inner.width(), 28.0));
@@ -437,11 +558,35 @@ impl Page {
                     }
                 }
             }
-            Kind::All => {
+            Kind::Strings => {
+                let languages = self.index().map(|i| (i.languages.clone(), i.language.clone())).unwrap_or_default();
+                for l in &languages.0 {
+                    let r = self.chip(ui, &clip, &mut x, line1, l, *l == languages.1, focused && self.focus == 1);
+                    drawn.chips.push(r.0);
+                    if r.1 {
+                        self.language = l.clone();
+                    }
+                }
+                if languages.0.is_empty() {
+                    clip.text(
+                        pos2(inner.left() + 4.0, line1.center().y),
+                        Align2::LEFT_CENTER,
+                        words::LANGUAGE_FILES_NEED_GAME,
+                        font("body", 13.0),
+                        rgb(t.dim),
+                    );
+                }
+            }
+            Kind::Sounds | Kind::All => {
+                let hint = if self.query.kind == Kind::Sounds {
+                    words::ENTER_PLAYS_A_SOUND
+                } else {
+                    words::CHOOSE_MODELS_OR_TEXTURES_TO_FILTER
+                };
                 clip.text(
                     pos2(inner.left() + 4.0, line1.center().y),
                     Align2::LEFT_CENTER,
-                    words::CHOOSE_MODELS_OR_TEXTURES_TO_FILTER,
+                    hint,
                     font("body", 13.0),
                     rgb(t.dim),
                 );
@@ -517,10 +662,14 @@ impl Page {
         let mut clip = p.clone();
         clip.set_clip_rect(*list);
         if self.hits.is_empty() {
-            let line = if self.query.text.trim().is_empty() {
-                words::NOTHING_IN_THIS_REGION
-            } else {
-                words::NO_MODEL_OR_TEXTURE_MATCHES
+            let line: String = match (&self.media_error, self.query.kind) {
+                (Some(e), Kind::Sounds | Kind::Strings) => e.clone(),
+                (_, Kind::Sounds) if self.query.text.trim().is_empty() => words::GAME_HAS_NO_SOUND_BANKS.into(),
+                (_, Kind::Sounds) => words::NO_SOUND_MATCHES.into(),
+                (_, Kind::Strings) if self.query.text.trim().is_empty() => words::NO_LINES_IN_THIS_LANGUAGE.into(),
+                (_, Kind::Strings) => words::NO_LINE_MATCHES.into(),
+                _ if self.query.text.trim().is_empty() => words::NOTHING_IN_THIS_REGION.into(),
+                _ => words::NO_MODEL_OR_TEXTURE_MATCHES.into(),
             };
             clip.text(
                 pos2(list.left() + 4.0, list.top() + 8.0),
@@ -565,7 +714,7 @@ impl Page {
                     Hit::Model(i) => {
                         self.index().and_then(|x| x.models.get(*i)).map(|m| m.solid).filter(|&s| drawable(src.world, s))
                     }
-                    Hit::Texture(_) => None,
+                    Hit::Texture(_) | Hit::Sound(_) | Hit::Line(_) => None,
                 })
                 .collect();
             th.request(src.region, src.world, want);
@@ -601,6 +750,17 @@ impl Page {
                 match h {
                     Hit::Model(i) => (idx.models[i].name.clone(), short_used_model(idx, i), "model"),
                     Hit::Texture(i) => (idx.textures[i].name.clone(), short_used_texture(idx, i), "texture"),
+                    Hit::Sound(i) => {
+                        let s = &idx.sounds.as_deref().unwrap_or_default()[i];
+                        // Many banks hold an event of one name: the bank's name tells them apart.
+                        let bank = s.bank.rsplit('/').next().unwrap_or(&s.bank);
+                        let bank = bank.strip_suffix(".abk").unwrap_or(bank);
+                        (format!("{} · {bank}", s.name), format!("{:.1} s", s.seconds()), "sound")
+                    }
+                    Hit::Line(i) => {
+                        let l = &idx.lines.as_deref().unwrap_or_default()[i];
+                        (l.text.replace('\n', " "), format!("0x{:08X}", l.hash), "string")
+                    }
                 }
             };
             let tid = match h {
@@ -614,14 +774,25 @@ impl Page {
                     let hash = self.index().map(|x| x.textures[i].hash).unwrap_or(0);
                     self.tex_thumb(ui.ctx(), src.world, hash, &mut budget)
                 }
+                Hit::Sound(_) | Hit::Line(_) => None,
             };
-            frame_picture(&clip, pic, tid, matches!(h, Hit::Model(_)));
+            // A sound has a play mark where a picture would be; a line has none (its text starts at the left).
+            let text_x = match h {
+                Hit::Line(_) => row.left() + 10.0,
+                _ => pic.right() + 10.0,
+            };
+            if !matches!(h, Hit::Line(_)) {
+                frame_picture(&clip, pic, tid, matches!(h, Hit::Model(_)));
+            }
+            if matches!(h, Hit::Sound(_)) {
+                play_mark(&clip, pic, rgb(t.lime));
+            }
             let used_w = clip.layout_no_wrap(used.clone(), font("body", 13.0), rgb(t.dim)).size().x;
             let name_clip = {
                 let mut c = clip.clone();
                 c.set_clip_rect(
                     Rect::from_min_max(
-                        pos2(pic.right() + 8.0, row.top()),
+                        pos2(text_x - 2.0, row.top()),
                         pos2(row.right() - used_w - 70.0, row.bottom()),
                     )
                     .intersect(*list),
@@ -629,7 +800,7 @@ impl Page {
                 c
             };
             name_clip.text(
-                pos2(pic.right() + 10.0, row.center().y),
+                pos2(text_x, row.center().y),
                 Align2::LEFT_CENTER,
                 name,
                 font("body", 15.0),
@@ -661,11 +832,14 @@ impl Page {
     /// The nearest word of the search text among the names' words, when nothing matched.
     fn did_you_mean(&self) -> Option<String> {
         let idx = self.index()?;
-        let words: Vec<String> = idx
-            .models
-            .iter()
-            .map(|m| m.name.as_str())
-            .chain(idx.textures.iter().map(|t| t.name.as_str()))
+        let names: Vec<&str> = match self.query.kind {
+            // A line's words are the player's text, not names to correct a typo against.
+            Kind::Strings => return None,
+            Kind::Sounds => idx.sounds.as_deref().unwrap_or_default().iter().map(|s| s.name.as_str()).collect(),
+            _ => idx.models.iter().map(|m| m.name.as_str()).chain(idx.textures.iter().map(|t| t.name.as_str())).collect(),
+        };
+        let words: Vec<String> = names
+            .into_iter()
             .flat_map(|n| {
                 n.split(|c: char| !c.is_ascii_alphanumeric()).map(str::to_ascii_lowercase).collect::<Vec<_>>()
             })
@@ -700,6 +874,9 @@ impl Page {
             );
             return;
         };
+        if matches!(h, Hit::Sound(_) | Hit::Line(_)) {
+            return self.viewer_media(ui, r, &clip, h, drawn, act);
+        }
         let wide = r.width() >= 420.0 || r.height() >= 300.0;
         let pad = 14.0;
         // The picture, at the left (the preview is smaller in a strip).
@@ -711,14 +888,22 @@ impl Page {
                 Hit::Model(i) => {
                     let m = &idx.models[i];
                     let e = m.entry();
-                    let mut lines = vec![
-                        idx.model_used(i),
-                        format!(
-                            "{} triangles · {} materials",
-                            m.triangles,
-                            m.textures.iter().map(|x| x.1).sum::<usize>()
-                        ),
-                    ];
+                    // The mesh viewer's numbers (`browser mesh` prints the same lines).
+                    let facts = src.world.solids.get(m.solid).map(|s| ob_studio::browser::mesh::facts(s, &src.world.textures));
+                    let mut lines = vec![idx.model_used(i)];
+                    match &facts {
+                        Some(f) => {
+                            let l = f.lines();
+                            lines.extend(l.iter().take(2).cloned());
+                            if f.parts.len() > 1 {
+                                lines.push(format!(
+                                    "Parts: {}",
+                                    list_words(f.parts.iter().map(|p| format!("{} ({})", p.name, p.triangles)), f.parts.len())
+                                ));
+                            }
+                        }
+                        None => lines.push(format!("{} triangles", m.triangles)),
+                    }
                     if m.as_lod > 0 && !m.placements.is_empty() {
                         lines.push(format!("Also the lower detail of {} placements", m.as_lod));
                     }
@@ -775,6 +960,8 @@ impl Page {
                         words::OPEN_IN_LOOKS,
                     )
                 }
+                // Drawn by `viewer_media`, which returns before this.
+                Hit::Sound(_) | Hit::Line(_) => return,
             }
         };
         // The picture.
@@ -792,6 +979,7 @@ impl Page {
                 let hash = self.index().map(|x| x.textures[i].hash).unwrap_or(0);
                 self.tex_preview(ui.ctx(), src.world, hash)
             }
+            Hit::Sound(_) | Hit::Line(_) => None,
         };
         frame_picture(&clip, pic, tid, matches!(h, Hit::Model(_)));
         if tid.is_none()
@@ -869,6 +1057,83 @@ impl Page {
             }
         }
     }
+}
+
+impl Page {
+    /// The viewer of a sound or a language line: its words, and for a sound the Play and Export WAV buttons.
+    fn viewer_media(
+        &mut self,
+        ui: &mut egui::Ui,
+        r: &Rect,
+        clip: &egui::Painter,
+        h: Hit,
+        drawn: &mut Drawn,
+        act: &mut Option<Act>,
+    ) {
+        let t = tokens();
+        let pad = 14.0;
+        let Some(idx) = self.index() else { return };
+        let (title, kind_line, lines, play): (String, String, Vec<String>, bool) = match h {
+            Hit::Sound(i) => {
+                let Some(s) = idx.sounds.as_deref().and_then(|s| s.get(i)) else { return };
+                let mut lines = vec![s.describe(), s.bank.clone()];
+                if s.samples.len() > 1 {
+                    lines.push(format!("Starts one of {} samples: {}", s.samples.len(), list_words(s.samples.iter().map(u32::to_string), s.samples.len())));
+                }
+                (s.name.clone(), words::SOUND.into(), lines, s.playable)
+            }
+            Hit::Line(i) => {
+                let Some(l) = idx.lines.as_deref().and_then(|l| l.get(i)) else { return };
+                (format!("0x{:08X}", l.hash), format!("String · {}", idx.language), vec![l.text.clone()], false)
+            }
+            _ => return,
+        };
+        let text_w = (r.width() - 2.0 * pad).max(40.0);
+        let mut y = r.top() + pad;
+        let g = clip.layout(title, draw::label_font(18.0), rgb(t.lime), text_w);
+        let gh = g.size().y;
+        clip.galley(pos2(r.left() + pad, y), g, rgb(t.lime));
+        y += gh + 4.0;
+        for (k, text) in std::iter::once(kind_line).chain(lines).enumerate() {
+            let (size, col) = if k == 0 { (13.0, rgb(t.dim)) } else { (14.0, rgb(t.ink)) };
+            let g = clip.layout(text, font("body", size), col, text_w);
+            let gh = g.size().y;
+            clip.galley(pos2(r.left() + pad, y), g, col);
+            y += gh + 4.0;
+        }
+        if matches!(h, Hit::Sound(_)) {
+            let br = Rect::from_min_size(pos2(r.left() + pad, r.bottom() - 34.0), vec2(150.0, 24.0));
+            if br.top() > y - 4.0 {
+                let play_act = self.act_for(h);
+                if play && ui.put(br, small_button(words::PLAY, false)).clicked() {
+                    *act = play_act;
+                }
+                if !play {
+                    clip.text(br.left_center(), Align2::LEFT_CENTER, words::NOT_DECODABLE, font("body", 13.0), rgb(t.dim));
+                } else {
+                    drawn.buttons.push(br);
+                    let er = Rect::from_min_size(br.right_top() + vec2(8.0, 0.0), vec2(120.0, 24.0));
+                    if er.right() <= r.right() - 4.0 {
+                        if ui.put(er, small_button(words::EXPORT_WAV, false)).clicked() {
+                            *act = self.export_act();
+                        }
+                        drawn.buttons.push(er);
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// A play mark (a triangle) in the picture's frame, where a sound has no picture.
+fn play_mark(p: &egui::Painter, r: Rect, col: Color32) {
+    let c = r.center();
+    let s = r.width() * 0.22;
+    p.add(egui::Shape::convex_polygon(
+        vec![pos2(c.x - s * 0.6, c.y - s), pos2(c.x - s * 0.6, c.y + s), pos2(c.x + s, c.y)],
+        col,
+        Stroke::NONE,
+    ));
 }
 
 /// Whether the prop renderer can draw solid `i` (a model with no geometry has no picture, and a world of such

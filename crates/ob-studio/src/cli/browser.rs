@@ -5,7 +5,7 @@ use serde_json::{Value, json};
 
 use super::{Done, Env, OK, REGION, USAGE, args, fail, game_root, NO_GAME};
 use crate::browse::{self, Filter};
-use crate::browser::{Hit, Index, Kind, Query, TexFilter};
+use crate::browser::{Hit, Index, Kind, Query, TexFilter, media};
 
 fn text(line: &args::Line, key: &str) -> String {
     line.args.get(key).and_then(Value::as_str).unwrap_or_default().to_string()
@@ -43,6 +43,17 @@ fn hit_json(ix: &Index, h: Hit) -> Value {
                 "textures": m.textures.len(), "used": ix.model_used(i),
             })
         }
+        Hit::Sound(i) => {
+            let s = &ix.sounds.as_deref().unwrap_or_default()[i];
+            json!({
+                "type": "sound", "name": s.name, "bank": s.bank, "samples": s.samples, "rate": s.rate,
+                "frames": s.frames, "seconds": s.seconds(), "playable": s.playable,
+            })
+        }
+        Hit::Line(i) => {
+            let l = &ix.lines.as_deref().unwrap_or_default()[i];
+            json!({ "type": "string", "hash": format!("0x{:08X}", l.hash), "text": l.text, "language": ix.language })
+        }
         Hit::Texture(i) => {
             let t = &ix.textures[i];
             json!({
@@ -57,6 +68,14 @@ fn hit_json(ix: &Index, h: Hit) -> Value {
 fn hit_line(ix: &Index, h: Hit) -> String {
     match h {
         Hit::Model(i) => format!("model    {:<28} {}", ix.models[i].name, ix.model_used(i)),
+        Hit::Sound(i) => {
+            let s = &ix.sounds.as_deref().unwrap_or_default()[i];
+            format!("sound    {:<28} {}", s.name, s.bank)
+        }
+        Hit::Line(i) => {
+            let l = &ix.lines.as_deref().unwrap_or_default()[i];
+            format!("{:08X}  {}", l.hash, l.text)
+        }
         Hit::Texture(i) => {
             let t = &ix.textures[i];
             format!("texture  {:<28} {}x{}  {}", t.name, t.width, t.height, ix.texture_used(i))
@@ -67,12 +86,28 @@ fn hit_line(ix: &Index, h: Hit) -> String {
 pub(super) fn run(name: &str, line: &args::Line, env: &Env) -> Done {
     match name {
         "browser.used" => used(line, env),
+        "browser.sounds" => search_kind(line, env, Some(Kind::Sounds)),
+        "browser.strings" => search_kind(line, env, Some(Kind::Strings)),
+        "browser.wav" => wav(line, env),
+        "browser.mesh" => mesh(line, env),
+        "browser.area" => area(line, env),
         "browser.export" => export(line, env),
-        _ => search(line, env),
+        _ => search_kind(line, env, None),
     }
 }
 
-fn search(line: &args::Line, env: &Env) -> Done {
+/// The game's sounds and language lines the command line reads, as the window's Browser does ([`media::load`]).
+fn read_media(line: &args::Line, env: &Env, ix: &mut Index, kind: Kind) -> Result<(), Done> {
+    let root = game_root(line, env)?;
+    let m = (env.media)(&root);
+    media::load(ix, &*m, kind, &text(line, "language")).map_err(|e| {
+        let mut d = fail(USAGE, e);
+        d.doc["error"]["reason"] = json!("bad_language");
+        d
+    })
+}
+
+fn search_kind(line: &args::Line, env: &Env, preset: Option<Kind>) -> Done {
     let kinds: Vec<String> = Kind::ALL.iter().map(|k| word(k.name())).collect();
     let tex: Vec<String> = TexFilter::ALL.iter().map(|k| word(k.name())).collect();
     let cats: Vec<String> = Filter::ALL.iter().map(|f| browse::filter_word(*f).to_string()).collect();
@@ -98,9 +133,21 @@ fn search(line: &args::Line, env: &Env) -> Done {
             None => return bad("category", &c, &cats),
         }
     }
-    let (region, ix) = match index(line, env) {
-        Ok(x) => x,
-        Err(d) => return d,
+    if let Some(k) = preset {
+        q.kind = k;
+    }
+    // Sounds and lines come from the game's files, not from a region's world: no world is loaded for them.
+    let (region, ix) = if matches!(q.kind, Kind::Sounds | Kind::Strings) {
+        let mut ix = Index::empty(line.flag("region").unwrap_or(REGION));
+        if let Err(d) = read_media(line, env, &mut ix, q.kind) {
+            return d;
+        }
+        (ix.region.clone(), ix)
+    } else {
+        match index(line, env) {
+            Ok(x) => x,
+            Err(d) => return d,
+        }
     };
     let hits = ix.search(&q);
     let (models, textures) = ix.counts(&q.text);
@@ -111,6 +158,7 @@ fn search(line: &args::Line, env: &Env) -> Done {
     let doc = json!({
         "region": region, "text": q.text, "count": hits.len(),
         "found": { "models": models, "textures": textures },
+        "language": if q.kind == Kind::Strings { json!(ix.language) } else { Value::Null },
         "hits": hits.iter().map(|h| hit_json(&ix, *h)).collect::<Vec<_>>(),
     });
     Done { code: OK, text: lines, doc }
@@ -148,6 +196,7 @@ fn used(line: &args::Line, env: &Env) -> Done {
                 d["section_list"] = json!(m.sections.iter().map(|(s, n)| json!({ "section": s, "placed": n })).collect::<Vec<_>>());
                 d["texture_list"] = json!(tex);
             }
+            Hit::Sound(_) | Hit::Line(_) => {}
             Hit::Texture(i) => {
                 let t = &ix.textures[i];
                 let models: Vec<Value> = t
@@ -283,4 +332,144 @@ fn refused(r: &crate::browser::import::Refusal) -> Done {
     d.text = r.0.iter().map(|w| format!("not imported: {w}")).collect();
     d.doc["error"]["reasons"] = json!(r.0);
     d
+}
+
+/// The sound `text` names among the game's: an exact event name, else the only one the words find.
+fn sound_named(all: &[media::Sound], text: &str) -> Result<usize, Done> {
+    let found = media::find_sounds(all, text);
+    if let Some(&i) = found.iter().find(|&&i| all[i].name.eq_ignore_ascii_case(text)) {
+        if found.iter().filter(|&&i| all[i].name.eq_ignore_ascii_case(text)).count() == 1 {
+            return Ok(i);
+        }
+    }
+    match found.as_slice() {
+        [i] => Ok(*i),
+        [] => {
+            let mut m = format!("no sound matches `{text}`");
+            if let Some(n) = browse::did_you_mean(text, all.iter().map(|s| s.name.as_str())) {
+                m.push_str(&format!(". Did you mean `{n}`?"));
+            }
+            Err(fail(super::FAILED, m))
+        }
+        many => {
+            let names: Vec<String> = many.iter().take(6).map(|&i| format!("{} ({})", all[i].name, all[i].bank)).collect();
+            Err(fail(super::FAILED, format!("`{text}` matches {} sounds ({}…): add words of the bank", many.len(), names.join(", "))))
+        }
+    }
+}
+
+/// `browser wav`: a sound written as a WAV file, marked as from the game files like a model's export.
+fn wav(line: &args::Line, env: &Env) -> Done {
+    use crate::browser::gltf;
+    let name = text(line, "text");
+    let to = text(line, "to");
+    let dir = match (Some(to).filter(|t| !t.is_empty()), line.flag("mod").filter(|t| !t.is_empty())) {
+        (Some(t), _) => std::path::PathBuf::from(t),
+        (None, Some(m)) => gltf::reference_dir(std::path::Path::new(m)),
+        (None, None) => return fail(USAGE, "--to (a folder) or --mod is needed: where the WAV is written"),
+    };
+    let root = match game_root(line, env) {
+        Ok(r) => r,
+        Err(d) => return d,
+    };
+    let m = (env.media)(&root);
+    let all = m.sounds();
+    let s = match sound_named(&all, &name) {
+        Ok(i) => &all[i],
+        Err(d) => return d,
+    };
+    match media::write_wav(&dir, Some(&root), &*m, s) {
+        Ok(f) => Done {
+            code: OK,
+            text: vec![format!("{} written ({:.2} s): from your game files, local-only (see {})", f.display(), s.seconds(), gltf::NOTE_FILE)],
+            doc: json!({
+                "sound": s.name, "bank": s.bank, "wav": f, "rate": s.rate, "seconds": s.seconds(),
+                "origin": "from-game-files", "share": "local-only",
+            }),
+        },
+        Err(e) => fail(super::FAILED, e),
+    }
+}
+
+/// `browser mesh`: a model's geometry in numbers, as the window's viewer shows it.
+fn mesh(line: &args::Line, env: &Env) -> Done {
+    let name = text(line, "text");
+    let (region, world) = match world(line, env) {
+        Ok(x) => x,
+        Err(d) => return d,
+    };
+    let ix = Index::build(&region, &world);
+    let solid = match model_named(&ix, &name) {
+        Ok(s) => s,
+        Err(d) => return d,
+    };
+    let f = crate::browser::mesh::facts(&world.solids[solid], &world.textures);
+    let mut lines = vec![format!("{}  0x{:08X}", f.name, f.hash)];
+    lines.extend(f.lines());
+    Done {
+        code: OK,
+        text: lines,
+        doc: json!({
+            "region": region, "model": f.name, "hash": format!("0x{:08X}", f.hash), "vertices": f.vertices,
+            "triangles": f.triangles, "lit": f.lit, "min": f.min, "max": f.max, "size": f.size, "markers": f.markers,
+            "parts": f.parts.iter().map(|p| json!({
+                "name": p.name, "triangles": p.triangles, "texture": p.texture.map(|h| format!("world:0x{h:08X}")),
+            })).collect::<Vec<_>>(),
+        }),
+    }
+}
+
+fn world(line: &args::Line, env: &Env) -> Result<(String, nfsu2::studio_api::world::World), Done> {
+    let root = game_root(line, env)?;
+    let region = line.flag("region").unwrap_or(REGION).to_string();
+    let world = (env.world)(&root, &region).map_err(|e| fail(NO_GAME, format!("the game's world does not load: {e}")))?;
+    Ok((region, world))
+}
+
+/// `x,y,z` (metres, the game's Z up).
+pub fn parse_point(text: &str) -> Option<glam::Vec3> {
+    let v: Vec<f32> = text.split(',').map(|p| p.trim().parse().ok()).collect::<Option<_>>()?;
+    match v.as_slice() {
+        [x, y, z] if v.iter().all(|c| c.is_finite()) => Some(glam::Vec3::new(*x, *y, *z)),
+        _ => None,
+    }
+}
+
+/// `browser area`: the area around a point (the camera) as one glTF reference, as the window's Export area writes it.
+fn area(line: &args::Line, env: &Env) -> Done {
+    use crate::browser::gltf;
+    let at = text(line, "at");
+    let Some(centre) = parse_point(&at) else {
+        return fail(USAGE, "--at x,y,z is needed: the game's coordinates in metres, Z up (the camera's place)");
+    };
+    let radius = line.args.get("radius").and_then(Value::as_f64).map_or(gltf::AREA_RADIUS, |r| r as f32);
+    let to = text(line, "to");
+    let dir = match (Some(to).filter(|t| !t.is_empty()), line.flag("mod").filter(|t| !t.is_empty())) {
+        (Some(t), _) => std::path::PathBuf::from(t),
+        (None, Some(m)) => gltf::reference_dir(std::path::Path::new(m)),
+        (None, None) => return fail(USAGE, "--to (a folder) or --mod is needed: where the glTF is written"),
+    };
+    let root = match game_root(line, env) {
+        Ok(r) => r,
+        Err(d) => return d,
+    };
+    let (region, world) = match world(line, env) {
+        Ok(x) => x,
+        Err(d) => return d,
+    };
+    match gltf::write_area(&dir, Some(&root), &world.placements, &world.solids, &world.textures, &region, centre, radius) {
+        Ok(r) => Done {
+            code: OK,
+            text: vec![format!(
+                "{} written: {} placements of {} models within {radius} m, from your game files, local-only (see {})",
+                r.files.gltf.display(), r.placements, r.models, gltf::NOTE_FILE
+            )],
+            doc: json!({
+                "region": region, "gltf": r.files.gltf, "bin": r.files.bin, "textures": r.files.textures, "note": r.files.note,
+                "at": [centre.x, centre.y, centre.z], "radius": radius, "placements": r.placements, "models": r.models,
+                "skipped": r.skipped, "origin": "from-game-files", "share": "local-only",
+            }),
+        },
+        Err(e) => fail(super::FAILED, e),
+    }
 }

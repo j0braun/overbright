@@ -333,7 +333,24 @@ pub fn looking_only_row(who: &str) -> String {
 }
 
 /// Every word above, for the tests.
-pub const ALL: [&str; 309] = [
+pub const SEARCH_SOUNDS_BY_BANK_OR_NAME: &str = "Search sounds by bank or name";
+pub const SEARCH_LINES_BY_WORDS: &str = "Search a language's lines by words, 0x hash or label";
+pub const ENTER_PLAYS_A_SOUND: &str = "Enter plays a sound, Ctrl+E writes it as a WAV";
+pub const GAME_HAS_NO_SOUND_BANKS: &str = "The game has no sound banks here";
+pub const NO_SOUND_MATCHES: &str = "No sound matches";
+pub const NO_LINES_IN_THIS_LANGUAGE: &str = "No lines in this language file";
+pub const NO_LINE_MATCHES: &str = "No line matches";
+pub const CHOOSE_A_MODEL_OR_SOUND_TO_EXPORT: &str = "Choose a model or a sound to export it: textures and lines have no file";
+pub const EXPORT_AREA: &str = "Export area";
+pub const PLAY: &str = "Play";
+pub const EXPORT_WAV: &str = "Export WAV";
+pub const NOT_DECODABLE: &str = "Not decodable: only the banks' own codec plays";
+pub const LANGUAGE_FILES_NEED_GAME: &str = "The language files are read when the game folder is set";
+pub const GAME_FOLDER_NOT_SET: &str = "The game folder is not set: the launcher's setup has it";
+
+pub const SOUND: &str = "Sound";
+
+pub const ALL: [&str; 324] = [
     QUIT,
     STUDIO,
     TOO_SMALL,
@@ -643,6 +660,21 @@ pub const ALL: [&str; 309] = [
     ROW_OPEN_FOR,
     ROW_YOUR_MODS,
     AUTOMATICALLY,
+    SOUND,
+    SEARCH_SOUNDS_BY_BANK_OR_NAME,
+    SEARCH_LINES_BY_WORDS,
+    ENTER_PLAYS_A_SOUND,
+    GAME_HAS_NO_SOUND_BANKS,
+    NO_SOUND_MATCHES,
+    NO_LINES_IN_THIS_LANGUAGE,
+    NO_LINE_MATCHES,
+    CHOOSE_A_MODEL_OR_SOUND_TO_EXPORT,
+    EXPORT_AREA,
+    PLAY,
+    EXPORT_WAV,
+    NOT_DECODABLE,
+    LANGUAGE_FILES_NEED_GAME,
+    GAME_FOLDER_NOT_SET,
 ];
 
 /// The characters beyond ASCII Studio's words and glyphs use (the faces must have them).

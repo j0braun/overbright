@@ -281,7 +281,7 @@ fn dock_road() -> crate::formats::roads::RoadNet {
 
 fn dock_assets() -> Box<dyn crate::tools::map::assets::MapAssets> {
     Box::new(crate::tools::map::assets::GivenAssets {
-        tracks: vec![crate::tools::map::assets::TrackInfo { number: 4001, name: "Docks".into() }],
+        tracks: vec![crate::tools::map::assets::TrackInfo { number: 4001, name: "Docks".into(), modes: vec![], area: String::new() }],
         nets: [(4001, dock_road())].into(),
         ..Default::default()
     })
