@@ -1804,7 +1804,12 @@ impl Studio {
                     x = r.right() + 6.0;
                 }
             }
-            if a.width() > 240.0 {
+            // The Ctrl+L hint only where the names leave room for it (a long address would run into it).
+            let hint_w = p
+                .layout_no_wrap(words::CTRL_L.to_string(), font(SEMI, 11.0), rgb(t.dim))
+                .size()
+                .x;
+            if a.width() > 240.0 && x + 12.0 + hint_w <= a.right() - 10.0 {
                 p.text(
                     pos2(a.right() - 10.0, a.center().y),
                     Align2::RIGHT_CENTER,
@@ -2296,6 +2301,7 @@ impl Studio {
                 );
                 let mut clip = p.clone();
                 clip.set_clip_rect(row);
+                let line = draw::elide(&p, line, font("body", 13.0), row.width() - 48.0, false);
                 clip.text(
                     pos2(row.left() + 40.0, row.top() + 40.0),
                     Align2::LEFT_CENTER,
@@ -2346,6 +2352,7 @@ impl Studio {
                 rgb(t.ink),
             );
             let sub = if open { format!("open · {}", m.line()) } else { m.line() };
+            let sub = draw::elide(&p, &sub, font("body", 13.0), row.width() - 48.0, false);
             p.text(pos2(row.left() + 40.0, row.top() + 40.0), Align2::LEFT_CENTER, sub, font("body", 13.0), rgb(t.dim));
             let clicked = ui.interact(row, egui::Id::unique(("mod", i)), egui::Sense::click()).clicked();
             take(row, clicked, &mut target, &mut acted);

@@ -562,7 +562,7 @@ pub fn state_model(name: &str) -> Option<(Screen, Model)> {
                 "Docks remix".into(),
                 super::trial::Trial {
                     pack: "docks-remix".into(),
-                    dir: "/home/player/.local/share/overbright/tries/docks-remix-2026-11-25-18-04-12".into(),
+                    dir: "/data/player/.local/share/overbright/tries/docks-remix-2026-11-25-18-04-12".into(),
                 },
             ));
         }

@@ -1747,13 +1747,12 @@ impl Page {
                 draw::source_mark(clip, pos2(body.left() + 6.0, *y + 10.0), 9.0, s);
             }
             clip.text(pos2(body.left() + 20.0, *y + 10.0), Align2::LEFT_CENTER, k, font("body", 14.0), rgb(t.dim));
-            let mut vc = clip.clone();
-            vc.set_clip_rect(
-                clip.clip_rect()
-                    .intersect(Rect::from_min_max(pos2(body.left() + 112.0, *y), pos2(body.right(), *y + 22.0))),
-            );
-            vc.text(pos2(body.left() + 112.0, *y + 10.0), Align2::LEFT_CENTER, val, font(SEMI, 14.0), rgb(t.ink));
-            *y += 24.0;
+            // A long value wraps under its label's column instead of running past the dock's edge.
+            let wrap = (body.right() - (body.left() + 112.0)).max(40.0);
+            let g = clip.layout(val, font(SEMI, 14.0), rgb(t.ink), wrap);
+            let h = g.size().y;
+            clip.galley(pos2(body.left() + 112.0, *y + 10.0 - 8.5), g, rgb(t.ink));
+            *y += h.max(17.0).max(14.0) + 7.0;
         };
         let txt = |x: Option<&toml::Value>| x.map_or("-".to_string(), |x| value_text(&v.field, x));
         let orig = if v.original.is_none() && !row.added && !map::original_known(row.kind, &v.field) {

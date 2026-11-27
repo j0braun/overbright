@@ -203,6 +203,35 @@ fn dir(d: Dir) -> (f32, f32) {
     }
 }
 
+/// `text` shortened with "…" so it is at most `width` points wide in `font`: the end is cut, or with `middle` the
+/// middle (a path keeps its start and its file name). The text itself when it fits.
+pub fn elide(p: &Painter, text: &str, font: FontId, width: f32, middle: bool) -> String {
+    let wide = |s: &str| p.layout_no_wrap(s.to_string(), font.clone(), Color32::WHITE).size().x;
+    if wide(text) <= width {
+        return text.to_string();
+    }
+    let ch: Vec<char> = text.chars().collect();
+    let make = |keep: usize| -> String {
+        if middle {
+            let tail = keep / 2;
+            let head = keep - tail;
+            format!("{}…{}", ch[..head].iter().collect::<String>(), ch[ch.len() - tail..].iter().collect::<String>())
+        } else {
+            format!("{}…", ch[..keep].iter().collect::<String>())
+        }
+    };
+    let (mut lo, mut hi) = (0usize, ch.len());
+    while lo < hi {
+        let mid = (lo + hi).div_ceil(2);
+        if wide(&make(mid)) <= width {
+            lo = mid;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    make(lo)
+}
+
 /// A key cap with its text (the address bar's "Ctrl+L", the Find field's "Ctrl+K"), right edge at `right`.
 pub fn key_cap_right(p: &Painter, text: &'static str, right: f32, cy: f32) -> f32 {
     let w = glyph_width(p, Glyph::Key(text));
@@ -434,6 +463,31 @@ pub fn card(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A long text is cut with "…" to fit its column (the end, or the middle for a path), a short one is left alone.
+    #[test]
+    fn elide_fits_the_width() {
+        let ctx = egui::Context::default();
+        crate::editor::theme::apply(&ctx);
+        ctx.run_ui(egui::RawInput::default(), |_| {}).textures_delta.clear();
+        let mut out = ctx.run_ui(egui::RawInput::default(), |ui| {
+            let p = ui.painter();
+            let f = font("body", 15.0);
+            let w = |s: &str| p.layout_no_wrap(s.to_string(), f.clone(), Color32::WHITE).size().x;
+            assert_eq!(elide(p, "short", f.clone(), 300.0, false), "short");
+            let path = "/home/someone/.local/share/overbright/exports/review-circuit.zip";
+            for width in [60.0, 120.0, 250.0] {
+                for middle in [false, true] {
+                    let e = elide(p, path, f.clone(), width, middle);
+                    assert!(w(&e) <= width, "{e} is {} wide, not {width}", w(&e));
+                    assert!(e.contains('…'));
+                }
+            }
+            let e = elide(p, path, f.clone(), 250.0, true);
+            assert!(e.ends_with("circuit.zip") || e.ends_with("uit.zip"), "{e}");
+        });
+        out.textures_delta.clear();
+    }
 
     /// The summary rows and the busy line are built here once: the rows stack at their height, the value clips at
     /// its column, the busy lamp turns with the clock, and the Home page and the Mod page share the row head.

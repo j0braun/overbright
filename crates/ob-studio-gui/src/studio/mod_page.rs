@@ -477,7 +477,8 @@ impl Page {
                 let mut c = p.clone();
                 c.set_clip_rect(cell.intersect(inner));
                 let shown = if value.is_empty() { words::NOT_SET } else { value };
-                c.text(pos2(cell.left(), r.center().y), Align2::LEFT_CENTER, shown, font("body", 15.0), rgb(t.ink));
+                let shown = draw::elide(&p, shown, font("body", 15.0), cell.width(), true);
+                c.text(pos2(cell.left(), r.center().y), Align2::LEFT_CENTER, &shown, font("body", 15.0), rgb(t.ink));
             }
             p.line_segment([r.left_bottom(), r.right_bottom()], Stroke::new(1.0, draw::rule()));
             if is_focus && focused && !this.confirm {
