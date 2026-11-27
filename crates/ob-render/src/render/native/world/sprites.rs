@@ -335,7 +335,7 @@ impl WorldRenderer {
         let Some(extra) = slot.checked_sub(self.texture_scrolls.len()) else {
             return self.core.set_world_texture(pass, slot, bound);
         };
-        let (group, scroll, layer) = &self.extra_textures[extra];
+        let (group, scroll, layer) = self.extra_textures.get(extra).expect("a texture slot drawn after it was given back");
         // Past the core's arrays' numbers.
         let id = self.texture_arrays.as_ref().map_or(0, |a| a.groups.len()) + extra;
         if *bound != id {
