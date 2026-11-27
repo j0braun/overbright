@@ -410,3 +410,20 @@ fn fifty_thousand_rows_draw_only_the_visible_ones() {
     assert!(t.elapsed().as_secs() < 30, "{:?}", t.elapsed());
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+#[test]
+fn data_opens_on_the_first_tab_with_values() {
+    let dir = maps("first-tab");
+    let size = (1280, 800);
+    // A mod with props and races opens on Props, as before.
+    let s = open(&dir, size);
+    assert_eq!(s.data.kind, "placement");
+    // A mod with races alone opens on Races, not on an empty Props tab.
+    let text = std::fs::read_to_string(dir.join("harbour-edits").join(store::FILE)).unwrap();
+    let mut m = MapMod::parse(&text).unwrap();
+    m.props.clear();
+    put(&dir, "harbour-edits", &m);
+    let s = open(&dir, size);
+    assert_eq!(s.data.kind, "race");
+    assert_eq!(s.data.grid.as_ref().unwrap().counts(), (3, 3));
+}

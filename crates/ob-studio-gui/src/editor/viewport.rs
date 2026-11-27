@@ -83,6 +83,8 @@ pub const WHOLE_MIN_PX: f32 = 2.0;
 /// The look bar's width (points); it is left out when the image is
 /// narrower.
 pub const LOOK_BAR_WIDTH: f32 = 520.0;
+/// The look buttons' layer: above the overlays' (route, checkpoints, gizmo) and below dialogs and menus.
+pub const LOOK_BAR_ORDER: egui::Order = egui::Order::Middle;
 
 /// How the 3D viewport draws the world.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -909,41 +911,66 @@ impl Viewport {
         if !rect.contains_rect(bar) {
             return;
         }
-        ui.painter().rect_filled(bar.expand(2.0), 6.0, colour::PAGE.gamma_multiply(0.85));
-        let mut child = ui.new_child(egui::UiBuilder::new().max_rect(bar.shrink2(EVec2::new(6.0, 2.0))));
         let top = self.persp.is_some();
         let look = self.look;
         let mut pressed = None;
-        child.horizontal_centered(|ui| {
-            let seg = |ui: &mut egui::Ui, on: bool, text: &str, tip: &str| {
-                let rt = egui::RichText::new(text).font(super::theme::font(super::theme::LABEL, 14.0));
-                let rt = if on { rt.color(super::theme::lime()) } else { rt };
-                ui.add(egui::Button::selectable(on, rt)).on_hover_text(tip).clicked()
-            };
-            if seg(ui, self.auto && !top, "Auto", "Street near the ground, whole map from above") {
-                pressed = Some("auto");
-            }
-            if seg(ui, !top && look == Look::Street, "Street", "The game's own draw: what the street shows, fog") {
-                pressed = Some("street");
-            }
-            if seg(ui, !top && look == Look::Whole, "Whole map", "Every section of the region, no fog") {
-                pressed = Some("whole");
-            }
-            if seg(ui, top, "Top", "Top-down overview (T): drag with the right button, wheel zooms, Home fits") {
-                pressed = Some("top");
-            }
-            ui.separator();
-            if seg(ui, self.haze, "Haze", "A light haze over the whole map and the overview") {
-                pressed = Some("haze");
-            }
-            ui.separator();
-            if seg(ui, self.light, "Work light", "Brightens the dark parts for editing; the game is not changed") {
-                pressed = Some("work");
-            }
-            if seg(ui, !self.light, "Game look", "The picture exactly as the game draws it") {
-                pressed = Some("game");
-            }
-        });
+        // Its own layer, above the overlays' (route, checkpoints, gizmo; see [`super::app::OVERLAY_ORDER`]): nothing
+        // draws over the chips.
+        let ctx = ui.ctx().clone();
+        egui::Area::new(egui::Id::new("editor.viewport.look_bar"))
+            .order(LOOK_BAR_ORDER)
+            .fade_in(false)
+            .fixed_pos(bar.min)
+            .constrain(false)
+            .show(&ctx, |ui| {
+                ui.painter().rect_filled(
+                    Rect::from_min_size(bar.min, size).expand(2.0),
+                    6.0,
+                    colour::PAGE.gamma_multiply(0.85),
+                );
+                let mut child = ui.new_child(egui::UiBuilder::new().max_rect(bar.shrink2(EVec2::new(6.0, 2.0))));
+                child.horizontal_centered(|ui| {
+                    let seg = |ui: &mut egui::Ui, on: bool, text: &str, tip: &str| {
+                        let rt = egui::RichText::new(text).font(super::theme::font(super::theme::LABEL, 14.0));
+                        let rt = if on { rt.color(super::theme::lime()) } else { rt };
+                        ui.add(egui::Button::selectable(on, rt)).on_hover_text(tip).clicked()
+                    };
+                    if seg(ui, self.auto && !top, "Auto", "Street near the ground, whole map from above") {
+                        pressed = Some("auto");
+                    }
+                    if seg(
+                        ui,
+                        !top && look == Look::Street,
+                        "Street",
+                        "The game's own draw: what the street shows, fog",
+                    ) {
+                        pressed = Some("street");
+                    }
+                    if seg(ui, !top && look == Look::Whole, "Whole map", "Every section of the region, no fog") {
+                        pressed = Some("whole");
+                    }
+                    if seg(ui, top, "Top", "Top-down overview (T): drag with the right button, wheel zooms, Home fits")
+                    {
+                        pressed = Some("top");
+                    }
+                    ui.separator();
+                    if seg(ui, self.haze, "Haze", "A light haze over the whole map and the overview") {
+                        pressed = Some("haze");
+                    }
+                    ui.separator();
+                    if seg(
+                        ui,
+                        self.light,
+                        "Work light",
+                        "Brightens the dark parts for editing; the game is not changed",
+                    ) {
+                        pressed = Some("work");
+                    }
+                    if seg(ui, !self.light, "Game look", "The picture exactly as the game draws it") {
+                        pressed = Some("game");
+                    }
+                });
+            });
         match pressed {
             Some("auto") => {
                 self.leave_top(s, None);
@@ -1854,6 +1881,33 @@ mod tests {
         vp.light = false;
         assert!(!vp.needs_frame(&s));
         assert!(!frame(&mut vp, &mut s, &mut egui));
+    }
+
+    /// The look chips are drawn above the overlays (route, checkpoints, gizmo): egui draws a layer that is no area
+    /// after the areas of its order, so the overlays live in a lower order than the chips.
+    #[test]
+    fn the_look_chips_sit_above_the_overlays() {
+        assert!(super::app::OVERLAY_ORDER < LOOK_BAR_ORDER);
+        // Areas of the overlays' order come first; the chips' area is of the higher order, so it is above all.
+        let ctx = egui::Context::default();
+        let screen = Rect::from_min_size(Pos2::ZERO, egui::vec2(900.0, 500.0));
+        // Two frames: an area is sized in its first.
+        let mut out = None;
+        for _ in 0..2 {
+            out = Some(ctx.run_ui(egui::RawInput { screen_rect: Some(screen), ..Default::default() }, |ui| {
+                let layer = egui::LayerId::new(super::app::OVERLAY_ORDER, egui::Id::unique("test.overlay"));
+                let stroke = egui::Stroke::new(3.0, Color32::RED);
+                ui.ctx().layer_painter(layer).line_segment([Pos2::ZERO, Pos2::new(800.0, 400.0)], stroke);
+                egui::Area::new(egui::Id::new("test.chips"))
+                    .order(LOOK_BAR_ORDER)
+                    .show(ui.ctx(), |ui| ui.label("Auto"));
+            }));
+        }
+        let out = out.unwrap();
+        let at = |f: &dyn Fn(&egui::Shape) -> bool| out.shapes.iter().position(|s| f(&s.shape)).unwrap();
+        let line = at(&|s| matches!(s, egui::Shape::LineSegment { .. }));
+        let chips = at(&|s| matches!(s, egui::Shape::Text(_)));
+        assert!(line < chips, "the overlay line is drawn before (under) the chips");
     }
 
     #[test]

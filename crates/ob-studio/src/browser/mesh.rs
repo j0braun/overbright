@@ -77,9 +77,20 @@ pub fn facts(solid: &Solid, textures: &HashMap<u32, Texture>) -> Facts {
     }
 }
 
+/// What a model without geometry (an animation helper) says in place of its sizes.
+pub const NO_MESH: &str = "No mesh (helper)";
+
 impl Facts {
+    /// The model has no geometry at all: a helper that only carries a name and a place.
+    pub fn is_helper(&self) -> bool {
+        self.vertices == 0 && self.triangles == 0
+    }
+
     /// The lines the viewer and the command line show.
     pub fn lines(&self) -> Vec<String> {
+        if self.is_helper() {
+            return vec![NO_MESH.to_string()];
+        }
         let mut l = vec![
             format!(
                 "{} vertices · {} triangles · {}",

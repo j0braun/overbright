@@ -81,3 +81,17 @@ fn a_model_without_geometry_has_zero_size() {
     assert_eq!((f.vertices, f.triangles, f.size), (0, 0, [0.0; 3]));
     assert!(f.parts.is_empty());
 }
+
+#[test]
+fn a_model_without_geometry_says_it_is_a_helper_not_zero_sizes() {
+    let mut empty = solid();
+    empty.vertices.clear();
+    empty.normals.clear();
+    empty.indices.clear();
+    empty.materials.clear();
+    let f = facts(&empty, &textures());
+    assert!(f.is_helper());
+    assert_eq!(f.lines(), [NO_MESH]);
+    assert!(!facts(&solid(), &textures()).is_helper());
+    assert!(facts(&solid(), &textures()).lines()[1].starts_with("Size "));
+}

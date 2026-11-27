@@ -26,6 +26,8 @@ pub const ROW_H: f32 = 34.0;
 /// The picture in a row (points) and the preview in the viewer.
 const PIC: f32 = 26.0;
 const PREVIEW: f32 = 176.0;
+/// The width from which a picture box has room for the words "No picture".
+const NO_PICTURE_WORDS_MIN: f32 = 72.0;
 /// Below this page width the viewer sits under the list, and the filters use their short names.
 pub const WIDE_FROM: f32 = 820.0;
 /// The most entries a "used by" list shows.
@@ -783,6 +785,12 @@ impl Page {
             };
             if !matches!(h, Hit::Line(_)) {
                 frame_picture(&clip, pic, tid, matches!(h, Hit::Model(_)));
+                // A model that is no picture at all (a helper) wears the detail's "No picture" mark.
+                if let Hit::Model(i) = h
+                    && self.index().and_then(|x| x.models.get(i)).is_some_and(|m| !drawable(src.world, m.solid))
+                {
+                    no_picture_mark(&clip, pic, rgb(t.dim));
+                }
             }
             if matches!(h, Hit::Sound(_)) {
                 play_mark(&clip, pic, rgb(t.lime));
@@ -892,6 +900,7 @@ impl Page {
                     let facts = src.world.solids.get(m.solid).map(|s| ob_studio::browser::mesh::facts(s, &src.world.textures));
                     let mut lines = vec![idx.model_used(i)];
                     match &facts {
+                        Some(f) if f.is_helper() => lines.push(words::NO_MESH_HELPER.to_string()),
                         Some(f) => {
                             let l = f.lines();
                             lines.extend(l.iter().take(2).cloned());
@@ -985,11 +994,12 @@ impl Page {
         if tid.is_none()
             && let Hit::Model(i) = h
         {
-            let word = match self.index().map(|x| x.models[i].solid) {
-                Some(s) if drawable(src.world, s) => words::DRAWING,
-                _ => words::NO_PICTURE,
-            };
-            clip.text(pic.center(), Align2::CENTER_CENTER, word, font("body", 13.0), rgb(t.dim));
+            match self.index().map(|x| x.models[i].solid) {
+                Some(s) if drawable(src.world, s) => {
+                    clip.text(pic.center(), Align2::CENTER_CENTER, words::DRAWING, font("body", 13.0), rgb(t.dim));
+                }
+                _ => no_picture_mark(&clip, pic, rgb(t.dim)),
+            }
         }
         // The words, right of the picture (under it in a strip too narrow for both).
         let tx = pic.right() + 16.0;
@@ -1160,6 +1170,17 @@ fn list_words(words: impl Iterator<Item = String>, n: usize) -> String {
 }
 
 /// A picture in `r`: framed; a model's on the page's colour, a texture's over a checker so its alpha shows.
+/// The "No picture" mark of a model that cannot be drawn: the words in a picture-sized box, a struck-through square
+/// (the same mark, small) in a list row's thumbnail where the words would not fit.
+pub(super) fn no_picture_mark(p: &egui::Painter, r: Rect, col: Color32) {
+    if r.width() >= NO_PICTURE_WORDS_MIN {
+        p.text(r.center(), Align2::CENTER_CENTER, words::NO_PICTURE, font("body", 13.0), col);
+    } else {
+        let m = r.shrink(r.width() * 0.28);
+        p.line_segment([m.left_bottom(), m.right_top()], Stroke::new(1.4, col));
+    }
+}
+
 fn frame_picture(p: &egui::Painter, r: Rect, t: Option<egui::TextureId>, model: bool) {
     let tk = tokens();
     p.rect_filled(r, 4.0, draw::page_fill());

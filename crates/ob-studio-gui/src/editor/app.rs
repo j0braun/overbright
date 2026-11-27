@@ -497,6 +497,10 @@ pub struct Panels {
     pub under_view: Vec<Box<dyn Panel>>,
 }
 
+/// The overlays' layer order: below the view's look buttons (an egui layer that is no area draws after the areas of
+/// its order, so the same order would put the route over the buttons).
+pub const OVERLAY_ORDER: egui::Order = egui::Order::Background;
+
 /// Something drawn over the viewport `rect` with `painter` (a layer above
 /// the viewport's image). Returns true when it takes the pointer this
 /// frame (a handle under it or dragged): the viewport then does not pick
@@ -2016,7 +2020,7 @@ impl App {
         // whether one before it did.
         let rect = ui.max_rect();
         *view_rect = rect;
-        let layer = egui::LayerId::new(egui::Order::Middle, egui::Id::unique("editor.viewport.overlay"));
+        let layer = egui::LayerId::new(OVERLAY_ORDER, egui::Id::unique("editor.viewport.overlay"));
         let painter = ui.ctx().layer_painter(layer).with_clip_rect(rect);
         let mut taken = false;
         ui.ctx().data_mut(|d| d.insert_temp(pointer_taken_id(), false));
