@@ -174,7 +174,10 @@ pub fn read(name: &str) -> Result<NativeSave> {
 /// The file is the existing one of any case (see [`resolve`]).
 pub fn write(name: &str, save: &NativeSave) -> Result<()> {
     let path = find(name);
-    write_to(&path, save)
+    write_to(&path, save)?;
+    // Overbright's own record of the packs on, in its own folder (never in the profile).
+    crate::mod_packs::sidecar::record(&resolve(name));
+    Ok(())
 }
 
 /// The file goes through a temporary file and a rename, as in the

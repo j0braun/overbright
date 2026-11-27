@@ -139,6 +139,33 @@ fn reset_and_undo_are_steps_of_the_mods_history() {
 }
 
 #[test]
+fn an_object_returns_to_the_original_in_one_step_and_only_edited_filters() {
+    use ob_studio::changes::Show;
+    let dir = maps("object");
+    let mut s = Studio::new(dir.clone(), Some("harbour-edits"));
+    s.go(&Address::parse("ob://harbour-edits/@changes").unwrap()).unwrap();
+    let p = &mut s.changes;
+    // Only edited keeps what differs from the original.
+    p.show = Show::Edited;
+    assert!(!p.rows().is_empty() && p.rows().iter().all(|r| r.edited()));
+    p.show = Show::Mine;
+    let before = p.data().unwrap().rows.len();
+    // The first object (the dome: position and heading are both its edit) goes back whole, as one step.
+    let (key, steps) = (p.rows()[0].key.clone(), p.data().unwrap().steps.len());
+    p.reset_object(0, None);
+    assert!(p.note.as_deref().unwrap().starts_with("Returned XO_DOME_ROOF to the original"), "{:?}", p.note);
+    let d = p.data().unwrap();
+    assert_eq!(d.rows.len(), before - 1);
+    assert!(d.rows.iter().all(|r| r.key != key), "the edit is gone, not only its position");
+    assert_eq!(d.steps.len(), steps + 1, "one step in the history");
+    // What it touches: its region and section, and that it affects play.
+    let place = d.rows.iter().find(|r| r.kind == "placement").unwrap().clone();
+    let line = s.changes.touches(&place).line();
+    assert!(line.contains("region L4RA") && line.contains("section 1407") && line.ends_with("affects play"), "{line}");
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn addresses_name_the_pages_modes() {
     let dir = maps("addr");
     let mut s = Studio::new(dir.clone(), Some("harbour-edits"));

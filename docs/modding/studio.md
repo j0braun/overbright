@@ -142,7 +142,12 @@ top). Beside each value is the original. A value another mod beats also shows yo
 **Show in Clashes** in place of Reset.
 
 - **This mod** (`@changes`): your game without the mod → with it. *Show* picks **Everything this mod changes**,
-  **Only what loses** or **All values** (every value of the items the mod changes).
+  **Only what loses**, **Only edited** (what differs from the original: an item the mod only restates is left out)
+  or **All values** (every value of the items the mod changes). The inspector's **Touches** line says what the
+  focused item touches: its region and stream section, the neighbouring sections that draw that section (from the
+  city's section lists, when World has them loaded) and whether it **affects play** (props and races do; textures
+  are looks only). **Return to original** gives the whole object back as one history step (a moved prop stands
+  where it did, a hidden one is shown, an added prop or a race is gone); Ctrl+Z takes it back.
 - **History step** (`@changes?step=<n>`): what one step of the mod's history changed, before → after.
 - **Compare versions** (`@changes?version=<name>`): a kept version → now.
 - **Clashes** (`@changes?mode=clashes`): the values another mod gives too, as the stack in your game's order with

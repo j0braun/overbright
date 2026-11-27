@@ -75,6 +75,14 @@ what it changes compared with the game: its props (each moved, removed or added)
 textures it replaces, its credits, which game copy it was made for, and what it overrules among the packs that are
 on. Nothing is switched on or written by it, so you can read the report of a pack file before you add it.
 
+A pack that changes races, props or collision carries the **affects play** tag (its manifest's `affects_play`, which
+the exporter computes). Saves made while it is on remember that, in a small file of Overbright's own beside the
+profiles' folder; if you load such a save later with the pack off or changed, you are told, and the save itself is
+never changed. A pack that only changes how things look is tagged **looks only** and saves do not depend on it.
+
+When a pack is made for another install than yours, each edit that names a prop this install does not have is left
+out on its own, with the reason in the log, and never put on the nearest other prop.
+
 ## If a pack is refused
 
 The launcher shows a reason under the pack's name and does not mount it. The usual reasons: it was made for

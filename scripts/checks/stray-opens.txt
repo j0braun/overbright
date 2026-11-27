@@ -52,6 +52,7 @@ crates/ob-assets/src/mod_packs/convert.rs	5	the player's packs, mods and importe
 crates/ob-assets/src/mod_packs/credits.rs	1	the player's mod credits file (a user-chosen folder)
 crates/ob-assets/src/mod_packs/inside.rs	2	the player's packs, mods and importers (user-chosen paths)
 crates/ob-assets/src/mod_packs/pack_export.rs	2	the player's packs, mods and importers (user-chosen paths)
+crates/ob-assets/src/mod_packs/sidecar.rs	1	the program's own data: the save sidecar beside the profiles (Overbright's own small file, never a game file)
 crates/ob-assets/src/obpack/index.rs	1	the player's packs, mods and importers (user-chosen paths)
 src/overlay/system/sources.rs	13	system files (/proc, /sys, /dev, /etc) and the program's own files
 src/pad/ff_out.rs	1	system files (/proc, /sys, /dev, /etc) and the program's own files

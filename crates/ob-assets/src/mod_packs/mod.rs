@@ -18,6 +18,7 @@ mod inside;
 mod layers;
 mod pack_export;
 mod report;
+pub mod sidecar;
 mod stack;
 
 pub use inside::{Inside, inside};
@@ -41,6 +42,23 @@ use crate::tools::map::store;
 static BASE: RwLock<Option<BaseId>> = RwLock::new(None);
 /// The mounted packs and where each is read from, weakest first.
 static ROOTS: RwLock<Vec<(String, PathBuf)>> = RwLock::new(Vec::new());
+/// The packs that are on, as the save sidecar records them.
+static ACTIVE: RwLock<Vec<sidecar::Pack>> = RwLock::new(Vec::new());
+
+/// Whether the installed pack `p` carries the "affects play" tag (its manifest, or what its map data holds).
+pub fn pack_affects_play(p: &modpack::Installed) -> bool {
+    let map = materialize(p).ok().and_then(|r| content::read(&r).ok().flatten());
+    sidecar::affects_play(&p.manifest, map.as_ref())
+}
+
+/// The packs mounted in this run (weakest first), for the save sidecar ([`sidecar`]).
+pub fn active() -> Vec<sidecar::Pack> {
+    ACTIVE.read().unwrap_or_else(|e| e.into_inner()).clone()
+}
+
+/// The mounted packs are process-wide: the tests that mount packs, or count what is mounted, take turns on this lock.
+#[cfg(test)]
+pub(crate) static TEST_SERIAL: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 /// Tests that set or read the process-wide stack (the mounted base and packs, the cache folder, the map mods'
 /// folders read through `mount_all`) take turns: hold this for the whole test.
@@ -100,6 +118,8 @@ pub fn base_in_use() -> Option<BaseId> {
 pub struct Mounted {
     /// The map mods of the packs, weakest first, known by their pack ids.
     pub mods: Vec<(String, MapMod)>,
+    /// Every mounted pack as the save sidecar records it (also those with no map data).
+    pub packs: Vec<sidecar::Pack>,
 }
 
 /// The folder a mounted pack's files are read from (`map.obmap`, `textures/`).
@@ -133,9 +153,21 @@ fn load(base: Option<&BaseId>, taken: &[String], extra: Option<&str>) -> (modpac
             }
         };
         roots.push((p.id.clone(), root.clone()));
+        let pack = |map: Option<&MapMod>| sidecar::Pack {
+            id: p.id.clone(),
+            version: p.manifest.version.to_string(),
+            affects_play: sidecar::affects_play(&p.manifest, map),
+            digest: sidecar::digest_of(p),
+        };
         match content::read(&root) {
-            Ok(Some(m)) => out.mods.push((p.id.clone(), m)),
-            Ok(None) => log::info!("mod pack {}: no map data in it", p.id),
+            Ok(Some(m)) => {
+                out.packs.push(pack(Some(&m)));
+                out.mods.push((p.id.clone(), m));
+            }
+            Ok(None) => {
+                out.packs.push(pack(None));
+                log::info!("mod pack {}: no map data in it", p.id);
+            }
             Err(e) => {
                 roots.pop();
                 log::warn!("mod pack {} is not used: {e}", p.id);
@@ -184,6 +216,7 @@ pub fn mount(taken: &[String]) -> Mounted {
         }
     }
     *ROOTS.write().unwrap_or_else(|e| e.into_inner()) = roots;
+    *ACTIVE.write().unwrap_or_else(|e| e.into_inner()) = out.packs.clone();
     out
 }
 

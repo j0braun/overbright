@@ -33,6 +33,7 @@ pub use store::*;
 /// Load profile `name` from disk and make it current.
 pub fn load(name: &str) -> Result<NativeSave> {
     let s = read(name)?;
+    crate::mod_packs::sidecar::check(&resolve(name));
     set_current(&resolve(name), s.clone());
     Ok(s)
 }
